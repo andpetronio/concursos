@@ -1,0 +1,18 @@
+{% extends "layouts/private.html" %}
+{% block title %}{{ title }} · Concursos Nodocentes{% endblock %}
+{% block content %}
+{% include "components/page_header.html" with section="Concursos" title=title description="Los datos de cargo y estructura quedan registrados como información propia de este concurso. No requieren foja." %}
+<section class="card">
+  <p>Todos los datos generales son obligatorios.</p>
+  {% include "components/form_errors.html" %}
+  <form method="post">
+    {% csrf_token %}
+    {% for hidden in form.hidden_fields %}{{ hidden }}{{ hidden.errors }}{% endfor %}
+    <div class="form-grid">{% for field in form.visible_fields %}{% include "components/field.html" with field=field %}{% endfor %}</div>
+    <div class="actions">
+      {% include "components/button.html" with label="Guardar concurso" %}
+      {% if object %}<a href="{{ object.get_absolute_url }}">Cancelar y volver a la ficha</a>{% else %}<a href="{% url 'concursos:lista' %}">Cancelar</a>{% endif %}
+    </div>
+  </form>
+</section>
+{% endblock %}

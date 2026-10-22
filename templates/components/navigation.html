@@ -1,0 +1,11 @@
+<aside class="sidebar">
+  {% include "components/brand.html" %}
+  <nav aria-label="Navegación principal">
+    <a class="nav-link{% if request.resolver_match.url_name == 'dashboard' %} is-active{% endif %}" href="{% url 'dashboard' %}"{% if request.resolver_match.url_name == 'dashboard' %} aria-current="page"{% endif %}>Panel inicial</a>
+    {% if perms.concursos.view_concurso %}<a class="nav-link{% if request.resolver_match.namespace == 'concursos' %} is-active{% endif %}" href="{% url 'concursos:lista' %}"{% if request.resolver_match.namespace == 'concursos' %} aria-current="page"{% endif %}>Concursos</a>{% endif %}
+  </nav>
+  <div class="sidebar-bottom">
+    <p class="session-note">La sesión se cierra después de 30 minutos sin actividad.</p>
+    <form action="{% url 'logout' %}" method="post">{% csrf_token %}{% include "components/button.html" with label="Cerrar sesión" extra_class="button-secondary" %}</form>
+  </div>
+</aside>

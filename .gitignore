@@ -1,0 +1,28 @@
+# Secretos y entorno
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+# Python / Django
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+# IDE y sistema
+.DS_Store
+.idea/
+.vscode/
+# Archivos de operación y datos
+*.sqlite3
+*.dump
+*.backup
+backups/
+media/
+staticfiles/
+# Herramientas locales y evidencia de pruebas (sin datos reales)
+.docker-local/
+artifacts/

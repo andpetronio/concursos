@@ -1,0 +1,13 @@
+{% extends "components/table.html" %}
+{% block columns %}<th scope="col">Expediente</th><th scope="col">Cargo</th><th scope="col">Código presupuestario</th><th scope="col">Estado principal</th><th scope="col">Situación</th>{% endblock %}
+{% block rows %}
+{% for concurso in concursos %}
+<tr>
+  <td><a href="{{ concurso.get_absolute_url }}">{{ concurso.expediente }}<span class="visually-hidden"> · {{ concurso.denominacion }} · Concurso {{ concurso.pk }}</span></a></td>
+  <td>{{ concurso.denominacion }}</td>
+  <td>{{ concurso.codigo_presupuestario }}</td>
+  <td>{% include "components/status.html" with label=concurso.get_estado_display %}</td>
+  <td>{% include "components/status.html" with label=concurso.get_situacion_display %}</td>
+</tr>
+{% endfor %}
+{% endblock %}

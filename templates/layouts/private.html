@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load static %}
+{% block scripts %}<script src="{% static 'js/session.js' %}" defer></script>{% endblock %}
+{% block layout %}
+<div class="app-shell" data-session-activity="{% url 'session_activity' %}" data-session-status="{% url 'session_status' %}" data-login="{% url 'login' %}">
+  {% include "components/navigation.html" %}
+  <div class="workspace">
+    <header class="topbar">
+      <span>Dirección de Concursos Nodocentes</span>
+      <span class="account">{{ request.user.get_username }}</span>
+    </header>
+    <main id="contenido" class="main-content" tabindex="-1">
+      {% include "components/messages.html" %}
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="footer">Universidad Nacional de San Juan · Gestión administrativa</footer>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+.git
+.codex
+.agents
+.venv
+__pycache__
+*.pyc
+*.sqlite3
+media
+staticfiles
+.docker-local
+artifacts
+docs

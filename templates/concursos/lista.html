@@ -1,0 +1,25 @@
+{% extends "layouts/private.html" %}
+{% block title %}Concursos · UNSJ{% endblock %}
+{% block content %}
+{% include "components/page_header.html" with section="Gestión" title="Concursos" description="Consultá los concursos por expediente, cargo o código presupuestario." %}
+{% if perms.concursos.add_concurso %}
+<div class="actions">{% url 'concursos:crear' as crear_url %}{% include "components/button.html" with href=crear_url label="Registrar concurso" %}</div>
+{% endif %}
+<section class="card section" aria-label="Búsqueda y filtros">
+  {% include "components/form_errors.html" with form=filtros %}
+  <form method="get" action="{% url 'concursos:lista' %}" class="filter-form">
+    {% for field in filtros %}{% include "components/field.html" with field=field %}{% endfor %}
+    {% include "components/button.html" with label="Buscar" %}
+  </form>
+  <a href="{% url 'concursos:lista' %}">Limpiar filtros</a>
+</section>
+{% if concursos %}
+  <p role="status">{{ page_obj.paginator.count }} concurso{{ page_obj.paginator.count|pluralize:"s" }} encontrado{{ page_obj.paginator.count|pluralize:"s" }}.</p>
+  {% include "concursos/lista_tabla.html" with table_label="Concursos encontrados" %}
+  {% include "components/pagination.html" %}
+{% elif filtros.errors %}
+  {% include "components/empty_state.html" with title="Revisá los filtros" description="Corregí los campos señalados para realizar la búsqueda." %}
+{% else %}
+  {% include "components/empty_state.html" with title="No hay concursos para mostrar" description="Todavía no se registraron concursos o ninguno coincide con los filtros. Podés limpiar la búsqueda para volver a consultar." %}
+{% endif %}
+{% endblock %}

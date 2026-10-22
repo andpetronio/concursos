@@ -1,0 +1,16 @@
+{% extends "admin/base.html" %}
+{% load static %}
+{% block dark-mode-vars %}{% endblock %}
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+<link rel="stylesheet" href="{% static 'css/admin-adapter.css' %}">
+{% endblock %}
+{% block branding %}<div id="site-name"><a href="{% url 'admin:index' %}">Concursos Nodocentes · UNSJ</a></div>{% endblock %}
+{% block footer %}
+{{ block.super }}
+{% if request.user.is_authenticated %}
+<div hidden data-session-activity="{% url 'session_activity' %}" data-session-status="{% url 'session_status' %}" data-login="{% url 'login' %}">{% csrf_token %}</div>
+<script src="{% static 'js/session.js' %}" defer></script>
+{% endif %}
+{% endblock %}

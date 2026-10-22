@@ -1,0 +1,16 @@
+{% extends "layouts/auth.html" %}
+{% block title %}Ingresar · Concursos Nodocentes{% endblock %}
+{% block content %}
+<p class="eyebrow">Acceso al sistema</p>
+<h1>Iniciar sesión</h1>
+<p>Ingresá con tu usuario y contraseña.</p>
+{% if request.GET.expired %}<div class="notice" role="status">Tu sesión venció por inactividad. Volvé a ingresar para continuar. Los cambios que no enviaste no se guardaron.</div>{% endif %}
+{% if form.non_field_errors %}<div class="notice notice-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+<form method="post" action="{% url 'login' %}">
+  {% csrf_token %}
+  {% for field in form %}{% include "components/field.html" with field=field %}{% endfor %}
+  <input type="hidden" name="next" value="{{ next }}">
+  {% include "components/button.html" with label="Ingresar" extra_class="button-full" %}
+</form>
+<p class="session-note">Por seguridad, la sesión vence tras 30 minutos sin actividad.</p>
+{% endblock %}

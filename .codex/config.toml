@@ -1,0 +1,5 @@
+# Configuración local de Codex para este proyecto.
+# No se fija modelo ni permisos; se respeta la configuración del usuario.
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 3

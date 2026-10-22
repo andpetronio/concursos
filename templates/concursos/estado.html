@@ -1,0 +1,16 @@
+{% extends "layouts/private.html" %}
+{% block title %}Cambiar estado · {{ concurso.expediente }}{% endblock %}
+{% block content %}
+{% include "components/page_header.html" with section="Concursos" title="Cambiar estado o situación" description=concurso.expediente %}
+<section class="card">
+  <p>Estado actual: <strong>{{ concurso.get_estado_display }}</strong>. Situación: <strong>{{ concurso.get_situacion_display }}</strong>.</p>
+  <p>El cambio es manual. Al confirmarlo se guardarán los valores anteriores y nuevos, tu usuario, la fecha y la justificación opcional.</p>
+  {% include "components/form_errors.html" %}
+  <form method="post">
+    {% csrf_token %}
+    {% for hidden in form.hidden_fields %}{{ hidden }}{{ hidden.errors }}{% endfor %}
+    {% for field in form.visible_fields %}{% include "components/field.html" with field=field %}{% endfor %}
+    <div class="actions">{% include "components/button.html" with label="Confirmar cambio" %}<a href="{{ concurso.get_absolute_url }}">Cancelar y volver a la ficha</a></div>
+  </form>
+</section>
+{% endblock %}

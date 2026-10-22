@@ -1,0 +1,14 @@
+{% extends "layouts/private.html" %}
+{% block title %}Panel inicial · Concursos Nodocentes{% endblock %}
+{% block content %}
+{% include "components/page_header.html" with section="Inicio" title="Panel inicial" description="Sistema de Gestión de Concursos Nodocentes" %}
+<section class="card welcome-card" aria-labelledby="welcome-title">
+  <span class="eyebrow">Dirección de Concursos Nodocentes</span>
+  <h2 id="welcome-title">Bienvenido al espacio de trabajo</h2>
+  <p>Desde este sistema se acompañará la gestión administrativa de los concursos de la UNSJ.</p>
+</section>
+<div class="card-grid">
+  <section class="card"><h2>Gestión de concursos</h2>{% if perms.concursos.view_concurso %}<p>Consultá los concursos registrados y su historial de estados.</p><a href="{% url 'concursos:lista' %}">Ver concursos</a>{% else %}<p>Tu cuenta todavía no tiene acceso a concursos. Solicitá los permisos al administrador.</p>{% endif %}</section>
+  {% include "components/card.html" with title="El expediente sigue su curso" description="La aplicación acompaña el trabajo administrativo. El expediente y los actos oficiales continúan por sus canales habituales." %}
+</div>
+{% endblock %}

@@ -1,0 +1,6 @@
+{% extends "layouts/private.html" %}
+{% block title %}Acceso restringido · Concursos Nodocentes{% endblock %}
+{% block content %}
+{% include "components/page_header.html" with section="Permisos" title="Acceso restringido" description=description|default:"Tu cuenta no tiene permiso para acceder a la administración de usuarios." %}
+<a href="{% url 'dashboard' %}">Volver al panel inicial</a>
+{% endblock %}

@@ -1,0 +1,7 @@
+<div class="table-region" role="region" aria-label="{{ table_label }}" tabindex="0">
+  <table class="data-table">
+    <caption class="visually-hidden">{{ table_label }}</caption>
+    <thead><tr>{% block columns %}{% endblock %}</tr></thead>
+    <tbody>{% block rows %}{% endblock %}</tbody>
+  </table>
+</div>

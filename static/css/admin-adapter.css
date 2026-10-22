@@ -1,0 +1,33 @@
+/* Adaptación del admin nativo: comparte tokens sin importar el layout privado. */
+body {
+  --secondary: var(--primary);
+  --accent: var(--primary-ink);
+  --body-bg: var(--background);
+  --body-fg: var(--text);
+  --body-quiet-color: var(--muted);
+  --body-loud-color: var(--text);
+  --header-bg: var(--navigation);
+  --header-color: var(--text);
+  --header-branding-color: var(--text);
+  --header-link-color: var(--primary-ink);
+  --breadcrumbs-bg: var(--surface);
+  --breadcrumbs-fg: var(--text);
+  --breadcrumbs-link-fg: var(--primary-ink);
+  --link-fg: var(--primary-ink);
+  --link-hover-color: var(--text);
+  --link-selected-fg: var(--primary-ink);
+  --hairline-color: var(--border);
+  --border-color: var(--border);
+  --darkened-bg: var(--surface);
+  --selected-bg: var(--primary-soft);
+  --selected-row: var(--primary-soft);
+  --button-bg: var(--primary-ink);
+  --button-hover-bg: var(--text);
+  --default-button-bg: var(--primary-ink);
+  --default-button-hover-bg: var(--text);
+  font-family: var(--font);
+}
+body :focus-visible { outline: 3px solid var(--primary-ink); outline-offset: 3px; }
+.theme-toggle { display: none; }
+.module h2, .module caption, .inline-group h2 { background: var(--surface); color: var(--text); }
+.module caption a { color: var(--primary-ink); }

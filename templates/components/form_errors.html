@@ -1,0 +1,6 @@
+{% if form.errors %}
+<div class="notice notice-error" role="alert">
+  <p>Revisá los campos señalados para continuar.</p>
+  {{ form.non_field_errors }}
+</div>
+{% endif %}
