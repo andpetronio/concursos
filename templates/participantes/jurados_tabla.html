@@ -1,0 +1,12 @@
+{% extends "components/table.html" %}
+{% block columns %}
+<th scope="col">Representación</th><th scope="col">Calidad</th><th scope="col">Persona</th><th scope="col">Título y cargo</th><th scope="col">Contacto</th>{% if perms.concursos.change_concurso %}<th scope="col">Acciones</th>{% endif %}
+{% endblock %}
+{% block rows %}
+{% for jurado in jurados %}<tr>
+  <td>{{ jurado.get_representacion_display }}</td><td>{{ jurado.get_calidad_display }}</td>
+  <td>{{ jurado.persona.apellido }}, {{ jurado.persona.nombre }}<br>DNI {{ jurado.persona.dni }}</td>
+  <td>{{ jurado.titulo }}<br>{{ jurado.cargo }}</td><td>{{ jurado.email|default:"—" }}<br>{{ jurado.telefono|default:"—" }}</td>
+  {% if perms.concursos.change_concurso %}<td><a href="{% url 'concursos:jurado_editar' concurso.pk jurado.pk %}">Editar participación</a><br><a href="{% url 'concursos:persona_editar' concurso.pk jurado.persona.pk %}">Corregir persona</a></td>{% endif %}
+</tr>{% endfor %}
+{% endblock %}

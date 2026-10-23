@@ -1,6 +1,6 @@
 # SDD-003 — Participantes institucionales y aspirantes
 
-**Estado:** PROGRAMADA, no ejecutar todavía.
+**Estado:** Implementación entregada; aceptación del usuario pendiente. Ver `docs/SDD-003-EVIDENCIA.md`.
 
 ## Objeto
 Relacionar personas con concursos como jurados, veedores o aspirantes sin duplicar personas.

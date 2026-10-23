@@ -88,6 +88,15 @@ class ConcursoTests(TestCase):
         self.assertContains(response, 'aria-describedby="id_expediente_error"')
         self.assertContains(response, 'id="id_expediente_error"', count=1)
 
+    def test_formulario_renderiza_todos_los_campos_visibles_en_alta_y_edicion(self):
+        concurso = self.concurso()
+        for url in (reverse("concursos:crear"), self.url("editar", concurso)):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                for field in response.context["form"].visible_fields():
+                    self.assertContains(response, f'name="{field.html_name}"', count=1)
+
     def test_longitud_invalida_no_guarda_y_conserva_entrada(self):
         response = self.client.post(reverse("concursos:crear"), {**DATOS, "expediente": "X" * 101})
         self.assertIn("expediente", response.context["form"].errors)
@@ -270,7 +279,7 @@ class ConcursoTests(TestCase):
         self.assertContains(response, "&lt;script&gt;motivo&lt;/script&gt;")
         self.assertNotContains(response, "<script>prueba</script>")
         self.assertContains(response, self.operador.username)
-        self.assertContains(response, "Participantes · No disponible")
+        self.assertContains(response, "Todavía no hay integrantes del jurado registrados")
         self.assertNotContains(response, 'href="#"')
 
     def test_anonimos_y_usuarios_sin_permisos_no_acceden(self):

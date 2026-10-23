@@ -1,1 +1,1 @@
-{% for message in messages %}<div class="notice" role="status">{{ message }}</div>{% endfor %}
+{% for message in messages %}<div class="notice{% if message.level_tag == 'success' %} notice-success{% endif %}" role="status">{{ message }}</div>{% endfor %}

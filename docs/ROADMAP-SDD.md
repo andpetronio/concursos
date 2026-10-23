@@ -3,8 +3,8 @@
 | ID | Estado | Entrega | Condición de paso |
 |---|---|---|---|
 | SDD-001 | Implementada; pruebas aprobadas por el usuario | Fundaciones, autenticación, UI común, 30 min inactividad | Validación visual pendiente documentada en su evidencia |
-| SDD-002 | Implementación entregada (22/10/2026); validación visual pendiente | Registro, listado, ficha y estados de concursos | Evidencia en `SDD-002-EVIDENCIA.md`; sin autorización de SDD-003 |
-| SDD-003 | Pendiente de aprobación | Personas, jurados, veedores APUNSJ, aspirantes | SDD-002 aprobada |
+| SDD-002 | Implementación entregada (22/10/2026); revisión visual posterior finalizada | Registro, listado, ficha y estados de concursos | Evidencia en `SDD-002-EVIDENCIA.md`; transición a SDD-003 autorizada |
+| SDD-003 | Implementación entregada; aceptación del usuario pendiente | Personas, jurados, veedores APUNSJ, aspirantes | Evidencia en `SDD-003-EVIDENCIA.md`; aceptación explícita |
 | SDD-004 | Pendiente de aprobación | Checklist con fojas y control de convocatoria | SDD-003 aprobada |
 | SDD-005 | Pendiente de aprobación | Proyectos DOCX editables y documentos oficiales separados | SDD-004 aprobada + revisión de las plantillas |
 | SDD-900 | Futuro / sin ejecutar | Integración CoPla (consulta DNI e impacto designación) | API y reglas acordadas en ambos proyectos |

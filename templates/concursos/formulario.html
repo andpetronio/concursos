@@ -1,18 +1,40 @@
 {% extends "layouts/private.html" %}
 {% block title %}{{ title }} · Concursos Nodocentes{% endblock %}
 {% block content %}
-{% include "components/page_header.html" with section="Concursos" title=title description="Los datos de cargo y estructura quedan registrados como información propia de este concurso. No requieren foja." %}
-<section class="card">
-  <p>Todos los datos generales son obligatorios.</p>
-  {% include "components/form_errors.html" %}
-  <form method="post">
-    {% csrf_token %}
-    {% for hidden in form.hidden_fields %}{{ hidden }}{{ hidden.errors }}{% endfor %}
-    <div class="form-grid">{% for field in form.visible_fields %}{% include "components/field.html" with field=field %}{% endfor %}</div>
-    <div class="actions">
-      {% include "components/button.html" with label="Guardar concurso" %}
-      {% if object %}<a href="{{ object.get_absolute_url }}">Cancelar y volver a la ficha</a>{% else %}<a href="{% url 'concursos:lista' %}">Cancelar</a>{% endif %}
+{% include "components/page_header.html" with section="Concursos" title=title description="Completá la identificación, los datos del cargo y la estructura administrativa. Todos los campos son obligatorios." %}
+{% include "components/form_errors.html" %}
+<form method="post">
+  {% csrf_token %}
+  {% for hidden in form.hidden_fields %}{{ hidden }}{{ hidden.errors }}{% endfor %}
+  <fieldset class="card form-section" aria-labelledby="identificacion-heading">
+    {% include "components/form_section_header.html" with heading_id="identificacion-heading" title="Identificación del concurso" description="Identificá el trámite con su expediente y modalidad." only %}
+    <div class="form-grid">
+      {% include "components/field.html" with field=form.expediente %}
+      {% include "components/field.html" with field=form.modalidad %}
     </div>
-  </form>
-</section>
+  </fieldset>
+  <fieldset class="card form-section" aria-labelledby="cargo-heading">
+    {% include "components/form_section_header.html" with heading_id="cargo-heading" title="Datos del cargo" description="La información se conserva como parte de este concurso." only %}
+    <div class="form-grid">
+      {% include "components/field.html" with field=form.denominacion %}
+      {% include "components/field.html" with field=form.codigo_presupuestario %}
+      {% include "components/field.html" with field=form.funciones extra_class="field--full" %}
+      {% include "components/field.html" with field=form.agrupamiento %}
+      {% include "components/field.html" with field=form.categoria %}
+      {% include "components/field.html" with field=form.tramo %}
+    </div>
+  </fieldset>
+  <fieldset class="card form-section" aria-labelledby="estructura-heading">
+    {% include "components/form_section_header.html" with heading_id="estructura-heading" title="Estructura administrativa" description="Registrá la unidad, dependencia y cadena jerárquica aplicables a este concurso." only %}
+    <div class="form-grid">
+      {% include "components/field.html" with field=form.unidad %}
+      {% include "components/field.html" with field=form.dependencia %}
+      {% include "components/field.html" with field=form.cadena_jerarquica extra_class="field--full" %}
+    </div>
+  </fieldset>
+  <div class="form-actions">
+    {% include "components/button.html" with label="Guardar concurso" %}
+    {% if object %}<a href="{{ object.get_absolute_url }}">Cancelar y volver a la ficha</a>{% else %}<a href="{% url 'concursos:lista' %}">Cancelar</a>{% endif %}
+  </div>
+</form>
 {% endblock %}

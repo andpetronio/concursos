@@ -1,6 +1,6 @@
 # gestion-concursos · UNSJ
 
-Sistema de Gestión Administrativa de Concursos Nodocentes: fundaciones SDD-001 y gestión de concursos SDD-002. Incluye autenticación, vencimiento por inactividad, listado, registro, edición, ficha y cambios manuales auditados de estado/situación. El expediente y los actos oficiales continúan fuera de la aplicación. Participantes, control documental, DOCX e integración con CoPla corresponden a fases posteriores.
+Sistema de Gestión Administrativa de Concursos Nodocentes: fundaciones SDD-001, gestión de concursos SDD-002 y participantes SDD-003 (implementación entregada; aceptación del usuario pendiente). Incluye autenticación, vencimiento por inactividad, concursos y registro de jurados, veedores de APUNSJ y aspirantes. El expediente y los actos oficiales continúan fuera de la aplicación. Control documental, DOCX e integración con CoPla corresponden a fases posteriores.
 
 ## Requisitos
 
@@ -129,7 +129,7 @@ Los once datos mínimos son obligatorios: expediente, tipo/modalidad, denominaci
 
 El alta inicia en **Preparación / Normal** y registra su usuario/fecha. En la ficha se pueden editar los datos generales y, con permiso separado, cambiar manualmente estado principal y/o situación adicional. Todos los estados definidos admiten elección manual; no hay bloqueos por checklist, sugerencias automáticas ni reglas de transición nuevas. La justificación es opcional. Guardar sin diferencias no genera eventos. Cada cambio efectivo conserva anterior/nuevo, autor y fecha, dentro de la misma transacción que actualiza el concurso.
 
-El listado busca por expediente, denominación/funciones y código presupuestario, combina el filtro de estado y pagina de a 20. La ficha muestra todos los datos y pagina el historial de a 20 con sus responsables. Las futuras secciones están rotuladas como no disponibles, sin enlaces rotos.
+El listado busca por expediente, denominación/funciones y código presupuestario, combina el filtro de estado y pagina de a 20. La ficha muestra todos los datos y pagina el historial de a 20 con sus responsables. Control documental y documentos siguen rotulados como no disponibles, sin enlaces rotos.
 
 Si otro operador guardó una modificación desde que abriste un formulario, tu envío se rechaza con un aviso y conserva tu entrada para revisión. Volvé a abrir la ficha, revisá la modificación reciente y luego realizá el cambio que corresponda. El lock de fila y la versión del registro evitan sobrescribir cambios concurrentes. La edición de datos generales no modifica estados ni genera eventos de estado; sí actualiza responsable/fecha de última modificación. No hay datos de negocio demo ni datos personales reales en las pruebas.
 
@@ -143,4 +143,8 @@ Compose usa el servidor de desarrollo Django y HTTP local (`DJANGO_DEBUG=True`, 
 
 Si Docker informa que no puede conectarse al motor, iniciar Docker Desktop y esperar a que esté listo; en Windows confirmar contenedores Linux/WSL 2. Si el puerto 8000 está ocupado, revisar el proceso antes de cambiar el mapeo. Si faltan tablas, ejecutar `migrate`; si falta un usuario, ejecutar `createsuperuser`. Con `DEBUG=False` el servidor de desarrollo no sirve estáticos: usar el modo local documentado.
 
-La entrega actual termina en SDD-002. SDD-003 requiere aprobación expresa.
+## Participantes · SDD-003 (implementación entregada; aceptación pendiente)
+
+Tras aplicar la migración pendiente con `docker compose run --rm web python manage.py migrate --noinput`, los participantes se gestionan desde la ficha de cada concurso. `view_concurso` permite consultar; `add_concurso` junto con consulta permite registrar; `change_concurso` junto con consulta permite corregir datos de participación y de persona. No se necesitan permisos nuevos ni se asignan automáticamente. Todas las rutas de escritura están bajo `/concursos/` y requieren sesión y CSRF.
+
+El DNI se normaliza quitando puntos, guiones y espacios; una persona se reutiliza entre concursos. Al vincular un DNI existente no se cambian silenciosamente sus nombre y apellido: si difieren, el formulario pide revisar la identidad. La corrección explícita de esos datos afecta todos sus vínculos; el cambio de DNI se rechaza si la persona participa en más de un concurso. Los datos de título, cargo y contacto de jurados y veedores pertenecen a cada participación. La representación/calidad de un jurado registrado puede corregirse si la nueva plaza está libre; no se cambia su persona. Los formularios de edición rechazan envíos abiertos antes de otra modificación. No hay eliminación de personas o participantes desde la interfaz, ni reasignación de personas, sustituciones de jurado, checklist automático, designación de ganador o conexión con CoPla. La política definitiva de fotografías históricas de personas sigue pendiente de decisión administrativa.

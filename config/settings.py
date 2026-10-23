@@ -12,6 +12,7 @@ ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,[::1
 INSTALLED_APPS = [
     "core.apps.CoreConfig",
     "concursos.apps.ConcursosConfig",
+    "participantes.apps.ParticipantesConfig",
     "core.apps.ConcursosAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",

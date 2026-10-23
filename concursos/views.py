@@ -53,6 +53,8 @@ class ConcursoDetailView(AccesoConcursoMixin, DetailView):
         return super().get_queryset().select_related("creado_por", "actualizado_por")
 
     def get_context_data(self, **kwargs):
+        from participantes.models import Aspirante, Jurado, Veedor
+
         context = super().get_context_data(**kwargs)
         context["datos_concurso"] = [
             (self.object._meta.get_field(campo).verbose_name.capitalize(), getattr(self.object, campo))
@@ -61,6 +63,9 @@ class ConcursoDetailView(AccesoConcursoMixin, DetailView):
         context["page_obj"] = Paginator(self.object.historial.select_related("usuario"), 20).get_page(
             self.request.GET.get("page")
         )
+        context["jurados"] = Jurado.objects.filter(concurso=self.object).select_related("persona")
+        context["veedores"] = Veedor.objects.filter(concurso=self.object).select_related("persona")
+        context["aspirantes"] = Aspirante.objects.filter(concurso=self.object).select_related("persona")
         return context
 
 

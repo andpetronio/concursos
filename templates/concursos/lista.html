@@ -6,6 +6,7 @@
 <div class="actions">{% url 'concursos:crear' as crear_url %}{% include "components/button.html" with href=crear_url label="Registrar concurso" %}</div>
 {% endif %}
 <section class="card section" aria-label="Búsqueda y filtros">
+  <div class="section-heading"><h2>Buscar concursos</h2><p>Filtrá el listado para encontrar un trámite.</p></div>
   {% include "components/form_errors.html" with form=filtros %}
   <form method="get" action="{% url 'concursos:lista' %}" class="filter-form">
     {% for field in filtros %}{% include "components/field.html" with field=field %}{% endfor %}
@@ -14,7 +15,7 @@
   <a href="{% url 'concursos:lista' %}">Limpiar filtros</a>
 </section>
 {% if concursos %}
-  <p role="status">{{ page_obj.paginator.count }} concurso{{ page_obj.paginator.count|pluralize:"s" }} encontrado{{ page_obj.paginator.count|pluralize:"s" }}.</p>
+  <div class="section-heading"><h2>Resultados</h2><p role="status">{{ page_obj.paginator.count }} concurso{{ page_obj.paginator.count|pluralize:"s" }} encontrado{{ page_obj.paginator.count|pluralize:"s" }}.</p></div>
   {% include "concursos/lista_tabla.html" with table_label="Concursos encontrados" %}
   {% include "components/pagination.html" %}
 {% elif filtros.errors %}

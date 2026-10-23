@@ -6,8 +6,8 @@
   {% include "components/navigation.html" %}
   <div class="workspace">
     <header class="topbar">
-      <span>Dirección de Concursos Nodocentes</span>
-      <span class="account">{{ request.user.get_username }}</span>
+      <div><span class="topbar-context">Universidad Nacional de San Juan</span><span class="topbar-title">Dirección de Concursos Nodocentes</span></div>
+      <span class="account"><span class="visually-hidden">Usuario: </span><span class="account-name">{{ request.user.get_username }}</span></span>
     </header>
     <main id="contenido" class="main-content" tabindex="-1">
       {% include "components/messages.html" %}

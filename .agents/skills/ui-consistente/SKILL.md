@@ -9,3 +9,4 @@ description: Crear o revisar templates, formularios, tablas, navegación y estil
 4. Mantener login independiente del menú privado, responsive, errores, estados vacíos, etiquetas, contraste y foco visible.
 5. No crear CSS por pantalla ni colores inline dispersos sin necesidad justificada.
 6. Verificar visualmente con navegador en dispositivos de referencia si está disponible; si no, reportar que falta validación visual.
+7. Antes de dar por terminada cualquier funcionalidad con interfaz, comprobar el contrato de `docs/DISEÑO.md` para encabezados internos, campos y estados, foco con teclado, selects y reutilización. Corregir los incumplimientos o informar la verificación pendiente; las pruebas de backend no sustituyen esta revisión.

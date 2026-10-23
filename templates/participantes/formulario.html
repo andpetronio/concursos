@@ -1,0 +1,22 @@
+{% extends "layouts/private.html" %}
+{% block title %}{{ title }} · {{ concurso.expediente }}{% endblock %}
+{% block content %}
+{% include "components/page_header.html" with section="Participantes" title=title description=concurso.expediente %}
+<div class="actions"><a href="{{ concurso.get_absolute_url }}">Volver a la ficha</a></div>
+<form method="post">
+  {% csrf_token %}
+  {% for hidden in form.hidden_fields %}{{ hidden }}{{ hidden.errors }}{% endfor %}
+  <section class="card form-section" aria-labelledby="participante-heading">
+    {% include "components/form_section_header.html" with heading_id="participante-heading" title=title description=description only %}
+    {% if identity %}<p class="field-help">Persona: {{ identity.apellido }}, {{ identity.nombre }} · DNI {{ identity.dni }}</p>{% endif %}
+    {% include "components/form_errors.html" %}
+    <div class="form-grid">
+      {% for field in form.visible_fields %}{% include "components/field.html" with field=field %}{% endfor %}
+    </div>
+  </section>
+  <div class="form-actions">
+    {% include "components/button.html" with label=button_label %}
+    <a href="{{ concurso.get_absolute_url }}">Cancelar y volver a la ficha</a>
+  </div>
+</form>
+{% endblock %}
