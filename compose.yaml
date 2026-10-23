@@ -2,6 +2,8 @@ name: gestion-concursos
 services:
   db:
     image: postgres:17.11-bookworm
+    ports:
+      - "127.0.0.1:5433:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-gestion_concursos}
       POSTGRES_USER: ${POSTGRES_USER:-concursos}
