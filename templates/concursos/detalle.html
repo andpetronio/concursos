@@ -18,6 +18,7 @@
 <section class="card section" aria-labelledby="datos-concurso">
   <h2 id="datos-concurso">Datos generales, cargo y estructura</h2>
   <dl class="detail-list">{% for label, value in datos_concurso %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}</dl>
+  {% if concurso.modalidad == 'acotado' %}{% include "concursos/referencia_acotado.html" %}{% endif %}
 </section>
 <section class="section" aria-labelledby="historial-title">
   <div class="section-heading"><h2 id="historial-title">Historial de estados y situaciones</h2><p>Registro de cambios realizados en el trámite.</p></div>
@@ -45,9 +46,10 @@
   {% include "participantes/aspirantes_tabla.html" with table_label="Aspirantes" %}
   {% else %}{% include "components/empty_state_inline.html" with description="Todavía no hay aspirantes registrados." only %}{% endif %}
 </section>
+{% include "expedientes/checklist.html" %}
 <section class="card section" aria-labelledby="otras-secciones">
   <h2 id="otras-secciones">Secciones previstas</h2>
-  <ul class="future-navigation"><li>Control documental · No disponible</li><li>Documentos · No disponible</li></ul>
+  <ul class="future-navigation"><li>Documentos · No disponible</li></ul>
 </section>
 <section class="section" aria-label="Registro de modificaciones">
   <p class="field-help">Creado por {{ concurso.creado_por.get_username }} el {{ concurso.creado_en|date:"d/m/Y H:i" }}. Última modificación por {{ concurso.actualizado_por.get_username }} el {{ concurso.actualizado_en|date:"d/m/Y H:i" }}.</p>

@@ -112,3 +112,41 @@ Al inicio `git status` devolvió «not a git repository». Durante la tarea apar
 Los servicios quedan iniciados. Para usar concursos, ingresar en <http://127.0.0.1:8000/concursos/> con un superusuario o conceder al usuario los permisos descritos en README desde el admin nativo. Las cuentas existentes no ganan permisos automáticamente. Para repetir la suite: `docker compose exec web python manage.py test -v 2`.
 
 SDD-002 entregada con el límite visual declarado. No se avanza a SDD-003 ni se hicieron commits, pushes o despliegues.
+
+## Consolidación complementaria SDD-002/003 — 23/10/2026
+
+Entrega por pedido específico del usuario, previa a SDD-004. Las limitaciones históricas arriba corresponden a la entrega original; la verificación efectiva de esta consolidación se detalla aquí.
+
+### Alcance y archivos
+- `concursos/choices.py`: cuatro tipos mediante TextChoices, sin tabla nueva. `templates/concursos/referencia_acotado.html`: referencia informativa verificada a Ordenanza 37/25-CS, Anexo, art. 14, compartida por formulario y ficha.
+- `concursos/catalogos.py`, `data/clasificacion_cargos.json`: catálogo local de ocho códigos y matriz de categorías/tramos, verificados en CoPla por lectura de código, JSON, DEC-054 y pruebas. Sin consultas a su base ni dependencia de ejecución. La fuente y matriz constan en DECISIONES.
+- `concursos/models.py`, `forms.py`, `services.py`, `views.py`, `templates/concursos/formulario.html`, `detalle.html`, `static/js/concurso.js` y `static/css/app.css`: selección de agrupamiento, categoría dependiente y tramo informativo calculado. JS recibe datos resueltos por Python; no contiene una matriz paralela. Limpia combinaciones incompatibles y conserva las válidas. Edición, permisos, auditoría y concurrencia existentes conservados.
+- `concursos/migrations/0003_concurso_clasificacion_anterior_and_more.py` y `_clasificacion_0003.py`: migración atómica con preflight completo, instantánea inmutable de correspondencias y conservación exacta de los cuatro textos anteriores. Sin reducción de columnas ni alteración de CP, denominación, funciones, estructura, responsables, fechas, versiones, historial o participantes. Desconocidos/ambiguos/inconsistentes detienen la conversión, sin elección por defecto. Reversión probada que no sobrescribe una corrección posterior.
+- `concursos/tests/test_catalogos.py`, `test_migrations.py` y fixture de `test_concursos.py`; documentación en PRODUCTO, DECISIONES, DISEÑO, specs 002/003 y README. Los ajustes de participantes/DNI anteriores se conservaron; esta tarea no cambia sus reglas.
+
+### Inspección previa y compatibilidad
+Consulta de solo lectura en SiCon, antes de modificar modelos, limitada a modalidad/agrupamiento/categoría/tramo agrupados por cantidad: un registro, Cerrado Interno, Mantenimiento/Producción/Servicios Generales, categoría 5 y tramo Intermedio. Correspondencia inequívoca; el preflight posterior usando el código congelado de la migración informó **1 registro, 1 conversión inequívoca, sin escrituras**.
+
+No se detectaron casos ambiguos en esa base. La prueba de migración sí verifica que Técnico-profesional sin código (2A/2B), una modalidad desconocida o un tramo incompatible detienen toda la operación y dejan los textos sin cambios. DECISIONES documenta el tratamiento conservador: revisión administrativa antes de reintentar, sin sustitución arbitraria. La migración requiere detener el servicio de escritura durante su futura aplicación; README contiene los comandos de esa operación posterior.
+
+### Comandos y resultados
+
+| Verificación | Resultado |
+|---|---|
+| `docker compose run --rm --no-deps --volume C:/Users/Usuario/Desktop/SiCon:/app web python manage.py test -v 1` | **110 pruebas, OK**, PostgreSQL, 17,165 s en ejecución final. Incluye la suite previa de permisos, sesiones y concurrencia; base de pruebas exclusiva eliminada al terminar. |
+| Migraciones | MigrationExecutor desde `concursos.0002`: conversión reconocida, textos originales, conservación de otros datos/auditoría/historial, preflight sin cambios parciales y reversión sin pisar ediciones posteriores. La prueba anterior desde `0001` también continúa pasando. |
+| `docker compose build web` | Imagen local reconstruida con código y JSON de esta consolidación. Servicio activo sin recrear. |
+| `docker compose run --rm --no-deps web python manage.py check` | Sin problemas (0 silenciados), sobre imagen construida sin montaje. |
+| `docker compose run --rm --no-deps web python manage.py makemigrations --check --dry-run` | Sin cambios detectados. |
+| `docker compose run --rm --no-deps web python manage.py migrate --plan` | Pendiente únicamente `concursos.0003`, incluida su operación Python. Inspección sin aplicación. |
+| `docker compose run --rm --no-deps web python -m pip check` | No broken requirements found. |
+| `git diff --check` | Sin errores; avisos de normalización futura LF/CRLF en textos. |
+| Chrome aislado | **18 capturas, 462 comprobaciones DOM, 0 fallos**, viewports internos reales de 360, 768 y 1280 px. Incluye categoría deshabilitada, selección de edición, filtrado de los ocho agrupamientos, tramo derivado, conservación/reset, errores y referencia Acotado, etiquetas, desbordes, Tab y Enter reales. |
+| Popup nativo | Captura adicional a 1280 px tras Alt+ArrowDown real; Chrome informó `select.matches(':open') = true`. Inspección visual del menú con las cuatro opciones, flecha, padding y foco institucional. |
+
+QA local: `.venv/Scripts/python.exe artifacts/consolidacion-catalogos/render_forms.py`, `node artifacts/consolidacion-catalogos/capture_viewports.mjs` y `node artifacts/consolidacion-catalogos/check_native_select.mjs`. HTML real de vistas Django mediante cliente de pruebas, SQLite en memoria y solo datos sintéticos; assets compartidos reales y JS de sesión deshabilitado únicamente en esos archivos de QA. Chrome usa un perfil descartable, sin el perfil del usuario. Capturas, scripts y resúmenes quedan en `artifacts/consolidacion-catalogos/`, ignorados por Git y excluidos de la imagen. No se verificó un teclado virtual físico; la prueba de renderizado no sustituye los guardados HTTP que cubre Django.
+
+### Revisión independiente y cierre
+`revisor_django` y `auditor_ui` hicieron revisión focalizada del cambio. Detectaron un bloqueo sin JS por categoría requerida sin opciones; se corrigió el catálogo inicial y su recuperación tras agrupamiento vacío/desconocido, con prueba de alta y edición. Ambos cerraron el hallazgo sin pendientes. Auditor UI inspeccionó capturas de error a 360, edición 4A a 768 y Acotado a 1280 sin defectos nuevos; el principal también inspeccionó alta, error, edición y popup nativo. Un fallo inicial de la aserción de estilos era la serialización `calc(...)` de getComputedStyle: se corrigió la comparación y el QA final pasó.
+
+No se aplicó `0003` a la base persistente, ni se detuvo/recreó el servicio activo. No se alteró CoPla, no se cambiaron reglas de participantes y no hubo commit, push ni despliegue. Consolidación entregada para revisión del usuario; **SDD-004 no iniciada**.

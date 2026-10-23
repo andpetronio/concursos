@@ -9,7 +9,7 @@ from concursos.models import Concurso
 from concursos.views import AccesoConcursoMixin
 
 from . import services
-from .forms import (AspiranteAltaForm, JuradoAltaForm, JuradoEdicionForm,
+from .forms import (AspiranteAltaForm, AspiranteEdicionForm, JuradoAltaForm, JuradoEdicionForm,
                     PersonaEdicionForm, VeedorAltaForm, VeedorEdicionForm)
 from .models import Aspirante, Jurado, Persona, Veedor
 
@@ -127,6 +127,14 @@ class VeedorEdicionView(EdicionParticipanteView):
     titulo = "Editar datos del veedor"
     descripcion = "Estos datos corresponden a la participación de APUNSJ en este concurso."
     boton = "Guardar datos del veedor"
+
+
+class AspiranteEdicionView(EdicionParticipanteView):
+    modelo = Aspirante
+    form_class = AspiranteEdicionForm
+    titulo = "Editar inscripción del aspirante"
+    descripcion = "El correo y el expediente corresponden a esta inscripción. Ambos son opcionales."
+    boton = "Guardar inscripción"
 
 
 class PersonaEdicionView(ParticipanteFormView):

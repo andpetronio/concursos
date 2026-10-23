@@ -1,20 +1,9 @@
-import re
-
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
 from concursos.models import Concurso
-
-
-def normalizar_dni(valor):
-    valor = str(valor).strip()
-    if not valor or not re.fullmatch(r"[0-9.\s-]+", valor):
-        raise ValidationError("Ingresá un DNI formado por números; podés usar puntos o guiones.")
-    dni = re.sub(r"\D", "", valor)
-    if not dni or len(dni) > 12:
-        raise ValidationError("Ingresá un DNI válido de hasta 12 dígitos.")
-    return dni
+from core.validators import normalizar_dni, validar_cambio, validar_expediente
 
 
 class Persona(models.Model):
@@ -35,10 +24,13 @@ class Persona(models.Model):
 
     def clean(self):
         super().clean()
-        self.dni = normalizar_dni(self.dni)
+        try:
+            self.dni = validar_cambio(self, "dni", normalizar_dni)
+        except ValidationError as error:
+            raise ValidationError({"dni": error})
 
     def save(self, *args, **kwargs):
-        self.dni = normalizar_dni(self.dni)
+        self.dni = validar_cambio(self, "dni", normalizar_dni)
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -72,7 +64,11 @@ class Jurado(Participacion):
     representacion = models.CharField(max_length=20, choices=Representacion)
     calidad = models.CharField(max_length=10, choices=Calidad)
     titulo = models.CharField("título", max_length=150)
-    cargo = models.CharField(max_length=150)
+    unidad = models.CharField(
+        "unidad", max_length=200,
+        help_text="Indicá la unidad donde presta servicios el integrante; puede ser distinta de la dependencia del concurso.",
+    )
+    cargo = models.CharField(max_length=150, blank=True)
     email = models.EmailField("correo electrónico", blank=True)
     telefono = models.CharField("teléfono", max_length=40, blank=True)
     version = models.PositiveIntegerField(default=1, editable=False)
@@ -110,6 +106,18 @@ class Veedor(Participacion):
 
 
 class Aspirante(Participacion):
+    email = models.EmailField("correo electrónico", blank=True)
+    expediente_inscripcion = models.CharField("expediente de inscripción", max_length=100, blank=True)
+    version = models.PositiveIntegerField(default=1, editable=False)
+
+    def clean(self):
+        super().clean()
+        if self.expediente_inscripcion:
+            try:
+                validar_cambio(self, "expediente_inscripcion", validar_expediente)
+            except ValidationError as error:
+                raise ValidationError({"expediente_inscripcion": error})
+
     class Meta:
         ordering = ["persona__apellido", "persona__nombre", "pk"]
         default_permissions = ()

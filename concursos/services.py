@@ -11,10 +11,15 @@ def comprobar_version(concurso, version_esperada):
 
 @transaction.atomic
 def crear_concurso(*, datos, usuario):
-    concurso = Concurso.objects.create(
-        **{campo: datos[campo] for campo in Concurso.DATOS_EDITABLES},
+    concurso = Concurso(
+        **{campo: datos.get(campo, "") for campo in Concurso.DATOS_EDITABLES},
+        tramo=datos.get("tramo", ""),
         creado_por=usuario, actualizado_por=usuario,
     )
+    concurso.full_clean()
+    concurso.save()
+    from expedientes.services import inicializar_controles
+    inicializar_controles(concurso)
     CambioEstado.objects.create(concurso=concurso, usuario=usuario,
                                 estado_nuevo=concurso.estado, situacion_nueva=concurso.situacion)
     return concurso
@@ -26,8 +31,10 @@ def editar_concurso(*, pk, datos, usuario, version_esperada):
     comprobar_version(concurso, version_esperada)
     for campo in Concurso.DATOS_EDITABLES:
         setattr(concurso, campo, datos[campo])
+    concurso.tramo = datos.get("tramo", "")
     concurso.actualizado_por = usuario
     concurso.version += 1
+    concurso.full_clean()
     concurso.save()
     return concurso
 

@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from threading import Event
+from threading import Barrier, Event
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -15,6 +15,39 @@ from participantes.models import Aspirante, Persona, Veedor
 
 @skipUnlessDBFeature("has_select_for_update")
 class ConcurrentPersonaTests(TransactionTestCase):
+    def test_dos_ediciones_de_inscripcion_solo_guardan_una_version(self):
+        usuario = get_user_model().objects.create_user(username="concurrencia_aspirante", password=PASSWORD)
+        concurso = concurso_services.crear_concurso(datos=DATOS, usuario=usuario)
+        aspirante = participante_services.crear_participacion(
+            modelo=Aspirante, concurso=concurso,
+            datos={"apellido": "Ficticio", "nombre": "Prueba", "dni": "00123456"}, usuario=usuario,
+        )
+        barrier = Barrier(2)
+
+        def editar(email):
+            close_old_connections()
+            try:
+                actor = get_user_model().objects.get(pk=usuario.pk)
+                registro = Aspirante.objects.get(pk=aspirante.pk)
+                barrier.wait(timeout=5)
+                try:
+                    participante_services.editar_participacion(
+                        participacion=registro, datos={"email": email, "expediente_inscripcion": "01-1-2026"},
+                        usuario=actor, version_esperada=1,
+                    )
+                    return "guardado"
+                except ValidationError:
+                    return "conflicto"
+            finally:
+                connection.close()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(editar, ["uno@example.invalid", "dos@example.invalid"]))
+        self.assertCountEqual(results, ["guardado", "conflicto"])
+        aspirante.refresh_from_db()
+        self.assertEqual(aspirante.version, 2)
+        self.assertEqual(aspirante.expediente_inscripcion, "01-1-2026")
+
     def test_dni_cambiado_mientras_espera_lock_no_vincula_persona_equivocada(self):
         usuario = get_user_model().objects.create_user(username="concurrencia_persona", password=PASSWORD)
         concurso = concurso_services.crear_concurso(datos=DATOS, usuario=usuario)

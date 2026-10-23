@@ -1,0 +1,10 @@
+{
+  "01": {"denominacion": "Administrativo", "tramos": {"Mayor": [1, 2, 3], "Intermedio": [4, 5], "Inicial": [6, 7]}},
+  "2A": {"denominacion": "Técnico-profesional", "tramos": {"Mayor": [1, 2, 3], "Intermedio": [4, 5]}},
+  "2B": {"denominacion": "Técnico-profesional", "tramos": {"Mayor": [2, 3], "Intermedio": [4, 5], "Inicial": [6, 7]}},
+  "03": {"denominacion": "Mantenimiento, producción y servicios generales", "tramos": {"Mayor": [2, 3], "Intermedio": [4, 5], "Inicial": [6, 7]}},
+  "4A": {"denominacion": "Asistencial", "tramos": {"Mayor": [2, 3], "Intermedio": [4, 5], "Inicial": [6]}},
+  "4B": {"denominacion": "Asistencial", "tramos": {"Mayor": [2, 3], "Intermedio": [4, 5], "Inicial": [6, 7]}},
+  "4C": {"denominacion": "Asistencial", "tramos": {"Mayor": [1, 2, 3], "Intermedio": [4, 5], "Inicial": [6, 7]}},
+  "4D": {"denominacion": "Asistencial", "tramos": {"Mayor": [3], "Intermedio": [4, 5], "Inicial": [6, 7]}}
+}

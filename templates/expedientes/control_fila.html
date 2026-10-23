@@ -1,0 +1,26 @@
+<article id="documental-{{ fila.control.pk }}" class="document-control" aria-labelledby="documental-titulo-{{ fila.control.pk }}">
+  <div class="document-control-heading"><h3 id="documental-titulo-{{ fila.control.pk }}">{{ fila.numero }}. {{ fila.requisito.nombre }}</h3>{% include "components/status.html" with label=fila.estado %}</div>
+  {% if fila.requisito.ayuda %}<p class="field-help">{{ fila.requisito.ayuda }}</p>{% endif %}
+  {% if perms.expedientes.change_controldocumental %}
+    <form method="post" action="{% url 'concursos:control_documental' concurso.pk fila.control.pk %}#documental-{{ fila.control.pk }}" aria-labelledby="documental-titulo-{{ fila.control.pk }}">
+      {% csrf_token %}
+      {% for hidden in fila.form.hidden_fields %}{{ hidden }}{{ hidden.errors }}{% endfor %}
+      {% include "components/form_errors.html" with form=fila.form %}
+      <div class="document-control-grid">
+        {% include "components/checkbox_field.html" with field=fila.form.verificado %}
+        {% if fila.requisito.requiere_foja %}{% include "components/field.html" with field=fila.form.fojas %}{% else %}<p class="field-help">No requiere foja.</p>{% endif %}
+        {% include "components/field.html" with field=fila.form.observaciones %}
+        {% include "components/button.html" with label="Guardar" extra_class="button-secondary" %}
+      </div>
+    </form>
+  {% else %}
+    <dl class="detail-list">
+      {% if fila.requisito.requiere_foja %}<dt>Fojas</dt><dd>{{ fila.control.fojas|default:"Sin registrar" }}</dd>{% endif %}
+      <dt>Observaciones</dt><dd>{{ fila.control.observaciones|default:"Sin observaciones" }}</dd>
+    </dl>
+  {% endif %}
+  <div class="document-control-meta">
+    {% if fila.control.verificado_en %}<span>Última verificación: {{ fila.control.responsable.get_username }}, {{ fila.control.verificado_en|date:"d/m/Y H:i" }}.</span>{% endif %}
+    {% if fila.control.actualizado_por %}<span>Última modificación: {{ fila.control.actualizado_por.get_username }}, {{ fila.control.actualizado_en|date:"d/m/Y H:i" }}.</span><a href="{% url 'concursos:control_historial' concurso.pk fila.control.pk %}">Ver historial de correcciones</a>{% else %}<span>Sin verificaciones registradas.</span>{% endif %}
+  </div>
+</article>

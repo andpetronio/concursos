@@ -18,7 +18,7 @@ START = datetime(2026, 2, 1, 12, tzinfo=timezone.utc)
 PASSWORD = "ClaveFicticiaParticipantes-2026!"
 PERSONA = {"apellido": "Apellido Ficticio", "nombre": "Nombre Ficticio", "dni": "12.345.678"}
 JURADO = {**PERSONA, "representacion": "dependencia", "calidad": "titular",
-          "titulo": "Técnico", "cargo": "Agente", "email": "prueba@example.invalid", "telefono": "0000-0000"}
+          "titulo": "Técnico", "unidad": "Unidad de prueba", "email": "prueba@example.invalid", "telefono": "0000-0000"}
 
 
 @override_settings(PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"])
@@ -83,12 +83,66 @@ class ParticipanteTests(TestCase):
             self.assertIn(omitido, response.context["form"].errors)
         self.assertEqual(Jurado.objects.count(), 0)
 
+    def test_jurado_unidad_obligatoria_sin_exigir_ni_exponer_cargo(self):
+        response = self.client.get(self.url("jurado_crear"))
+        self.assertContains(response, 'name="unidad"')
+        self.assertNotContains(response, 'name="cargo"')
+        for valor in ("", "   ", "X" * 201):
+            with self.subTest(unidad=valor):
+                response = self.client.post(self.url("jurado_crear"), {**JURADO, "unidad": valor})
+                self.assertIn("unidad", response.context["form"].errors)
+        self.assertEqual(Persona.objects.count(), 0)
+        response = self.client.post(self.url("jurado_crear"), JURADO)
+        self.assertEqual(response.status_code, 302)
+        jurado = Jurado.objects.get()
+        self.assertEqual((jurado.unidad, jurado.cargo), (JURADO["unidad"], ""))
+        response = self.client.get(self.url("jurado_editar", None, jurado.pk))
+        self.assertContains(response, 'value="Unidad de prueba"')
+        self.assertNotContains(response, 'name="cargo"')
+        response = self.client.post(self.url("jurado_editar", None, jurado.pk), {
+            **JURADO, "unidad": "", "version_esperada": 1,
+        })
+        self.assertIn("unidad", response.context["form"].errors)
+        jurado.refresh_from_db()
+        self.assertEqual((jurado.unidad, jurado.version), (JURADO["unidad"], 1))
+
+    def test_unidad_por_participacion_conserva_cargo_anterior_y_otros_datos(self):
+        self.client.post(self.url("jurado_crear"), JURADO)
+        jurado = Jurado.objects.get()
+        # Estado legado sin unidad: no inferirla del cargo ni del concurso.
+        Jurado.objects.filter(pk=jurado.pk).update(cargo="Cargo histórico de prueba", unidad="")
+        jurado.refresh_from_db()
+        detalle = self.client.get(self.concurso.get_absolute_url())
+        self.assertContains(detalle, "Cargo registrado anteriormente: Cargo histórico de prueba")
+        self.assertContains(detalle, "Pendiente de completar")
+        otro_concurso = concurso_services.crear_concurso(datos=DATOS, usuario=self.operador)
+        self.assertEqual(self.client.post(self.url("jurado_crear", otro_concurso), {
+            **JURADO, "unidad": "Otra unidad de servicio",
+        }).status_code, 302)
+        response = self.client.post(self.url("jurado_editar", None, jurado.pk), {
+            **JURADO, "unidad": "Unidad de servicio declarada", "version_esperada": 1,
+            "cargo": "No sobrescribir el cargo histórico",
+        })
+        self.assertEqual(response.status_code, 302)
+        jurado.refresh_from_db()
+        self.assertEqual((jurado.unidad, jurado.cargo), ("Unidad de servicio declarada", "Cargo histórico de prueba"))
+        self.assertEqual((jurado.titulo, jurado.email, jurado.telefono, jurado.representacion, jurado.calidad),
+                         tuple(JURADO[campo] for campo in ("titulo", "email", "telefono", "representacion", "calidad")))
+        otro = Jurado.objects.get(concurso=otro_concurso)
+        self.assertEqual(otro.persona_id, jurado.persona_id)
+        self.assertEqual(otro.unidad, "Otra unidad de servicio")
+        self.assertNotEqual(jurado.unidad, self.concurso.unidad)
+        detalle = self.client.get(self.concurso.get_absolute_url())
+        self.assertContains(detalle, '<th scope="col">Unidad</th>', html=True)
+        self.assertContains(detalle, "Unidad de servicio declarada")
+        self.assertContains(detalle, "Cargo histórico de prueba")
+
     def test_aspirante_dni_unico_local_y_persona_reutilizada_en_otros_concursos(self):
         self.assertEqual(self.client.post(self.url("aspirante_crear"), PERSONA).status_code, 302)
         duplicado = self.client.post(self.url("aspirante_crear"), {**PERSONA, "dni": "12-345-678"})
         self.assertEqual(duplicado.status_code, 200)
         self.assertTrue(duplicado.context["form"].errors)
-        segundo = concurso_services.crear_concurso(datos={**DATOS, "expediente": "EXP-PRUEBA-002"}, usuario=self.operador)
+        segundo = concurso_services.crear_concurso(datos={**DATOS, "expediente": "01-2-2026"}, usuario=self.operador)
         self.assertEqual(self.client.post(self.url("aspirante_crear", segundo), {**PERSONA, "dni": "12345678"}).status_code, 302)
         self.assertEqual(Persona.objects.count(), 1)
         self.assertEqual(Aspirante.objects.count(), 2)
@@ -143,7 +197,7 @@ class ParticipanteTests(TestCase):
         jurado = Jurado.objects.get()
         response = self.client.post(self.url("jurado_editar", None, jurado.pk), {
             "representacion": jurado.representacion, "calidad": jurado.calidad,
-            "titulo": "Título corregido", "cargo": "Cargo corregido", "email": "", "telefono": "",
+            "titulo": "Título corregido", "unidad": "Unidad corregida", "email": "", "telefono": "",
             "version_esperada": jurado.version,
             "apellido": "No cambiar", "dni": "99999999",
         })
@@ -153,7 +207,7 @@ class ParticipanteTests(TestCase):
         self.assertEqual(jurado.persona.dni, "12345678")
         self.assertEqual(jurado.persona.apellido, PERSONA["apellido"])
         self.assertEqual(jurado.actualizado_por, self.operador)
-        segundo = concurso_services.crear_concurso(datos={**DATOS, "expediente": "EXP-PRUEBA-002"}, usuario=self.operador)
+        segundo = concurso_services.crear_concurso(datos={**DATOS, "expediente": "01-2-2026"}, usuario=self.operador)
         self.client.post(self.url("veedor_crear", segundo), {**PERSONA, "cargo": "Cargo original"})
         veedor = Veedor.objects.get()
         self.client.post(self.url("veedor_editar", segundo, veedor.pk), {
@@ -161,7 +215,7 @@ class ParticipanteTests(TestCase):
         })
         veedor.refresh_from_db()
         self.assertEqual(veedor.cargo, "Cargo nuevo")
-        self.assertEqual(jurado.cargo, "Cargo corregido")
+        self.assertEqual(jurado.unidad, "Unidad corregida")
 
     def test_edicion_explicita_de_persona_y_dni_compartido_protegido(self):
         self.client.post(self.url("aspirante_crear"), PERSONA)
@@ -173,7 +227,7 @@ class ParticipanteTests(TestCase):
         persona.refresh_from_db()
         self.assertEqual(persona.dni, "87654321")
         self.assertEqual(persona.actualizado_por, self.operador)
-        segundo = concurso_services.crear_concurso(datos={**DATOS, "expediente": "EXP-PRUEBA-002"}, usuario=self.operador)
+        segundo = concurso_services.crear_concurso(datos={**DATOS, "expediente": "01-2-2026"}, usuario=self.operador)
         self.client.post(self.url("aspirante_crear", segundo), {
             "apellido": persona.apellido, "nombre": persona.nombre, "dni": persona.dni,
         })
@@ -195,7 +249,7 @@ class ParticipanteTests(TestCase):
     def test_vistas_anidadas_permiso_lectura_escritura_e_idor(self):
         self.client.post(self.url("jurado_crear"), JURADO)
         jurado = Jurado.objects.get()
-        segundo = concurso_services.crear_concurso(datos={**DATOS, "expediente": "EXP-PRUEBA-002"}, usuario=self.operador)
+        segundo = concurso_services.crear_concurso(datos={**DATOS, "expediente": "01-2-2026"}, usuario=self.operador)
         self.assertEqual(self.client.get(self.url("jurado_editar", segundo, jurado.pk)).status_code, 404)
         self.assertEqual(self.client.get(self.url("persona_editar", segundo, jurado.persona.pk)).status_code, 404)
         self.login(self.lector)
@@ -234,7 +288,7 @@ class ParticipanteTests(TestCase):
         jurado = Jurado.objects.get()
         response = self.client.post(self.url("jurado_editar", None, jurado.pk), {
             "representacion": "rectorado", "calidad": "suplente", "titulo": jurado.titulo,
-            "cargo": jurado.cargo, "email": jurado.email, "telefono": jurado.telefono,
+            "unidad": jurado.unidad, "email": jurado.email, "telefono": jurado.telefono,
             "version_esperada": jurado.version,
         })
         self.assertEqual(response.status_code, 302)
@@ -248,7 +302,7 @@ class ParticipanteTests(TestCase):
         otro = Jurado.objects.exclude(pk=jurado.pk).get()
         response = self.client.post(self.url("jurado_editar", None, jurado.pk), {
             "representacion": otro.representacion, "calidad": otro.calidad, "titulo": jurado.titulo,
-            "cargo": jurado.cargo, "email": jurado.email, "telefono": jurado.telefono,
+            "unidad": jurado.unidad, "email": jurado.email, "telefono": jurado.telefono,
             "version_esperada": jurado.version,
         })
         self.assertEqual(response.status_code, 200)
@@ -262,9 +316,9 @@ class ParticipanteTests(TestCase):
         jurado, veedor, persona = Jurado.objects.get(), Veedor.objects.get(), Persona.objects.get()
         cases = [
             ("jurado_editar", jurado, {"representacion": jurado.representacion, "calidad": jurado.calidad,
-                                      "titulo": "Primera edición", "cargo": jurado.cargo, "email": "", "telefono": ""},
+                                      "titulo": "Primera edición", "unidad": jurado.unidad, "email": "", "telefono": ""},
              {"representacion": jurado.representacion, "calidad": jurado.calidad,
-              "titulo": "Edición vieja", "cargo": jurado.cargo, "email": "", "telefono": ""}),
+              "titulo": "Edición vieja", "unidad": jurado.unidad, "email": "", "telefono": ""}),
             ("veedor_editar", veedor, {"cargo": "Primera edición", "email": "", "telefono": ""},
              {"cargo": "Edición vieja", "email": "", "telefono": ""}),
             ("persona_editar", persona, {"apellido": "Primera edición", "nombre": persona.nombre, "dni": persona.dni},
@@ -289,7 +343,7 @@ class ParticipanteTests(TestCase):
         jurado = Jurado.objects.get()
         response = self.client.post(self.url("jurado_editar", None, jurado.pk), {
             "representacion": jurado.representacion, "calidad": jurado.calidad,
-            "titulo": "Sin versión", "cargo": jurado.cargo, "email": "", "telefono": "",
+            "titulo": "Sin versión", "unidad": jurado.unidad, "email": "", "telefono": "",
         })
         self.assertIn("version_esperada", response.context["form"].errors)
         jurado.refresh_from_db()

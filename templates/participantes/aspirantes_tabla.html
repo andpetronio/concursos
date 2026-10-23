@@ -1,10 +1,11 @@
 {% extends "components/table.html" %}
 {% block columns %}
-<th scope="col">Apellido y nombre</th><th scope="col">DNI</th>{% if perms.concursos.change_concurso %}<th scope="col">Acciones</th>{% endif %}
+<th scope="col">Apellido y nombre</th><th scope="col">DNI</th><th scope="col">Correo electrónico</th><th scope="col">Expediente de inscripción</th>{% if perms.concursos.change_concurso %}<th scope="col">Acciones</th>{% endif %}
 {% endblock %}
 {% block rows %}
 {% for aspirante in aspirantes %}<tr>
   <td>{{ aspirante.persona.apellido }}, {{ aspirante.persona.nombre }}</td><td>{{ aspirante.persona.dni }}</td>
-  {% if perms.concursos.change_concurso %}<td><a href="{% url 'concursos:persona_editar' concurso.pk aspirante.persona.pk %}">Corregir persona</a></td>{% endif %}
+  <td>{{ aspirante.email|default:"—" }}</td><td>{{ aspirante.expediente_inscripcion|default:"—" }}</td>
+  {% if perms.concursos.change_concurso %}<td><a href="{% url 'concursos:aspirante_editar' concurso.pk aspirante.pk %}">Editar inscripción</a><br><a href="{% url 'concursos:persona_editar' concurso.pk aspirante.persona.pk %}">Corregir persona</a></td>{% endif %}
 </tr>{% endfor %}
 {% endblock %}

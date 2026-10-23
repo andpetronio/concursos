@@ -13,6 +13,7 @@ INSTALLED_APPS = [
     "core.apps.CoreConfig",
     "concursos.apps.ConcursosConfig",
     "participantes.apps.ParticipantesConfig",
+    "expedientes.apps.ExpedientesConfig",
     "core.apps.ConcursosAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",

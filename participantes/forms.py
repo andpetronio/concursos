@@ -1,17 +1,14 @@
 from django import forms
 from django.core.exceptions import ValidationError
+from core.fields import IdentificadorField, TelefonoInput
 
-from .models import Aspirante, Jurado, Persona, Veedor, normalizar_dni
+from .models import Aspirante, Jurado, Persona, Veedor
 
 
 class PersonaDatosForm(forms.Form):
     apellido = forms.CharField(max_length=100)
     nombre = forms.CharField(max_length=100)
-    dni = forms.CharField(label="DNI", max_length=20,
-                          help_text="Ingresá el DNI sin letras. Los puntos y guiones se omiten al guardar.")
-
-    def clean_dni(self):
-        return normalizar_dni(self.cleaned_data["dni"])
+    dni = IdentificadorField(formato="dni", max_length=20)
 
     def clean(self):
         datos = super().clean()
@@ -32,19 +29,22 @@ class JuradoAltaForm(PersonaDatosForm):
     )
     calidad = forms.ChoiceField(label="Calidad", choices=[("", "Seleccioná una calidad"), *Jurado.Calidad.choices])
     titulo = forms.CharField(label="Título", max_length=150)
-    cargo = forms.CharField(max_length=150)
+    unidad = Jurado._meta.get_field("unidad").formfield()
     email = forms.EmailField(label="Correo electrónico", required=False)
-    telefono = forms.CharField(label="Teléfono", max_length=40, required=False)
+    telefono = forms.CharField(label="Teléfono", max_length=40, required=False, widget=TelefonoInput)
 
 
 class VeedorAltaForm(PersonaDatosForm):
     cargo = forms.CharField(max_length=150, required=False)
     email = forms.EmailField(label="Correo electrónico", required=False)
-    telefono = forms.CharField(label="Teléfono", max_length=40, required=False)
+    telefono = forms.CharField(label="Teléfono", max_length=40, required=False, widget=TelefonoInput)
 
 
 class AspiranteAltaForm(PersonaDatosForm):
-    pass
+    email = forms.EmailField(label="Correo electrónico", max_length=254, required=False)
+    expediente_inscripcion = IdentificadorField(
+        formato="expediente", label="Expediente de inscripción", max_length=100, required=False,
+    )
 
 
 class FormularioVersionado(forms.ModelForm):
@@ -59,24 +59,43 @@ class FormularioVersionado(forms.ModelForm):
 class JuradoEdicionForm(FormularioVersionado):
     class Meta:
         model = Jurado
-        fields = ("representacion", "calidad", "titulo", "cargo", "email", "telefono")
+        fields = ("representacion", "calidad", "titulo", "unidad", "email", "telefono")
+        widgets = {"telefono": TelefonoInput}
 
 
 class VeedorEdicionForm(FormularioVersionado):
     class Meta:
         model = Veedor
         fields = ("cargo", "email", "telefono")
+        widgets = {"telefono": TelefonoInput}
+
+
+class AspiranteEdicionForm(FormularioVersionado):
+    expediente_inscripcion = IdentificadorField(
+        formato="expediente", label="Expediente de inscripción", max_length=100, required=False,
+    )
+
+    class Meta:
+        model = Aspirante
+        fields = ("email", "expediente_inscripcion")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.fields["expediente_inscripcion"].conservar_actual(self.instance.expediente_inscripcion)
 
 
 class PersonaEdicionForm(FormularioVersionado):
-    dni = forms.CharField(label="DNI", max_length=20)
+    dni = IdentificadorField(formato="dni", max_length=20)
 
     class Meta:
         model = Persona
         fields = ("apellido", "nombre", "dni")
 
-    def clean_dni(self):
-        return normalizar_dni(self.cleaned_data["dni"])
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.fields["dni"].conservar_actual(self.instance.dni)
 
     def clean(self):
         datos = super().clean()

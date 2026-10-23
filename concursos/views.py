@@ -11,6 +11,11 @@ from .forms import CambioEstadoForm, ConcursoForm, FiltroConcursosForm
 from .models import Concurso
 
 
+def advertir_expediente_repetido(request, concurso):
+    if Concurso.objects.filter(expediente=concurso.expediente).exclude(pk=concurso.pk).exists():
+        messages.warning(request, "El número de expediente ya está registrado en otro concurso. Se guardaron los datos; revisá que corresponda.")
+
+
 class AccesoConcursoMixin(LoginRequiredMixin, PermissionRequiredMixin):
     def handle_no_permission(self):
         if self.request.user.is_authenticated:
@@ -57,8 +62,9 @@ class ConcursoDetailView(AccesoConcursoMixin, DetailView):
 
         context = super().get_context_data(**kwargs)
         context["datos_concurso"] = [
-            (self.object._meta.get_field(campo).verbose_name.capitalize(), getattr(self.object, campo))
-            for campo in Concurso.DATOS_EDITABLES
+            (self.object._meta.get_field(campo).verbose_name.capitalize(),
+             getattr(self.object, f"get_{campo}_display", lambda: getattr(self.object, campo))())
+            for campo in (*Concurso.DATOS_EDITABLES, "tramo")
         ]
         context["page_obj"] = Paginator(self.object.historial.select_related("usuario"), 20).get_page(
             self.request.GET.get("page")
@@ -66,6 +72,11 @@ class ConcursoDetailView(AccesoConcursoMixin, DetailView):
         context["jurados"] = Jurado.objects.filter(concurso=self.object).select_related("persona")
         context["veedores"] = Veedor.objects.filter(concurso=self.object).select_related("persona")
         context["aspirantes"] = Aspirante.objects.filter(concurso=self.object).select_related("persona")
+        from expedientes.presentation import contexto_documental
+        context["jurados"] = list(context["jurados"])
+        context.update(contexto_documental(self.object, jurados=context["jurados"],
+                                          error=getattr(self, "documental_error", None),
+                                          error_etapa=getattr(self, "documental_error_etapa", None)))
         return context
 
 
@@ -78,6 +89,7 @@ class ConcursoCreateView(AccesoConcursoMixin, CreateView):
 
     def form_valid(self, form):
         self.object = services.crear_concurso(datos=form.cleaned_data, usuario=self.request.user)
+        advertir_expediente_repetido(self.request, self.object)
         messages.success(self.request, "El concurso se registró correctamente.")
         return redirect(self.object)
 
@@ -98,6 +110,7 @@ class ConcursoUpdateView(AccesoConcursoMixin, UpdateView):
             form.add_error(None, error)
             return self.form_invalid(form)
         messages.success(self.request, "Los datos del concurso se actualizaron correctamente.")
+        advertir_expediente_repetido(self.request, self.object)
         return redirect(self.object)
 
 
@@ -113,7 +126,13 @@ class CambioEstadoView(AccesoConcursoMixin, FormView):
 
     def get_initial(self):
         concurso = self.get_concurso()
-        return {"estado": concurso.estado, "situacion": concurso.situacion, "version_esperada": concurso.version}
+        inicial = {"estado": concurso.estado, "situacion": concurso.situacion, "version_esperada": concurso.version}
+        if self.request.GET.get("sugerencia") == "dictamen":
+            from expedientes.services import sugerencia_estado
+            propuesta = sugerencia_estado(concurso, concurso.controles_documentales.all())
+            if propuesta:
+                inicial.update(estado=propuesta, justificacion="Confirmación de sugerencia por dictamen documental verificado.")
+        return inicial
 
     def get_context_data(self, **kwargs):
         return super().get_context_data(concurso=self.get_concurso(), **kwargs)

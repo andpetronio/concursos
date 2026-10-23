@@ -1,9 +1,12 @@
 {% extends "layouts/private.html" %}
+{% load static %}
+{% block scripts %}{{ block.super }}<script src="{% static 'js/concurso.js' %}" defer></script>{% endblock %}
 {% block title %}{{ title }} · Concursos Nodocentes{% endblock %}
 {% block content %}
-{% include "components/page_header.html" with section="Concursos" title=title description="Completá la identificación, los datos del cargo y la estructura administrativa. Todos los campos son obligatorios." %}
+{% include "components/page_header.html" with section="Concursos" title=title description="Completá la identificación, los datos del cargo y la estructura administrativa. Las funciones del cargo son opcionales." %}
 {% include "components/form_errors.html" %}
-<form method="post">
+<form method="post" data-concurso-form>
+  {{ form.catalogo_cargos|json_script:"catalogo-cargos" }}
   {% csrf_token %}
   {% for hidden in form.hidden_fields %}{{ hidden }}{{ hidden.errors }}{% endfor %}
   <fieldset class="card form-section" aria-labelledby="identificacion-heading">
@@ -12,17 +15,22 @@
       {% include "components/field.html" with field=form.expediente %}
       {% include "components/field.html" with field=form.modalidad %}
     </div>
+    {% include "concursos/referencia_acotado.html" %}
   </fieldset>
   <fieldset class="card form-section" aria-labelledby="cargo-heading">
     {% include "components/form_section_header.html" with heading_id="cargo-heading" title="Datos del cargo" description="La información se conserva como parte de este concurso." only %}
     <div class="form-grid">
       {% include "components/field.html" with field=form.denominacion %}
       {% include "components/field.html" with field=form.codigo_presupuestario %}
-      {% include "components/field.html" with field=form.funciones extra_class="field--full" %}
       {% include "components/field.html" with field=form.agrupamiento %}
       {% include "components/field.html" with field=form.categoria %}
-      {% include "components/field.html" with field=form.tramo %}
+      <div class="field">
+        <p id="tramo-label" class="field-label">Tramo calculado</p>
+        <output id="tramo-calculado" aria-labelledby="tramo-label" for="id_agrupamiento id_categoria" aria-live="polite">{{ form.tramo_calculado }}</output>
+        <p class="field-help">Se determina a partir del agrupamiento y la categoría.</p>
+      </div>
     </div>
+    <noscript><p class="field-help">Sin JavaScript se muestran las categorías generales. Al guardar se valida su correspondencia con el agrupamiento y se calcula el tramo.</p></noscript>
   </fieldset>
   <fieldset class="card form-section" aria-labelledby="estructura-heading">
     {% include "components/form_section_header.html" with heading_id="estructura-heading" title="Estructura administrativa" description="Registrá la unidad, dependencia y cadena jerárquica aplicables a este concurso." only %}
@@ -32,6 +40,12 @@
       {% include "components/field.html" with field=form.cadena_jerarquica extra_class="field--full" %}
     </div>
   </fieldset>
+  <details class="card form-section additional-data"{% if form.funciones.value or form.funciones.errors %} open{% endif %}>
+    <summary>Datos adicionales del cargo (opcional)</summary>
+    <div class="additional-data-content">
+      {% include "components/field.html" with field=form.funciones %}
+    </div>
+  </details>
   <div class="form-actions">
     {% include "components/button.html" with label="Guardar concurso" %}
     {% if object %}<a href="{{ object.get_absolute_url }}">Cancelar y volver a la ficha</a>{% else %}<a href="{% url 'concursos:lista' %}">Cancelar</a>{% endif %}

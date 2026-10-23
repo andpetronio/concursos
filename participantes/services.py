@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from core.validators import normalizar_dni, validar_cambio
 
 from .models import Persona
 
@@ -7,6 +8,7 @@ from .models import Persona
 @transaction.atomic
 def crear_participacion(*, modelo, concurso, datos, usuario, persona_id=None):
     identidad = {campo: datos[campo] for campo in ("apellido", "nombre", "dni")}
+    identidad["dni"] = normalizar_dni(identidad["dni"])
     if persona_id is not None:
         persona = Persona.objects.select_for_update().get(pk=persona_id)
     else:
@@ -51,6 +53,11 @@ def editar_participacion(*, participacion, datos, usuario, version_esperada):
 def editar_persona(*, persona, datos, usuario, version_esperada):
     persona = Persona.objects.select_for_update().get(pk=persona.pk)
     comprobar_version(persona, version_esperada)
+    datos = dict(datos)
+    anterior = persona.dni
+    persona.dni = datos["dni"]
+    datos["dni"] = validar_cambio(persona, "dni", normalizar_dni)
+    persona.dni = anterior
     if datos["dni"] != persona.dni:
         from .models import Aspirante, Jurado, Veedor
 

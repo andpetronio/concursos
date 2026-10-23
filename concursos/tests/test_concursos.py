@@ -15,10 +15,10 @@ from core.models import SessionActivity
 START = datetime(2026, 1, 1, 12, tzinfo=timezone.utc)
 PASSWORD = "ClaveFicticiaParaTests-2026!"
 DATOS = {
-    "expediente": "EXP-PRUEBA-001", "modalidad": "Modalidad de prueba",
+    "expediente": "01-1-2026", "modalidad": "cerrado_interno",
     "denominacion": "Auxiliar de biblioteca", "funciones": "Organizar material de prueba",
-    "agrupamiento": "Agrupamiento de prueba", "categoria": "Categoría de prueba",
-    "tramo": "Tramo de prueba", "codigo_presupuestario": "COD-PRUEBA-001",
+    "agrupamiento": "03", "categoria": "5",
+    "tramo": "Intermedio", "codigo_presupuestario": "COD-PRUEBA-001",
     "unidad": "Unidad de prueba", "dependencia": "Dependencia de prueba",
     "cadena_jerarquica": "Unidad de prueba / Dependencia de prueba",
 }
@@ -74,7 +74,7 @@ class ConcursoTests(TestCase):
         self.assertEqual((alta.estado_anterior, alta.estado_nuevo), ("", EstadoConcurso.PREPARACION))
         self.assertEqual((alta.situacion_anterior, alta.situacion_nueva), ("", SituacionAdministrativa.NORMAL))
 
-    def test_expedientes_repetidos_y_texto_libre_sin_catalogos(self):
+    def test_expedientes_repetidos_con_clasificacion_valida(self):
         primero = self.concurso()
         response = self.client.post(reverse("concursos:crear"), DATOS)
         self.assertEqual(response.status_code, 302)
@@ -83,9 +83,9 @@ class ConcursoTests(TestCase):
     def test_datos_minimos_obligatorios_y_espacios_rechazados(self):
         response = self.client.post(reverse("concursos:crear"), {campo: "  " for campo in DATOS})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(set(response.context["form"].errors), set(DATOS))
+        self.assertEqual(set(response.context["form"].errors), set(DATOS) - {"funciones", "tramo"})
         self.assertEqual(Concurso.objects.count(), 0)
-        self.assertContains(response, 'aria-describedby="id_expediente_error"')
+        self.assertContains(response, 'aria-describedby="id_expediente_helptext id_expediente_error"')
         self.assertContains(response, 'id="id_expediente_error"', count=1)
 
     def test_formulario_renderiza_todos_los_campos_visibles_en_alta_y_edicion(self):
@@ -235,8 +235,8 @@ class ConcursoTests(TestCase):
 
     def test_busqueda_por_expediente_cargo_funciones_y_codigo(self):
         concurso = self.concurso()
-        self.concurso(expediente="OTRO", denominacion="Otro cargo", funciones="Otras tareas", codigo_presupuestario="OTRO")
-        for q in ("EXP-PRUEBA", "biblioteca", "material", "COD-PRUEBA"):
+        self.concurso(expediente="02-2-2026", denominacion="Otro cargo", funciones="Otras tareas", codigo_presupuestario="OTRO")
+        for q in ("01-1", "biblioteca", "material", "COD-PRUEBA"):
             with self.subTest(q=q):
                 response = self.client.get(reverse("concursos:lista"), {"q": q.lower()})
                 self.assertEqual([c.pk for c in response.context["concursos"]], [concurso.pk])

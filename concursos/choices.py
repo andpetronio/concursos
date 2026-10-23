@@ -1,6 +1,13 @@
 from django.db import models
 
 
+class ModalidadConcurso(models.TextChoices):
+    CERRADO_INTERNO = "cerrado_interno", "Cerrado Interno"
+    CERRADO_GENERAL = "cerrado_general", "Cerrado General"
+    ABIERTO = "abierto", "Abierto"
+    ACOTADO = "acotado", "Acotado"
+
+
 class EstadoConcurso(models.TextChoices):
     PREPARACION = "preparacion", "Preparación"
     CONVOCADO = "convocado", "Convocado"

@@ -6,21 +6,41 @@ Estado: decisiones funcionales acordadas para el diseño inicial, sujetas a evol
 Facilitar el trabajo de la Dirección de Concursos Nodocentes: registrar concursos, participantes, estado y control documental del expediente; generar documentos administrativos DOCX editables. El expediente oficial continúa fuera de la aplicación.
 
 ## Datos de un concurso
-- Expediente y tipo de concurso.
-- Cargo: denominación/funciones, agrupamiento, categoría, tramo, código presupuestario.
+- Expediente y tipo obligatorio de concurso: Cerrado Interno, Cerrado General, Abierto o Acotado.
+- Cargo: denominación, agrupamiento, categoría, tramo, código presupuestario. Funciones es información complementaria opcional, conservada para futuras plantillas, sin copiar automáticamente la denominación.
 - Unidad, dependencia y cadena de dependencias; otros datos que necesiten las plantillas (lugar/horario, requisitos y temario), conforme se definan.
 - La información del cargo se conserva como instantánea del concurso: cambios futuros de la estructura organizativa no alteran automáticamente el registro histórico.
 - Los datos generales no requieren indicación de fojas.
 
+### Clasificación del cargo y modalidad (consolidación SDD-002/003)
+- Agrupamiento desde catálogo local por código institucional UNSJ: 01, 2A, 2B, 03, 4A, 4B, 4C y 4D. La categoría se selecciona entre las habilitadas para ese código; el tramo se calcula automáticamente. La matriz verificada en CoPla consta en DECISIONES. No existe conexión con su base ni dependencia de ejecución entre proyectos.
+- Al cambiar agrupamiento se mantiene categoría si sigue siendo válida; de lo contrario se limpian categoría y tramo. Django realiza la validación definitiva y conserva los valores al editar.
+- Los tres tipos ordinarios se referencian en la Ordenanza 33/10-CS. Acotado se fundamenta en la [Ordenanza 37/25-CS, Anexo, artículo 14](https://digesto.unsj.edu.ar/admin/digesto_admin/pdf/ORD37O-2512511.pdf#page=8), dentro del procedimiento especial de regularización del personal Nodocente con ATF: cuando resulta procedente la impugnación de una regularización, comprende a los impugnantes y a la persona impugnada. Seleccionarlo muestra información normativa; no activa admisibilidad, incorporaciones automáticas ni requisitos documentales. Una situación Impugnado no convierte el concurso en Acotado.
+- Migración conservadora: convertir correspondencias inequívocas, preservar los textos originales y detener toda la migración ante valores desconocidos o ambiguos, para revisión administrativa. No se reemplazan por una opción arbitraria.
+
 ## Participantes
-- Jurado: 3 representaciones (autoridad de dependencia convocante, Rectorado y personal de dependencia), cada una con titular y suplente. Registrar persona, DNI, título, cargo, correo y teléfono; registrar reemplazos sin borrar historia cuando se implemente.
+- Jurado: 3 representaciones (autoridad de dependencia convocante, Rectorado y personal de dependencia), cada una con titular y suplente. Registrar persona, DNI, título, unidad de servicio obligatoria, correo y teléfono. La unidad corresponde a cada participación histórica y puede diferir de la dependencia del cargo concursado; no se infiere de ella. Cargo deja de exigirse, conservando los valores anteriores visibles en la ficha. Los jurados anteriores quedan con unidad pendiente de completar al editar. Registrar reemplazos sin borrar historia cuando se implemente.
 - Veedor: siempre representa a APUNSJ. Datos personales y de contacto. La designación/presencia es opcional; la solicitud de veedor debe poder emitirse y controlarse. Su ausencia no bloquea el trámite.
-- Aspirantes: nombre, apellido y DNI. Se incorporan al recibir el acta de inscriptos. DNI único dentro de un concurso, reutilización de persona en diferentes concursos. Se podrá identificar luego al ganador.
+- Aspirantes: nombre, apellido y DNI. Cada inscripción también conserva correo electrónico y expediente de inscripción opcionales, disponibles en alta, edición y consulta; pertenecen al vínculo aspirante-concurso, sin modificar los de otra inscripción de la misma persona. Se incorporan al recibir el acta de inscriptos. DNI único dentro de un concurso, reutilización de persona en diferentes concursos. Se podrá identificar luego al ganador.
+
+## Identificadores y entrada de datos (ajustes SDD-003, 23/10/2026)
+- DNI nuevo o corregido: exactamente 8 dígitos ASCII, guardado como texto sin separadores y presentado en los campos como `99.999.999`; preservar ceros iniciales. El pegado con o sin puntos identifica a la misma persona. Se conservan los separadores de entrada admitidos anteriormente para compatibilidad.
+- Expedientes del concurso e inscripción: `99-NNNN-9999`, con primer bloque de 2 dígitos, central entre 1 y 9999 sin ceros de relleno y final de 4 dígitos. No se agrega unicidad; expediente repetido entre concursos se guarda con advertencia.
+- No se reescriben identificadores históricos ni se completan sus ceros automáticamente. Un valor anterior fuera de formato puede conservarse al editar otros datos del registro; cambiarlo exige el nuevo formato. La excepción no habilita altas con valores fuera de formato.
+- Máscaras compartidas y validación de servidor; correo mediante validación de email. Teléfono sin máscara y fechas con control de fecha cuando corresponda. Los controles de versión y bloqueos existentes se mantienen.
 
 ## Control documental
 - Los documentos previos a convocatoria pueden llegar en cualquier orden. La generación de PROYECTO de resolución de convocatoria requiere los CINCO requisitos: propuesta de jurado titular/suplente por dependencia (con foja), por Rectorado (con foja), por personal de la dependencia (con foja), afectación presupuestaria (con foja), certificación de vacancia (sin foja). También deben estar completos los datos requeridos de cargo/jurado.
 - El checklist admite check, fecha, responsable, observaciones y referencia de foja cuando corresponda: por ejemplo `5` o `5/8`. Check y foja exigida son condiciones distintas.
 - Después del acta de inscriptos, el orden es recomendado, no un bloqueo rígido.
+- SDD-004 implementa los 21 requisitos ordinarios en cinco secciones de la ficha. Cada concurso nuevo o anterior recibe los controles sin verificaciones ficticias. Hay historial de correcciones antes/después, responsable y fecha; versión obligatoria y bloqueo evitan sobrescrituras concurrentes.
+- En Convocatoria, inmediatamente después de publicación, son obligatorios el oficio a APUNSJ solicitando veedor y las notas de notificación a jurados. Se incorporan en cualquier orden y sin foja; el segundo es un check general de las notificaciones correspondientes a los seis jurados. No se exige que haya veedor designado. Generar esos documentos en SDD-005 no marcará los controles automáticamente. La ampliación agrega solo los dos controles faltantes, sin sobrescribir registros o historial.
+- La etapa documental activa se elige manualmente entre Preparación de convocatoria, Convocatoria, Inscripciones, Antecedentes y oposición, Dictamen y finalización. Los requisitos de esa etapa y de las anteriores son exigibles; los de etapas futuras no registrados se muestran de forma neutral. La selección inicia en Preparación, tiene historial propio y puede corregirse sin borrar controles. Nunca se deduce del estado administrativo ni determina vencimientos.
+- El resumen distingue completos, pendientes exigibles y etapas futuras. La preparación requiere los cinco checks, cuatro fojas válidas, seis plazas de jurado identificadas con los datos requeridos existentes y datos generales válidos. Se informa qué falta, sin bloquear la carga de documentación posterior.
+- Fojas individuales o rangos positivos ascendentes; normalizar espacios y rechazar referencias inválidas. Un check sin la foja exigida puede guardarse como carga parcial y sigue pendiente. Los requisitos sin foja no muestran ese campo.
+- Al registrar aprobación sin comunicación del dictamen se advierte de forma visible, permitiendo guardar. Un dictamen completo puede sugerir Con dictamen; confirmación y permiso de estado son independientes. No se propone Finalizado ni se interpreta un check como acto oficial emitido.
+- Consulta e historiales con `concursos.view_concurso`; escritura documental y selección de etapa requieren además `expedientes.change_controldocumental`, sin asignación automática a cuentas. Los historiales y requisitos no se eliminan desde la aplicación.
+- Servicios de consulta y habilitación disponibles para SDD-005. SDD-004 no genera documentos, identifica actos oficiales ni desarrolla circuitos extraordinarios. Entrega pendiente de aceptación funcional; no autoriza SDD-005.
 
 ### Checklist habitual (happy path)
 1. Propuesta de jurados por autoridad de dependencia — foja.
@@ -29,19 +49,21 @@ Facilitar el trabajo de la Dirección de Concursos Nodocentes: registrar concurs
 4. Afectación presupuestaria — foja.
 5. Certificación de vacancia — sin foja.
 6. Constancia de publicación de resolución de convocatoria — sin foja.
-7. Acta de inscriptos — foja.
-8. Constancia de envío del acta de inscriptos — sin foja.
-9. Constancia de entrega de documentación al jurado — sin foja.
-10. Acta de valoración de antecedentes — foja.
-11. Nota del jurado con fecha de sorteo de temas y prueba de oposición — foja.
-12. Acta de sorteo de temas — foja.
-13. Tres temas de examen — sin foja.
-14. Planilla de asistencia a oposición — sin foja.
-15. Acta de prueba de oposición — foja.
-16. Dictamen del jurado — foja.
-17. Constancia de comunicación del dictamen a los aspirantes — sin foja.
-18. Resolución de aprobación del dictamen — foja.
-19. Resolución de designación — foja.
+7. Oficio a APUNSJ solicitando veedor — sin foja.
+8. Notas de notificación a jurados — sin foja; un check para las notificaciones de los seis titulares y suplentes.
+9. Acta de inscriptos — foja.
+10. Constancia de envío del acta de inscriptos — sin foja.
+11. Constancia de entrega de documentación al jurado — sin foja.
+12. Acta de valoración de antecedentes — foja.
+13. Nota del jurado con fecha de sorteo de temas y prueba de oposición — foja.
+14. Acta de sorteo de temas — foja.
+15. Tres temas de examen — sin foja.
+16. Planilla de asistencia a oposición — sin foja.
+17. Acta de prueba de oposición — foja.
+18. Dictamen del jurado — foja.
+19. Constancia de comunicación del dictamen a los aspirantes — sin foja.
+20. Resolución de aprobación del dictamen — foja.
+21. Resolución de designación — foja.
 
 Las situaciones extraordinarias (impugnaciones, excusaciones, suspensiones, concurso desierto, etc.) se diseñarán después. No se ocultan ni se dan por resueltas automáticamente.
 

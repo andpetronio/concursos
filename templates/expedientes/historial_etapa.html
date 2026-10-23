@@ -1,0 +1,10 @@
+{% extends "layouts/private.html" %}
+{% block title %}Historial de etapas documentales · {{ concurso.expediente }}{% endblock %}
+{% block content %}
+{% include "components/page_header.html" with section="Control documental" title="Historial de etapas documentales" description="Selecciones manuales de la etapa activa, independientes del estado administrativo." %}
+<p><a href="{{ concurso.get_absolute_url }}#control-documental">Volver al concurso {{ concurso.expediente }}</a></p>
+<section class="section" aria-label="Cambios de etapa documental">
+  {% if object_list %}{% include "expedientes/etapa_tabla.html" with table_label="Historial de etapas documentales" %}{% include "components/pagination.html" %}
+  {% else %}{% include "components/empty_state_inline.html" with description="Sin cambios de etapa. La etapa inicial es Preparación de convocatoria." only %}{% endif %}
+</section>
+{% endblock %}

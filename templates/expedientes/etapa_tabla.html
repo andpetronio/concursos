@@ -1,0 +1,3 @@
+{% extends "components/table.html" %}
+{% block columns %}<th scope="col">Fecha</th><th scope="col">Responsable</th><th scope="col">Etapa anterior</th><th scope="col">Etapa seleccionada</th>{% endblock %}
+{% block rows %}{% for cambio in object_list %}<tr><td>{{ cambio.fecha|date:"d/m/Y H:i:s" }}</td><td>{{ cambio.usuario.get_username }}</td><td>{{ cambio.get_anterior_display }}</td><td>{{ cambio.get_nueva_display }}</td></tr>{% endfor %}{% endblock %}
