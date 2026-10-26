@@ -1,9 +1,9 @@
 {% extends "layouts/auth.html" %}
-{% block title %}Ingresar · Concursos Nodocentes{% endblock %}
+{% block title %}Ingresar · SiCon{% endblock %}
 {% block content %}
 <p class="eyebrow">Acceso al sistema</p>
 <h1>Iniciar sesión</h1>
-<p>Ingresá con tu usuario y contraseña.</p>
+<p>Ingresá con tu cuenta de trabajo para continuar.</p>
 {% if request.GET.expired %}<div class="notice" role="status">Tu sesión venció por inactividad. Volvé a ingresar para continuar. Los cambios que no enviaste no se guardaron.</div>{% endif %}
 {% if form.non_field_errors %}<div class="notice notice-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
 <form method="post" action="{% url 'login' %}">

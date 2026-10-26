@@ -1,0 +1,22 @@
+SiCon - ajuste focalizado SDD-005
+
+Contiene SOLO los archivos modificados, conservando rutas relativas.
+Aplicar sobre una copia de seguridad del repositorio SiCon.
+
+1) Reemplazar documentos/renderers.py
+2) Reemplazar documentos/registry.py
+3) Reemplazar docs/SDD-005-EVIDENCIA.md
+
+Cambio: formato del anexo de convocatoria y versión convocatoria-3.
+NO requiere migración adicional por estos cambios.
+NO incluye datos reales, contraseñas ni archivos de entorno.
+
+Validación independiente: muestras DOCX sintéticas convertidas con LibreOffice.
+Pruebas Django/PostgreSQL: pendientes de ejecutar en la Mac.
+
+Tras copiar, ejecutar en SiCon:
+ docker compose up -d --build web
+ docker compose exec web python manage.py check
+ docker compose exec web python manage.py test documentos
+
+Si hay migraciones previas de SDD-005 pendientes, antes de ponerlo en uso realizar respaldo y aplicar con el procedimiento habitual.

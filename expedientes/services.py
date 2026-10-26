@@ -40,7 +40,10 @@ def actualizar_etapa(*, concurso_id, etapa, usuario, version_esperada):
 
 def instantanea(control):
     return {
-        "verificado": control.verificado, "fojas": control.fojas, "observaciones": control.observaciones,
+        "verificado": control.verificado, "fojas": control.fojas,
+        "partida_principal": control.partida_principal,
+        "actividad_presupuestaria": control.actividad_presupuestaria,
+        "observaciones": control.observaciones,
         "responsable_id": control.responsable_id,
         "verificado_en": control.verificado_en.isoformat() if control.verificado_en else None,
     }
@@ -54,7 +57,7 @@ def actualizar_control(*, concurso_id, control_id, datos, usuario, version_esper
     if control.version != version_esperada:
         raise ValidationError("Otro operador modificó este control. Volvé a abrir la ficha y revisá los datos antes de guardar.")
     anterior = instantanea(control)
-    for campo in ("verificado", "fojas", "observaciones"):
+    for campo in ("verificado", "fojas", "partida_principal", "actividad_presupuestaria", "observaciones"):
         if campo in datos:
             setattr(control, campo, datos[campo])
     control.full_clean()

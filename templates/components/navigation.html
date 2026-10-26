@@ -1,9 +1,13 @@
-<aside class="sidebar">
+{% load navigation %}
+{% navigation_section as active_section %}
+<aside class="sidebar" id="primary-navigation" aria-label="Menú principal">
+  <button type="button" class="button button-secondary navigation-close" data-navigation-close hidden>Cerrar menú</button>
   {% include "components/brand.html" %}
   <p class="nav-group-label">Espacio de trabajo</p>
   <nav aria-label="Navegación principal">
-    <a class="nav-link{% if request.resolver_match.url_name == 'dashboard' %} is-active{% endif %}" href="{% url 'dashboard' %}"{% if request.resolver_match.url_name == 'dashboard' %} aria-current="page"{% endif %}>Panel inicial</a>
-    {% if perms.concursos.view_concurso %}<a class="nav-link{% if request.resolver_match.namespace == 'concursos' %} is-active{% endif %}" href="{% url 'concursos:lista' %}"{% if request.resolver_match.namespace == 'concursos' %} aria-current="page"{% endif %}>Concursos</a>{% endif %}
+    <a class="nav-link{% if active_section == 'dashboard' %} is-active{% endif %}" href="{% url 'dashboard' %}"{% if active_section == 'dashboard' %} aria-current="page"{% endif %}>Panel inicial</a>
+    {% if perms.concursos.view_concurso %}<a class="nav-link{% if active_section == 'concursos' %} is-active{% endif %}" href="{% url 'concursos:lista' %}"{% if active_section == 'concursos' %} aria-current="page"{% endif %}>Concursos</a>{% endif %}
+    {% if perms.documentos.configurar_institucion %}<a class="nav-link{% if active_section == 'configuracion' %} is-active{% endif %}" href="{% url 'documentos:configuracion' %}"{% if active_section == 'configuracion' %} aria-current="page"{% endif %}>Configuración institucional</a>{% endif %}
   </nav>
   <div class="sidebar-bottom">
     <p class="session-note">La sesión se cierra después de 30 minutos sin actividad.</p>

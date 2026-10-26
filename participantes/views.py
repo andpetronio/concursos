@@ -32,7 +32,10 @@ class ParticipanteFormView(AccesoConcursoMixin, FormView):
         )
 
     def get_success_url(self):
-        return reverse("concursos:detalle", args=[self.get_concurso().pk])
+        section = {Jurado: "jurados", Veedor: "veedores", Aspirante: "aspirantes"}.get(
+            getattr(self, "modelo", None), "resumen"
+        )
+        return f'{reverse("concursos:detalle", args=[self.get_concurso().pk])}#{section}'
 
 
 class AltaParticipanteView(ParticipanteFormView):
@@ -153,6 +156,14 @@ class PersonaEdicionView(ParticipanteFormView):
                 raise Http404
             self.persona = persona
         return self.persona
+
+    def get_success_url(self):
+        # Only known sections where this person participates; never a redirect URL.
+        section = self.request.GET.get("seccion")
+        model = {"jurados": Jurado, "veedores": Veedor, "aspirantes": Aspirante}.get(section)
+        if model and model.objects.filter(concurso=self.get_concurso(), persona=self.get_persona()).exists():
+            return f'{reverse("concursos:detalle", args=[self.get_concurso().pk])}#{section}'
+        return super().get_success_url()
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()

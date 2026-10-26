@@ -38,6 +38,40 @@
       {% include "components/field.html" with field=form.unidad %}
       {% include "components/field.html" with field=form.dependencia %}
       {% include "components/field.html" with field=form.cadena_jerarquica extra_class="field--full" %}
+      {% include "components/field.html" with field=form.jurisdiccion %}
+      <p class="field-help">Los artículos se eligen por separado y se usan en el DOCX para formar «en el», «en la», «del» y «de la».</p>
+      {% include "components/field.html" with field=form.articulo_unidad %}
+      {% include "components/field.html" with field=form.articulo_dependencia %}
+      {% include "components/field.html" with field=form.articulo_superior %}
+      {% include "components/field.html" with field=form.turno_trabajo %}
+      {% include "components/field.html" with field=form.domicilio_trabajo %}
+    </div>
+  </fieldset>
+  <fieldset class="card form-section" aria-labelledby="vacancia-heading">
+    {% include "components/form_section_header.html" with heading_id="vacancia-heading" title="Antecedentes de vacancia" description="Registrá los antecedentes que constan en el expediente. No se presume que el motivo sea jubilación." only %}
+    <div class="form-grid">
+      {% include "components/field.html" with field=form.causa_vacancia %}
+      {% include "components/field.html" with field=form.ex_titular %}
+      {% include "components/field.html" with field=form.fecha_baja %}
+      {% include "components/field.html" with field=form.motivo_baja %}
+      {% include "components/field.html" with field=form.acto_vacancia %}
+      {% include "components/field.html" with field=form.detalle_vacancia extra_class="field--full" %}
+      {% include "components/field.html" with field=form.resolucion_baja %}
+    </div>
+  </fieldset>
+  <fieldset class="card form-section" aria-labelledby="iniciador-heading">
+    {% include "components/form_section_header.html" with heading_id="iniciador-heading" title="Inicio del expediente" description="Identificá a la persona que solicitó iniciar el trámite, según la actuación inicial." only %}
+    <div class="form-grid">
+      {% include "components/field.html" with field=form.articulo_iniciador %}
+      {% include "components/field.html" with field=form.iniciador_tratamiento %}
+      {% include "components/field.html" with field=form.iniciador_nombre %}
+      {% include "components/field.html" with field=form.iniciador_cargo %}
+    </div>
+  </fieldset>
+  <fieldset class="card form-section" aria-labelledby="acto-convocatoria-heading">
+    {% include "components/form_section_header.html" with heading_id="acto-convocatoria-heading" title="Resolución oficial de convocatoria" description="Registrá el número solamente después de que Rectorado haya emitido el acto. Se reutilizará en las seis notificaciones a jurados." only %}
+    <div class="form-grid">
+      {% include "components/field.html" with field=form.resolucion_convocatoria %}
     </div>
   </fieldset>
   <details class="card form-section additional-data"{% if form.funciones.value or form.funciones.errors %} open{% endif %}>

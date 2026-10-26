@@ -1,0 +1,14 @@
+{% extends "layouts/private.html" %}
+{% block title %}Jefatura de Personal · UNSJ{% endblock %}
+{% block content %}
+{% include "components/page_header.html" with section="Configuración institucional" title="Jefatura del Departamento de Personal" description="Destinatario del oficio de elección directa del jurado por el personal." only %}
+<form method="post" class="card section">
+  {% csrf_token %}
+  {% include "components/form_section_header.html" with heading_id="jefatura-personal" title="Autoridad destinataria" description="Configuración reutilizable y con control de versión." only %}
+  {% if form.non_field_errors %}<div class="field-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+  <div class="form-grid">{% for field in form.visible_fields %}{% include "components/field.html" with field=field %}{% endfor %}</div>
+  <div class="form-actions">{% include "components/button.html" with label="Guardar configuración" %}</div>
+</form>
+<p><a href="{% url 'documentos:configuracion' %}">Volver a configuración institucional</a></p>
+{% endblock %}

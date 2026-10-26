@@ -1,0 +1,23 @@
+{% extends "layouts/private.html" %}
+{% block title %}Membrete institucional · UNSJ{% endblock %}
+{% block content %}
+{% include "components/page_header.html" with section="Configuración institucional" title="Membrete para notificaciones a jurados" description="Subí el membrete completo del año vigente. Se utilizará en las nuevas notas; los documentos históricos no se alteran." only %}
+<p><a href="{% url 'documentos:configuracion' %}">Volver a configuración institucional</a></p>
+<section class="card section">
+  <h2>Membrete actualmente configurado</h2>
+  {% if membrete_actual %}
+    <p>Archivo: {{ membrete_actual.nombre_archivo }} · Versión {{ membrete_actual.version }} · Actualizado: {{ membrete_actual.actualizado_en|date:"d/m/Y H:i" }}</p>
+    <img src="{% url 'documentos:membrete_imagen' %}" alt="Vista previa del membrete institucional" style="max-width:100%;max-height:180px;object-fit:contain">
+  {% else %}
+    <p>No hay un membrete vigente cargado. Las nuevas notificaciones requieren que lo configures.</p>
+  {% endif %}
+</section>
+<form method="post" enctype="multipart/form-data" class="card section">
+  {% csrf_token %}
+  {% include "components/form_section_header.html" with heading_id="membrete-heading" title="Reemplazar membrete" description="Solo PNG o JPG. Incluí todas las marcas institucionales vigentes. Tamaño máximo: 4 MB." only %}
+  {% if form.non_field_errors %}<div class="field-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form.hidden_fields %}{{ field }}{% if field.errors %}<div class="field-errors" role="alert">{{ field.errors }}</div>{% endif %}{% endfor %}
+  <div class="form-grid">{% for field in form.visible_fields %}{% include "components/field.html" with field=field %}{% endfor %}</div>
+  <div class="form-actions">{% include "components/button.html" with label="Guardar membrete vigente" %}</div>
+</form>
+{% endblock %}

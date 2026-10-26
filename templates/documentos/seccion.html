@@ -1,0 +1,110 @@
+<section id="documentos" class="card section document-generation" tabindex="-1" aria-labelledby="documentos-heading">
+  {% include "components/form_section_header.html" with heading_id="documentos-heading" title="Generación de documentos" description="Borradores editables que se conservan en SiCon. Generar no emite, firma, notifica ni verifica actuaciones del expediente." only %}
+
+  <div class="document-generation-overview" aria-label="Disponibilidad de documentos">
+    <p><strong>{{ documentos_listos }}</strong> de <strong>{{ tipos_documentos|length }}</strong> tipos con datos suficientes para iniciar su revisión.</p>
+    <p class="field-help">La disponibilidad es técnica: no significa que el modelo esté aprobado ni que el acto oficial se haya emitido.</p>
+  </div>
+
+  {% for grupo in grupos_tipos_documentos %}
+  <section class="document-generation-group" aria-labelledby="documentos-grupo-{{ grupo.codigo }}">
+    <div class="document-generation-heading">
+      <div>
+        <h3 id="documentos-grupo-{{ grupo.codigo }}">{{ grupo.titulo }}</h3>
+        <p class="field-help">{{ grupo.descripcion }}</p>
+      </div>
+      <span class="document-generation-count">{{ grupo.listos }} de {{ grupo.documentos|length }} disponibles</span>
+    </div>
+    <div class="document-generation-list">
+      {% for documento in grupo.documentos %}
+      <article class="document-generation-row">
+        <div class="document-generation-main">
+          <div class="document-generation-identity">
+            <h4>{{ documento.tipo.nombre }}</h4>
+            <p>{{ documento.tipo.descripcion }}</p>
+            {% if documento.tipo.codigo == "apunsj" or documento.tipo.codigo == "solicitud_jurados_rectorado" %}
+              <span class="document-generation-note">Modelo provisorio, pendiente de validación institucional</span>
+            {% elif documento.tipo.codigo == "dictamen" or documento.tipo.codigo == "designacion" %}
+              <span class="document-generation-note">Proyecto pendiente de revisión y consolidación administrativa</span>
+            {% endif %}
+          </div>
+          <span class="document-generation-state{% if documento.disponible %} is-ready{% else %} is-pending{% endif %}">
+            {% if documento.disponible %}Datos disponibles{% else %}Requiere completar datos{% endif %}
+          </span>
+        </div>
+        <div class="document-generation-footer">
+          {% if documento.faltantes %}
+            <span class="field-help">{{ documento.faltantes|length }} requisito{{ documento.faltantes|length|pluralize }} pendiente{{ documento.faltantes|length|pluralize }}</span>
+          {% else %}
+            <span class="field-help">Sin faltantes detectados en esta revisión</span>
+          {% endif %}
+          {% if perms.documentos.generar_documento %}
+            {% url 'documentos:revisar' concurso.pk documento.tipo.codigo as revisar_url %}
+            {% include "components/button.html" with href=revisar_url label="Revisar documento" extra_class="button-secondary" %}
+          {% else %}
+            <span class="field-help">Generación reservada a usuarios autorizados</span>
+          {% endif %}
+        </div>
+        <details class="document-generation-details">
+          <summary>Ver datos utilizados y requisitos</summary>
+          <div class="document-generation-details-content">
+            <dl class="detail-list">
+              <dt>Variables automáticas</dt><dd>{{ documento.tipo.automaticas }}</dd>
+              <dt>Datos complementarios</dt><dd>{{ documento.tipo.complementarias }}</dd>
+              <dt>Condiciones del modelo</dt><dd>{{ documento.tipo.pendientes }}</dd>
+            </dl>
+            {% if documento.faltantes %}
+              <h5>Faltantes detectados</h5>
+              <ul>{% for faltante in documento.faltantes %}<li>{{ faltante }}</li>{% endfor %}</ul>
+            {% endif %}
+          </div>
+        </details>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+
+  <section class="document-generation-history" aria-labelledby="generaciones-heading">
+    <div class="document-generation-heading">
+      <div>
+        <h3 id="generaciones-heading">Borradores conservados</h3>
+        <p class="field-help">Últimas 20 generaciones, sin alterar los archivos históricos.</p>
+      </div>
+    </div>
+    {% if generaciones %}
+      <ol class="document-generation-history-list">
+        {% for registro in generaciones %}
+        <li class="document-generation-history-row">
+          <div class="document-generation-history-info">
+            <strong>{{ registro.nombre_tipo }}</strong>
+            <span class="field-help">{{ registro.generado_en|date:"d/m/Y H:i" }} · {{ registro.generado_por.get_username }} · Plantilla {{ registro.plantilla_version }} · Registro {{ registro.pk }}</span>
+          </div>
+          {% if perms.documentos.generar_documento %}
+          <div class="document-generation-history-actions">
+            {% url 'documentos:descargar' concurso.pk registro.pk as descarga_url %}
+            {% if registro.tipo == "jurados" %}
+              {% include "components/button.html" with href=descarga_url label="Descargar ZIP" extra_class="button-secondary" %}
+            {% else %}
+              {% include "components/button.html" with href=descarga_url label="Descargar DOCX" extra_class="button-secondary" %}
+            {% endif %}
+            {% if registro.instantanea.archivos %}
+              <details class="document-generation-files">
+                <summary>Descargar notas individuales</summary>
+                <ul>
+                  {% for archivo in registro.instantanea.archivos %}
+                    <li><a href="{% url 'documentos:descargar_jurado' concurso.pk registro.pk archivo.indice %}">Nota {{ archivo.indice }} · {{ archivo.representacion }} / {{ archivo.calidad }}</a></li>
+                  {% endfor %}
+                </ul>
+              </details>
+            {% endif %}
+          </div>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      {% include "components/empty_state_inline.html" with description="Todavía no hay borradores generados." only %}
+    {% endif %}
+  </section>
+</section>

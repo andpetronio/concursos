@@ -1,0 +1,1189 @@
+{
+  "status": "PASS",
+  "widths": [
+    1440,
+    1280,
+    768,
+    360
+  ],
+  "tabChecks": [
+    {
+      "section": "resumen",
+      "width": 1440,
+      "pageWidth": 1440,
+      "visible": [
+        "panel-resumen"
+      ],
+      "selected": "#resumen",
+      "roving": 1,
+      "hash": "#resumen",
+      "navBox": {
+        "x": 272,
+        "y": 148,
+        "width": 1144,
+        "height": 60,
+        "top": 148,
+        "right": 1416,
+        "bottom": 208,
+        "left": 272
+      },
+      "selectedBox": {
+        "x": 272,
+        "y": 156,
+        "width": 104.703125,
+        "height": 44,
+        "top": 156,
+        "right": 376.703125,
+        "bottom": 200,
+        "left": 272
+      },
+      "hint": "Más pestañas a la derecha →",
+      "hintVisible": false,
+      "focus": "detail-tab-0"
+    },
+    {
+      "section": "datos-concurso",
+      "width": 1440,
+      "pageWidth": 1440,
+      "visible": [
+        "panel-datos-concurso"
+      ],
+      "selected": "#datos-concurso",
+      "roving": 1,
+      "hash": "#datos-concurso",
+      "navBox": {
+        "x": 272,
+        "y": 148,
+        "width": 1144,
+        "height": 60,
+        "top": 148,
+        "right": 1416,
+        "bottom": 208,
+        "left": 272
+      },
+      "selectedBox": {
+        "x": 379.28125,
+        "y": 156,
+        "width": 158.8125,
+        "height": 44,
+        "top": 156,
+        "right": 538.09375,
+        "bottom": 200,
+        "left": 379.28125
+      },
+      "hint": "Más pestañas a la derecha →",
+      "hintVisible": false,
+      "focus": "detail-tab-1"
+    },
+    {
+      "section": "jurados",
+      "width": 1440,
+      "pageWidth": 1440,
+      "visible": [
+        "panel-jurados"
+      ],
+      "selected": "#jurados",
+      "roving": 1,
+      "hash": "#jurados",
+      "navBox": {
+        "x": 272,
+        "y": 148,
+        "width": 1144,
+        "height": 60,
+        "top": 148,
+        "right": 1416,
+        "bottom": 208,
+        "left": 272
+      },
+      "selectedBox": {
+        "x": 536.921875,
+        "y": 156,
+        "width": 95.890625,
+        "height": 44,
+        "top": 156,
+        "right": 632.8125,
+        "bottom": 200,
+        "left": 536.921875
+      },
+      "hint": "Más pestañas a la derecha →",
+      "hintVisible": false,
+      "focus": "detail-tab-2"
+    },
+    {
+      "section": "veedores",
+      "width": 1440,
+      "pageWidth": 1440,
+      "visible": [
+        "panel-veedores"
+      ],
+      "selected": "#veedores",
+      "roving": 1,
+      "hash": "#veedores",
+      "navBox": {
+        "x": 272,
+        "y": 148,
+        "width": 1144,
+        "height": 60,
+        "top": 148,
+        "right": 1416,
+        "bottom": 208,
+        "left": 272
+      },
+      "selectedBox": {
+        "x": 635.265625,
+        "y": 156,
+        "width": 105.90625,
+        "height": 44,
+        "top": 156,
+        "right": 741.171875,
+        "bottom": 200,
+        "left": 635.265625
+      },
+      "hint": "Más pestañas a la derecha →",
+      "hintVisible": false,
+      "focus": "detail-tab-3"
+    },
+    {
+      "section": "aspirantes",
+      "width": 1440,
+      "pageWidth": 1440,
+      "visible": [
+        "panel-aspirantes"
+      ],
+      "selected": "#aspirantes",
+      "roving": 1,
+      "hash": "#aspirantes",
+      "navBox": {
+        "x": 272,
+        "y": 148,
+        "width": 1144,
+        "height": 60,
+        "top": 148,
+        "right": 1416,
+        "bottom": 208,
+        "left": 272
+      },
+      "selectedBox": {
+        "x": 743.703125,
+        "y": 156,
+        "width": 117,
+        "height": 44,
+        "top": 156,
+        "right": 860.703125,
+        "bottom": 200,
+        "left": 743.703125
+      },
+      "hint": "Más pestañas a la derecha →",
+      "hintVisible": false,
+      "focus": "detail-tab-4"
+    },
+    {
+      "section": "control-documental",
+      "width": 1440,
+      "pageWidth": 1440,
+      "visible": [
+        "panel-control-documental"
+      ],
+      "selected": "#control-documental",
+      "roving": 1,
+      "hash": "#control-documental",
+      "navBox": {
+        "x": 272,
+        "y": 148,
+        "width": 1144,
+        "height": 60,
+        "top": 148,
+        "right": 1416,
+        "bottom": 208,
+        "left": 272
+      },
+      "selectedBox": {
+        "x": 860.765625,
+        "y": 156,
+        "width": 187.125,
+        "height": 44,
+        "top": 156,
+        "right": 1047.890625,
+        "bottom": 200,
+        "left": 860.765625
+      },
+      "hint": "Más pestañas a la derecha →",
+      "hintVisible": false,
+      "focus": "detail-tab-5"
+    },
+    {
+      "section": "documentos",
+      "width": 1440,
+      "pageWidth": 1440,
+      "visible": [
+        "panel-documentos"
+      ],
+      "selected": "#documentos",
+      "roving": 1,
+      "hash": "#documentos",
+      "navBox": {
+        "x": 272,
+        "y": 148,
+        "width": 1144,
+        "height": 60,
+        "top": 148,
+        "right": 1416,
+        "bottom": 208,
+        "left": 272
+      },
+      "selectedBox": {
+        "x": 1043.71875,
+        "y": 156,
+        "width": 131.28125,
+        "height": 44,
+        "top": 156,
+        "right": 1175,
+        "bottom": 200,
+        "left": 1043.71875
+      },
+      "hint": "Más pestañas a la derecha →",
+      "hintVisible": false,
+      "focus": "detail-tab-6"
+    },
+    {
+      "section": "historial",
+      "width": 1440,
+      "pageWidth": 1440,
+      "visible": [
+        "panel-historial"
+      ],
+      "selected": "#historial",
+      "roving": 1,
+      "hash": "#historial",
+      "navBox": {
+        "x": 272,
+        "y": 148,
+        "width": 1144,
+        "height": 60,
+        "top": 148,
+        "right": 1416,
+        "bottom": 208,
+        "left": 272
+      },
+      "selectedBox": {
+        "x": 1175.890625,
+        "y": 156,
+        "width": 98.53125,
+        "height": 44,
+        "top": 156,
+        "right": 1274.421875,
+        "bottom": 200,
+        "left": 1175.890625
+      },
+      "hint": "Más pestañas a la derecha →",
+      "hintVisible": false,
+      "focus": "detail-tab-7"
+    },
+    {
+      "section": "resumen",
+      "width": 1280,
+      "pageWidth": 1280,
+      "visible": [
+        "panel-resumen"
+      ],
+      "selected": "#resumen",
+      "roving": 1,
+      "hash": "#resumen",
+      "navBox": {
+        "x": 272,
+        "y": 148,
+        "width": 984,
+        "height": 60,
+        "top": 148,
+        "right": 1256,
+        "bottom": 208,
+        "left": 272
+      },
+      "selectedBox": {
+        "x": 272,
+        "y": 156,
+        "width": 104.703125,
+        "height": 44,
+        "top": 156,
+        "right": 376.703125,
+        "bottom": 200,
+        "left": 272
+      },
+      "hint": "Más pestañas a la derecha →",
+      "hintVisible": true,
+      "focus": "detail-tab-0"
+    },
+    {
+      "section": "datos-concurso",
+      "width": 1280,
+      "pageWidth": 1280,
+      "visible": [
+        "panel-datos-concurso"
+      ],
+      "selected": "#datos-concurso",
+      "roving": 1,
+      "hash": "#datos-concurso",
+      "navBox": {
+        "x": 272,
+        "y": 148,
+        "width": 984,
+        "height": 60,
+        "top": 148,
+        "right": 1256,
+        "bottom": 208,
+        "left": 272
+      },
+      "selectedBox": {
+        "x": 379.28125,
+        "y": 156,
+        "width": 158.8125,
+        "height": 44,
+        "top": 156,
+        "right": 538.09375,
+        "bottom": 200,
+        "left": 379.28125
+      },
+      "hint": "Más pestañas a la derecha →",
+      "hintVisible": true,
+      "focus": "detail-tab-1"
+    },
+    {
+      "section": "jurados",
+      "width": 1280,
+      "pageWidth": 1280,
+      "visible": [
+        "panel-jurados"
+      ],
+      "selected": "#jurados",
+      "roving": 1,
+      "hash": "#jurados",
+      "navBox": {
+        "x": 272,
+        "y": 148,
+        "width": 984,
+        "height": 60,
+        "top": 148,
+        "right": 1256,
+        "bottom": 208,
+        "left": 272
+      },
+      "selectedBox": {
+        "x": 536.921875,
+        "y": 156,
+        "width": 95.890625,
+        "height": 44,
+        "top": 156,
+        "right": 632.8125,
+        "bottom": 200,
+        "left": 536.921875
+      },
+      "hint": "Más pestañas a la derecha →",
+      "hintVisible": true,
+      "focus": "detail-tab-2"
+    },
+    {
+      "section": "veedores",
+      "width": 1280,
+      "pageWidth": 1280,
+      "visible": [
+        "panel-veedores"
+      ],
+      "selected": "#veedores",
+      "roving": 1,
+      "hash": "#veedores",
+      "navBox": {
+        "x": 272,
+        "y": 148,
+        "width": 984,
+        "height": 60,
+        "top": 148,
+        "right": 1256,
+        "bottom": 208,
+        "left": 272
+      },
+      "selectedBox": {
+        "x": 635.265625,
+        "y": 156,
+        "width": 105.90625,
+        "height": 44,
+        "top": 156,
+        "right": 741.171875,
+        "bottom": 200,
+        "left": 635.265625
+      },
+      "hint": "Más pestañas a la derecha →",
+      "hintVisible": true,
+      "focus": "detail-tab-3"
+    },
+    {
+      "section": "aspirantes",
+      "width": 1280,
+      "pageWidth": 1280,
+      "visible": [
+        "panel-aspirantes"
+      ],
+      "selected": "#aspirantes",
+      "roving": 1,
+      "hash": "#aspirantes",
+      "navBox": {
+        "x": 272,
+        "y": 148,
+        "width": 984,
+        "height": 60,
+        "top": 148,
+        "right": 1256,
+        "bottom": 208,
+        "left": 272
+      },
+      "selectedBox": {
+        "x": 743.703125,
+        "y": 156,
+        "width": 117,
+        "height": 44,
+        "top": 156,
+        "right": 860.703125,
+        "bottom": 200,
+        "left": 743.703125
+      },
+      "hint": "Más pestañas a la derecha →",
+      "hintVisible": true,
+      "focus": "detail-tab-4"
+    },
+    {
+      "section": "control-documental",
+      "width": 1280,
+      "pageWidth": 1280,
+      "visible": [
+        "panel-control-documental"
+      ],
+      "selected": "#control-documental",
+      "roving": 1,
+      "hash": "#control-documental",
+      "navBox": {
+        "x": 272,
+        "y": 148,
+        "width": 984,
+        "height": 60,
+        "top": 148,
+        "right": 1256,
+        "bottom": 208,
+        "left": 272
+      },
+      "selectedBox": {
+        "x": 860.765625,
+        "y": 156,
+        "width": 187.125,
+        "height": 44,
+        "top": 156,
+        "right": 1047.890625,
+        "bottom": 200,
+        "left": 860.765625
+      },
+      "hint": "Más pestañas a la derecha →",
+      "hintVisible": true,
+      "focus": "detail-tab-5"
+    },
+    {
+      "section": "documentos",
+      "width": 1280,
+      "pageWidth": 1280,
+      "visible": [
+        "panel-documentos"
+      ],
+      "selected": "#documentos",
+      "roving": 1,
+      "hash": "#documentos",
+      "navBox": {
+        "x": 272,
+        "y": 148,
+        "width": 984,
+        "height": 60,
+        "top": 148,
+        "right": 1256,
+        "bottom": 208,
+        "left": 272
+      },
+      "selectedBox": {
+        "x": 1043.71875,
+        "y": 156,
+        "width": 131.28125,
+        "height": 44,
+        "top": 156,
+        "right": 1175,
+        "bottom": 200,
+        "left": 1043.71875
+      },
+      "hint": "Más pestañas a la derecha →",
+      "hintVisible": true,
+      "focus": "detail-tab-6"
+    },
+    {
+      "section": "historial",
+      "width": 1280,
+      "pageWidth": 1280,
+      "visible": [
+        "panel-historial"
+      ],
+      "selected": "#historial",
+      "roving": 1,
+      "hash": "#historial",
+      "navBox": {
+        "x": 272,
+        "y": 148,
+        "width": 984,
+        "height": 60,
+        "top": 148,
+        "right": 1256,
+        "bottom": 208,
+        "left": 272
+      },
+      "selectedBox": {
+        "x": 1157.890625,
+        "y": 156,
+        "width": 98.53125,
+        "height": 44,
+        "top": 156,
+        "right": 1256.421875,
+        "bottom": 200,
+        "left": 1157.890625
+      },
+      "hint": "← Más pestañas a la izquierda",
+      "hintVisible": true,
+      "focus": "detail-tab-7"
+    },
+    {
+      "section": "resumen",
+      "width": 768,
+      "pageWidth": 768,
+      "visible": [
+        "panel-resumen"
+      ],
+      "selected": "#resumen",
+      "roving": 1,
+      "hash": "#resumen",
+      "navBox": {
+        "x": 232,
+        "y": 140,
+        "width": 520,
+        "height": 60,
+        "top": 140,
+        "right": 752,
+        "bottom": 200,
+        "left": 232
+      },
+      "selectedBox": {
+        "x": 232,
+        "y": 148,
+        "width": 104.703125,
+        "height": 44,
+        "top": 148,
+        "right": 336.703125,
+        "bottom": 192,
+        "left": 232
+      },
+      "hint": "Más pestañas a la derecha →",
+      "hintVisible": true,
+      "focus": "detail-tab-0"
+    },
+    {
+      "section": "datos-concurso",
+      "width": 768,
+      "pageWidth": 768,
+      "visible": [
+        "panel-datos-concurso"
+      ],
+      "selected": "#datos-concurso",
+      "roving": 1,
+      "hash": "#datos-concurso",
+      "navBox": {
+        "x": 232,
+        "y": 140,
+        "width": 520,
+        "height": 60,
+        "top": 140,
+        "right": 752,
+        "bottom": 200,
+        "left": 232
+      },
+      "selectedBox": {
+        "x": 339.28125,
+        "y": 148,
+        "width": 158.8125,
+        "height": 44,
+        "top": 148,
+        "right": 498.09375,
+        "bottom": 192,
+        "left": 339.28125
+      },
+      "hint": "Más pestañas a la derecha →",
+      "hintVisible": true,
+      "focus": "detail-tab-1"
+    },
+    {
+      "section": "jurados",
+      "width": 768,
+      "pageWidth": 768,
+      "visible": [
+        "panel-jurados"
+      ],
+      "selected": "#jurados",
+      "roving": 1,
+      "hash": "#jurados",
+      "navBox": {
+        "x": 232,
+        "y": 140,
+        "width": 520,
+        "height": 60,
+        "top": 140,
+        "right": 752,
+        "bottom": 200,
+        "left": 232
+      },
+      "selectedBox": {
+        "x": 496.921875,
+        "y": 148,
+        "width": 95.890625,
+        "height": 44,
+        "top": 148,
+        "right": 592.8125,
+        "bottom": 192,
+        "left": 496.921875
+      },
+      "hint": "Más pestañas a la derecha →",
+      "hintVisible": true,
+      "focus": "detail-tab-2"
+    },
+    {
+      "section": "veedores",
+      "width": 768,
+      "pageWidth": 768,
+      "visible": [
+        "panel-veedores"
+      ],
+      "selected": "#veedores",
+      "roving": 1,
+      "hash": "#veedores",
+      "navBox": {
+        "x": 232,
+        "y": 140,
+        "width": 520,
+        "height": 60,
+        "top": 140,
+        "right": 752,
+        "bottom": 200,
+        "left": 232
+      },
+      "selectedBox": {
+        "x": 595.265625,
+        "y": 148,
+        "width": 105.90625,
+        "height": 44,
+        "top": 148,
+        "right": 701.171875,
+        "bottom": 192,
+        "left": 595.265625
+      },
+      "hint": "Más pestañas a la derecha →",
+      "hintVisible": true,
+      "focus": "detail-tab-3"
+    },
+    {
+      "section": "aspirantes",
+      "width": 768,
+      "pageWidth": 768,
+      "visible": [
+        "panel-aspirantes"
+      ],
+      "selected": "#aspirantes",
+      "roving": 1,
+      "hash": "#aspirantes",
+      "navBox": {
+        "x": 232,
+        "y": 140,
+        "width": 520,
+        "height": 60,
+        "top": 140,
+        "right": 752,
+        "bottom": 200,
+        "left": 232
+      },
+      "selectedBox": {
+        "x": 634.703125,
+        "y": 148,
+        "width": 117,
+        "height": 44,
+        "top": 148,
+        "right": 751.703125,
+        "bottom": 192,
+        "left": 634.703125
+      },
+      "hint": "← Más pestañas en ambas direcciones →",
+      "hintVisible": true,
+      "focus": "detail-tab-4"
+    },
+    {
+      "section": "control-documental",
+      "width": 768,
+      "pageWidth": 768,
+      "visible": [
+        "panel-control-documental"
+      ],
+      "selected": "#control-documental",
+      "roving": 1,
+      "hash": "#control-documental",
+      "navBox": {
+        "x": 232,
+        "y": 140,
+        "width": 520,
+        "height": 60,
+        "top": 140,
+        "right": 752,
+        "bottom": 200,
+        "left": 232
+      },
+      "selectedBox": {
+        "x": 564.765625,
+        "y": 148,
+        "width": 187.125,
+        "height": 44,
+        "top": 148,
+        "right": 751.890625,
+        "bottom": 192,
+        "left": 564.765625
+      },
+      "hint": "← Más pestañas en ambas direcciones →",
+      "hintVisible": true,
+      "focus": "detail-tab-5"
+    },
+    {
+      "section": "documentos",
+      "width": 768,
+      "pageWidth": 768,
+      "visible": [
+        "panel-documentos"
+      ],
+      "selected": "#documentos",
+      "roving": 1,
+      "hash": "#documentos",
+      "navBox": {
+        "x": 232,
+        "y": 140,
+        "width": 520,
+        "height": 60,
+        "top": 140,
+        "right": 752,
+        "bottom": 200,
+        "left": 232
+      },
+      "selectedBox": {
+        "x": 620.71875,
+        "y": 148,
+        "width": 131.28125,
+        "height": 44,
+        "top": 148,
+        "right": 752,
+        "bottom": 192,
+        "left": 620.71875
+      },
+      "hint": "← Más pestañas en ambas direcciones →",
+      "hintVisible": true,
+      "focus": "detail-tab-6"
+    },
+    {
+      "section": "historial",
+      "width": 768,
+      "pageWidth": 768,
+      "visible": [
+        "panel-historial"
+      ],
+      "selected": "#historial",
+      "roving": 1,
+      "hash": "#historial",
+      "navBox": {
+        "x": 232,
+        "y": 140,
+        "width": 520,
+        "height": 60,
+        "top": 140,
+        "right": 752,
+        "bottom": 200,
+        "left": 232
+      },
+      "selectedBox": {
+        "x": 653.890625,
+        "y": 148,
+        "width": 98.53125,
+        "height": 44,
+        "top": 148,
+        "right": 752.421875,
+        "bottom": 192,
+        "left": 653.890625
+      },
+      "hint": "← Más pestañas a la izquierda",
+      "hintVisible": true,
+      "focus": "detail-tab-7"
+    },
+    {
+      "section": "resumen",
+      "width": 360,
+      "pageWidth": 360,
+      "visible": [
+        "panel-resumen"
+      ],
+      "selected": "#resumen",
+      "roving": 1,
+      "hash": "#resumen",
+      "navBox": {
+        "x": 16,
+        "y": 211.265625,
+        "width": 328,
+        "height": 60,
+        "top": 211.265625,
+        "right": 344,
+        "bottom": 271.265625,
+        "left": 16
+      },
+      "selectedBox": {
+        "x": 16,
+        "y": 219.265625,
+        "width": 104.703125,
+        "height": 44,
+        "top": 219.265625,
+        "right": 120.703125,
+        "bottom": 263.265625,
+        "left": 16
+      },
+      "hint": "Más pestañas a la derecha →",
+      "hintVisible": true,
+      "focus": "detail-tab-0"
+    },
+    {
+      "section": "datos-concurso",
+      "width": 360,
+      "pageWidth": 360,
+      "visible": [
+        "panel-datos-concurso"
+      ],
+      "selected": "#datos-concurso",
+      "roving": 1,
+      "hash": "#datos-concurso",
+      "navBox": {
+        "x": 16,
+        "y": 211.265625,
+        "width": 328,
+        "height": 60,
+        "top": 211.265625,
+        "right": 344,
+        "bottom": 271.265625,
+        "left": 16
+      },
+      "selectedBox": {
+        "x": 123.28125,
+        "y": 219.265625,
+        "width": 158.8125,
+        "height": 44,
+        "top": 219.265625,
+        "right": 282.09375,
+        "bottom": 263.265625,
+        "left": 123.28125
+      },
+      "hint": "Más pestañas a la derecha →",
+      "hintVisible": true,
+      "focus": "detail-tab-1"
+    },
+    {
+      "section": "jurados",
+      "width": 360,
+      "pageWidth": 360,
+      "visible": [
+        "panel-jurados"
+      ],
+      "selected": "#jurados",
+      "roving": 1,
+      "hash": "#jurados",
+      "navBox": {
+        "x": 16,
+        "y": 211.265625,
+        "width": 328,
+        "height": 60,
+        "top": 211.265625,
+        "right": 344,
+        "bottom": 271.265625,
+        "left": 16
+      },
+      "selectedBox": {
+        "x": 247.921875,
+        "y": 219.265625,
+        "width": 95.890625,
+        "height": 44,
+        "top": 219.265625,
+        "right": 343.8125,
+        "bottom": 263.265625,
+        "left": 247.921875
+      },
+      "hint": "← Más pestañas en ambas direcciones →",
+      "hintVisible": true,
+      "focus": "detail-tab-2"
+    },
+    {
+      "section": "veedores",
+      "width": 360,
+      "pageWidth": 360,
+      "visible": [
+        "panel-veedores"
+      ],
+      "selected": "#veedores",
+      "roving": 1,
+      "hash": "#veedores",
+      "navBox": {
+        "x": 16,
+        "y": 211.265625,
+        "width": 328,
+        "height": 60,
+        "top": 211.265625,
+        "right": 344,
+        "bottom": 271.265625,
+        "left": 16
+      },
+      "selectedBox": {
+        "x": 238.265625,
+        "y": 219.265625,
+        "width": 105.90625,
+        "height": 44,
+        "top": 219.265625,
+        "right": 344.171875,
+        "bottom": 263.265625,
+        "left": 238.265625
+      },
+      "hint": "← Más pestañas en ambas direcciones →",
+      "hintVisible": true,
+      "focus": "detail-tab-3"
+    },
+    {
+      "section": "aspirantes",
+      "width": 360,
+      "pageWidth": 360,
+      "visible": [
+        "panel-aspirantes"
+      ],
+      "selected": "#aspirantes",
+      "roving": 1,
+      "hash": "#aspirantes",
+      "navBox": {
+        "x": 16,
+        "y": 211.265625,
+        "width": 328,
+        "height": 60,
+        "top": 211.265625,
+        "right": 344,
+        "bottom": 271.265625,
+        "left": 16
+      },
+      "selectedBox": {
+        "x": 226.703125,
+        "y": 219.265625,
+        "width": 117,
+        "height": 44,
+        "top": 219.265625,
+        "right": 343.703125,
+        "bottom": 263.265625,
+        "left": 226.703125
+      },
+      "hint": "← Más pestañas en ambas direcciones →",
+      "hintVisible": true,
+      "focus": "detail-tab-4"
+    },
+    {
+      "section": "control-documental",
+      "width": 360,
+      "pageWidth": 360,
+      "visible": [
+        "panel-control-documental"
+      ],
+      "selected": "#control-documental",
+      "roving": 1,
+      "hash": "#control-documental",
+      "navBox": {
+        "x": 16,
+        "y": 211.265625,
+        "width": 328,
+        "height": 60,
+        "top": 211.265625,
+        "right": 344,
+        "bottom": 271.265625,
+        "left": 16
+      },
+      "selectedBox": {
+        "x": 156.765625,
+        "y": 219.265625,
+        "width": 187.125,
+        "height": 44,
+        "top": 219.265625,
+        "right": 343.890625,
+        "bottom": 263.265625,
+        "left": 156.765625
+      },
+      "hint": "← Más pestañas en ambas direcciones →",
+      "hintVisible": true,
+      "focus": "detail-tab-5"
+    },
+    {
+      "section": "documentos",
+      "width": 360,
+      "pageWidth": 360,
+      "visible": [
+        "panel-documentos"
+      ],
+      "selected": "#documentos",
+      "roving": 1,
+      "hash": "#documentos",
+      "navBox": {
+        "x": 16,
+        "y": 211.265625,
+        "width": 328,
+        "height": 60,
+        "top": 211.265625,
+        "right": 344,
+        "bottom": 271.265625,
+        "left": 16
+      },
+      "selectedBox": {
+        "x": 212.71875,
+        "y": 219.265625,
+        "width": 131.28125,
+        "height": 44,
+        "top": 219.265625,
+        "right": 344,
+        "bottom": 263.265625,
+        "left": 212.71875
+      },
+      "hint": "← Más pestañas en ambas direcciones →",
+      "hintVisible": true,
+      "focus": "detail-tab-6"
+    },
+    {
+      "section": "historial",
+      "width": 360,
+      "pageWidth": 360,
+      "visible": [
+        "panel-historial"
+      ],
+      "selected": "#historial",
+      "roving": 1,
+      "hash": "#historial",
+      "navBox": {
+        "x": 16,
+        "y": 211.265625,
+        "width": 328,
+        "height": 60,
+        "top": 211.265625,
+        "right": 344,
+        "bottom": 271.265625,
+        "left": 16
+      },
+      "selectedBox": {
+        "x": 245.890625,
+        "y": 219.265625,
+        "width": 98.53125,
+        "height": 44,
+        "top": 219.265625,
+        "right": 344.421875,
+        "bottom": 263.265625,
+        "left": 245.890625
+      },
+      "hint": "← Más pestañas a la izquierda",
+      "hintVisible": true,
+      "focus": "detail-tab-7"
+    }
+  ],
+  "manualKeyboard": true,
+  "historyRefresh": true,
+  "unknownHashFallback": true,
+  "individualControlHash": true,
+  "controlPOST": true,
+  "controlErrorsVisible": true,
+  "unsavedValuesPreserved": true,
+  "persistence": [
+    {
+      "kind": "jurado",
+      "fragment": "#jurados",
+      "post": true,
+      "persisted": true
+    },
+    {
+      "kind": "veedor",
+      "fragment": "#veedores",
+      "post": true,
+      "persisted": true
+    },
+    {
+      "kind": "aspirante",
+      "fragment": "#aspirantes",
+      "post": true,
+      "persisted": true
+    }
+  ],
+  "personCorrectionReturn": true,
+  "noJSAllVisibleAndPOST": true,
+  "scriptLoadFailureFallback": true,
+  "initializerFailureFallback": true,
+  "resizedActiveTabVisible": true,
+  "viewerDenied": 403,
+  "realHTTP": true,
+  "realCSRF": true,
+  "realCookies": true,
+  "networkFailures": [
+    {
+      "url": "http://127.0.0.1:8788/static/js/detail-tabs.js",
+      "requestId": "24689.1246",
+      "timestamp": 554842.714968,
+      "type": "Script",
+      "errorText": "",
+      "canceled": false,
+      "blockedReason": "inspector"
+    },
+    {
+      "url": "http://127.0.0.1:8788/static/js/detail-tabs.js",
+      "requestId": "24689.1260",
+      "timestamp": 554842.9054,
+      "type": "Script",
+      "errorText": "",
+      "canceled": false,
+      "blockedReason": "inspector"
+    }
+  ],
+  "intentionalFailures": [
+    {
+      "kind": "script-block",
+      "url": "http://127.0.0.1:8788/static/js/detail-tabs.js",
+      "requestId": "24689.1246",
+      "timestamp": 554842.714968,
+      "type": "Script",
+      "errorText": "",
+      "canceled": false,
+      "blockedReason": "inspector"
+    },
+    {
+      "kind": "script-block",
+      "url": "http://127.0.0.1:8788/static/js/detail-tabs.js",
+      "requestId": "24689.1260",
+      "timestamp": 554842.9054,
+      "type": "Script",
+      "errorText": "",
+      "canceled": false,
+      "blockedReason": "inspector"
+    },
+    {
+      "kind": "initializer",
+      "message": "No se pudo activar la navegación por pestañas; todas las secciones siguen disponibles."
+    }
+  ],
+  "errors": [],
+  "django": {
+    "check": "PASS",
+    "tests": 139,
+    "seconds": 15.39,
+    "test_database_destroyed": true
+  },
+  "cleanup": "QA test database destroyed; temporary WSGI server stopped."
+}

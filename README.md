@@ -185,3 +185,20 @@ Convocatoria incorpora publicación, oficio a APUNSJ y notificaciones a los seis
 Las migraciones `expedientes.0001` y `0002` inicializan controles y etapa en los concursos existentes sin tocar datos anteriores ni atribuir verificaciones ficticias. La corrección agrega `0003_controles_convocatoria` (esquema) y `0004_incorporar_controles_convocatoria` (dos controles faltantes sin sobrescribir anteriores). Deben aplicarse antes de servir esta versión. Si ya se aplicaron `0001`/`0002`, no se reinicializan los controles ni la etapa. La reversión solo admite semillas nuevas sin uso; si contienen datos o historial, se detiene para conservarlos. La base persistente y el servicio activo no se actualizaron durante la entrega. Los comandos de actualización local anteriores quedan como operación posterior a revisar la entrega, conservando `.env` y el volumen.
 
 Para el futuro generador, `expedientes.services.consultar_documentacion` ofrece controles verificados/completos, fojas, pendientes globales/exigibles/futuros, sugerencia y habilitación explicada. `habilitacion_convocatoria` es una consulta sin escrituras. SDD-005 continúa pendiente de autorización. Ver comandos/resultados y límites de verificación en `docs/SDD-004-EVIDENCIA.md`.
+
+### SDD-005: documentos (recuperación, aceptación pendiente)
+La ficha permite revisar y generar seis tipos como **BORRADOR NO EMITIDO**. Los cinco PDF originales están disponibles y fueron inspeccionados; las plantillas requieren complementos acreditados y revalidan fuentes/versiones. Las seis notificaciones de jurados se descargan individualmente o en ZIP histórico. APUNSJ sigue provisional, pendiente de validación formal. Alcance y evidencia: [SDD-005](docs/SDD-005-EVIDENCIA.md).
+
+Después de aprobar la actualización del entorno, reconstruir `web` para instalar `python-docx==1.2.0` y ejecutar la nueva migración:
+```sh
+docker compose build web
+docker compose run --rm web python manage.py migrate --noinput
+docker compose up -d web
+```
+Estos comandos son instrucciones operativas, no una migración/despliegue ya realizados. Otorgar explícitamente `documentos.generar_documento` (junto a `concursos.view_concurso`) para generar/descargar y `documentos.configurar_institucion` para configurar APUNSJ. Configurar la autoridad desde «Configuración institucional» antes de generar. No se otorgan permisos automáticamente. Los documentos conservados no cambian al editar la configuración o el concurso.
+
+Para reproducir la verificación sin usar el código antiguo de la imagen ni migrar la base persistente:
+```sh
+docker compose run --rm --no-deps -v "$PWD:/app:ro" web sh -c 'python -m pip check && python manage.py check && python manage.py makemigrations --check --dry-run && python manage.py test -v 1'
+```
+Si la imagen todavía no incluye `python-docx`, instalar `python-docx==1.2.0` únicamente en ese contenedor desechable antes de los checks. Django crea y destruye su base `test_...`; no ejecutar `migrate` contra la base operativa durante la verificación. No se da por validada la maquetación Word sin render o apertura y aceptación humana.

@@ -12,7 +12,8 @@ def comprobar_version(concurso, version_esperada):
 @transaction.atomic
 def crear_concurso(*, datos, usuario):
     concurso = Concurso(
-        **{campo: datos.get(campo, "") for campo in Concurso.DATOS_EDITABLES},
+        **{campo: datos.get(campo, None if campo == "fecha_baja" else "")
+           for campo in Concurso.DATOS_EDITABLES},
         tramo=datos.get("tramo", ""),
         creado_por=usuario, actualizado_por=usuario,
     )
@@ -30,7 +31,7 @@ def editar_concurso(*, pk, datos, usuario, version_esperada):
     concurso = Concurso.objects.select_for_update().get(pk=pk)
     comprobar_version(concurso, version_esperada)
     for campo in Concurso.DATOS_EDITABLES:
-        setattr(concurso, campo, datos[campo])
+        setattr(concurso, campo, datos.get(campo, getattr(concurso, campo)))
     concurso.tramo = datos.get("tramo", "")
     concurso.actualizado_por = usuario
     concurso.version += 1

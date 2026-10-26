@@ -57,6 +57,40 @@ class ConcursoTests(TestCase):
             "justificacion": "", "version_esperada": concurso.version, **overrides,
         })
 
+    def test_antecedentes_e_iniciador_quedan_en_concurso_y_validacion_rectoral(self):
+        from django.core.exceptions import ValidationError
+        datos = {**DATOS, "ex_titular": "Titular ficticio",
+            "fecha_baja": "2026-10-01", "motivo_baja": "Renuncia aceptada",
+            "resolucion_baja": "3278/26-R", "iniciador_tratamiento": "Sra.",
+            "iniciador_nombre": "Iniciadora ficticia", "iniciador_cargo": "Directora"}
+        from concursos.forms import ConcursoForm
+        formulario = ConcursoForm(datos)
+        self.assertTrue(formulario.is_valid(), formulario.errors)
+        concurso = services.crear_concurso(datos=formulario.cleaned_data, usuario=self.operador)
+        self.assertEqual(concurso.ex_titular, "Titular ficticio")
+        self.assertEqual(concurso.resolucion_baja, "3278/26-R")
+        self.assertEqual(concurso.fecha_baja.isoformat(), "2026-10-01")
+        concurso.resolucion_baja = "3278/26-CS"
+        with self.assertRaises(ValidationError):
+            concurso.full_clean()
+        concurso.resolucion_baja = "3278/26-R"
+        concurso = services.editar_concurso(pk=concurso.pk, datos={**DATOS, "denominacion": "Cargo editado"},
+                                           usuario=self.operador, version_esperada=1)
+        self.assertEqual(concurso.iniciador_nombre, "Iniciadora ficticia")
+        self.assertEqual(concurso.resolucion_baja, "3278/26-R")
+
+    def test_resolucion_oficial_convocatoria_se_carga_una_vez_y_valida_rectorado(self):
+        from django.core.exceptions import ValidationError
+        from concursos.forms import ConcursoForm
+        datos = {**DATOS, "resolucion_convocatoria": "3278/26-R"}
+        formulario = ConcursoForm(datos)
+        self.assertTrue(formulario.is_valid(), formulario.errors)
+        concurso = services.crear_concurso(datos=formulario.cleaned_data, usuario=self.operador)
+        self.assertEqual(concurso.resolucion_convocatoria, "3278/26-R")
+        concurso.resolucion_convocatoria = "3278/26-CS"
+        with self.assertRaises(ValidationError):
+            concurso.full_clean()
+
     def test_alta_inicial_auditada_e_ignora_campos_no_editables(self):
         response = self.client.post(reverse("concursos:crear"), {
             **DATOS, "estado": EstadoConcurso.FINALIZADO, "situacion": SituacionAdministrativa.SUSPENDIDO,

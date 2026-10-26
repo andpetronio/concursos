@@ -121,6 +121,29 @@ class DocumentalTests(TestCase):
         self.assertContains(historial, "Referencia corregida")
         self.assertContains(historial, self.editor.username)
 
+    def test_codigos_afectacion_dos_digitos_y_conservacion_historica(self):
+        from expedientes.validators import normalizar_codigo_dos_digitos
+        self.assertEqual(normalizar_codigo_dos_digitos("1"), "01")
+        self.assertEqual(normalizar_codigo_dos_digitos("02"), "02")
+        for invalido in ("-1", "123", "1.1", "ab"):
+            with self.subTest(invalido=invalido), self.assertRaises(ValidationError):
+                normalizar_codigo_dos_digitos(invalido)
+        control = self.control("afectacion_presupuestaria")
+        datos = {"verificado": True, "fojas": "12/15", "partida_principal": "1",
+                 "actividad_presupuestaria": "02", "observaciones": "Afectación ficticia"}
+        actualizar_control(concurso_id=self.concurso.pk, control_id=control.pk, datos=datos,
+                           usuario=self.editor, version_esperada=control.version)
+        control.refresh_from_db()
+        self.assertEqual((control.partida_principal, control.actividad_presupuestaria), ("01", "02"))
+        self.assertEqual(control.historial.first().nuevo["partida_principal"], "01")
+        self.assertEqual(control.historial.first().nuevo["actividad_presupuestaria"], "02")
+        with self.assertRaises(ValidationError):
+            actualizar_control(concurso_id=self.concurso.pk, control_id=control.pk,
+                datos={**datos, "partida_principal": "1.1"},
+                usuario=self.editor, version_esperada=control.version)
+        control.refresh_from_db()
+        self.assertEqual(control.partida_principal, "01")
+
     def test_foja_invalida_se_rechaza_sin_cambios_y_conserva_formulario(self):
         response = self.guardar("afectacion_presupuestaria", fojas="8/5", observaciones="Conservar entrada")
         self.assertEqual(response.status_code, 200)
@@ -315,6 +338,49 @@ class DocumentalTests(TestCase):
         self.assertNotContains(response, "Control documental · No disponible")
         self.guardar("vacancia", observaciones="<script>prueba</script>")
         self.assertContains(self.client.get(self.concurso.get_absolute_url()), "&lt;script&gt;prueba&lt;/script&gt;")
+
+    def test_requisitos_se_consultan_compactos_y_se_editan_con_details_nativo(self):
+        response = self.client.get(self.concurso.get_absolute_url())
+        self.assertContains(response, '<summary>Editar requisito</summary>', count=21)
+        self.assertContains(response, 'class="document-control-editor"', count=21)
+        self.assertNotContains(response, 'class="document-control-editor" open')
+        self.assertContains(response, '0/5 completos')
+        self.assertContains(response, '0/3 completos')
+        self.assertContains(response, '0/4 completos')
+        self.assertContains(response, '0/6 completos')
+        self.assertContains(response, '0 de 21 requisitos completos')
+        self.assertContains(response, 'id="panel-control-documental"')
+        self.assertContains(response, 'name="control-')
+
+    def test_error_documental_reabre_solo_el_requisito_y_conserva_valores(self):
+        control = self.control('afectacion_presupuestaria')
+        response = self.guardar('afectacion_presupuestaria', fojas='9/2', observaciones='Dato pendiente de corrección')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Dato pendiente de corrección')
+        self.assertContains(response, 'id="documental-%s"' % control.pk)
+        self.assertContains(response, 'class="document-control-editor" open', count=1)
+        self.assertContains(response, '<summary>Editar requisito</summary>', count=21)
+        self.assertContains(response, 'el inicio no puede superar')
+        control.refresh_from_db()
+        self.assertEqual(control.version, 1)
+
+    def test_resumen_compacto_fojas_presupuesto_historial_y_solo_lectura(self):
+        control = self.control('afectacion_presupuestaria')
+        self.guardar('afectacion_presupuestaria', fojas='12/15', observaciones='Afectación registrada')
+        response = self.client.get(self.concurso.get_absolute_url())
+        self.assertContains(response, 'Fojas:')
+        self.assertContains(response, '12/15')
+        self.assertContains(response, 'PPAL:')
+        self.assertContains(response, 'ACTIV:')
+        self.assertContains(response, 'Observaciones registradas')
+        self.assertContains(response, reverse('concursos:control_historial', args=[self.concurso.pk, control.pk]))
+        self.login(self.lector)
+        response = self.client.get(self.concurso.get_absolute_url())
+        self.assertNotContains(response, '<summary>Editar requisito</summary>')
+        self.assertNotContains(response, f'name="control-{control.pk}-version_esperada"')
+        self.assertContains(response, 'Ver información adicional')
+        self.assertContains(response, 'Afectación registrada')
+        self.assertContains(response, '12/15')
 
     def test_etapa_manual_exigibilidad_historia_y_retroceso_sin_borrar_controles(self):
         resultado = consultar_documentacion(self.concurso)

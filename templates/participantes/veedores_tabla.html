@@ -1,10 +1,12 @@
 {% extends "components/table.html" %}
 {% block columns %}
-<th scope="col">Persona</th><th scope="col">Cargo</th><th scope="col">Contacto</th>{% if perms.concursos.change_concurso %}<th scope="col">Acciones</th>{% endif %}
+<th scope="col">Apellido y nombre</th><th scope="col">Participación</th><th scope="col">Contacto</th>{% if perms.concursos.change_concurso %}<th scope="col">Acciones</th>{% endif %}
 {% endblock %}
 {% block rows %}
 {% for veedor in veedores %}<tr>
-  <td>{{ veedor.persona.apellido }}, {{ veedor.persona.nombre }}<br>DNI {{ veedor.persona.dni }}</td><td>{{ veedor.cargo|default:"—" }}</td><td>{{ veedor.email|default:"—" }}<br>{{ veedor.telefono|default:"—" }}</td>
-  {% if perms.concursos.change_concurso %}<td><a href="{% url 'concursos:veedor_editar' concurso.pk veedor.pk %}">Editar participación</a><br><a href="{% url 'concursos:persona_editar' concurso.pk veedor.persona.pk %}">Corregir persona</a></td>{% endif %}
+  <td>{% include "components/person_identity.html" with persona=veedor.persona only %}</td>
+  <td><div class="participation-data"><span>Representación: APUNSJ</span><span>Cargo: {{ veedor.cargo|default:"Sin cargo registrado" }}</span></div></td>
+  <td><div class="participation-data"><span>{{ veedor.email|default:"Sin correo registrado" }}</span><span>{{ veedor.telefono|default:"Sin teléfono registrado" }}</span></div></td>
+  {% if perms.concursos.change_concurso %}<td>{% include "participantes/acciones.html" with return_section="veedores" registro=veedor editar_route="concursos:veedor_editar" editar_label="Editar participación" %}</td>{% endif %}
 </tr>{% endfor %}
 {% endblock %}

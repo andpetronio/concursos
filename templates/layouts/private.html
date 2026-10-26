@@ -1,11 +1,13 @@
 {% extends "base.html" %}
 {% load static %}
-{% block scripts %}<script src="{% static 'js/session.js' %}" defer></script><script src="{% static 'js/forms.js' %}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/navigation.js' %}" defer></script><script src="{% static 'js/session.js' %}" defer></script><script src="{% static 'js/forms.js' %}" defer></script>{% endblock %}
 {% block layout %}
 <div class="app-shell" data-session-activity="{% url 'session_activity' %}" data-session-status="{% url 'session_status' %}" data-login="{% url 'login' %}">
   {% include "components/navigation.html" %}
+  <div class="navigation-backdrop" data-navigation-backdrop hidden></div>
   <div class="workspace">
     <header class="topbar">
+      <button type="button" class="button button-secondary navigation-toggle" aria-controls="primary-navigation" aria-expanded="false" hidden><span aria-hidden="true">☰</span> Menú</button>
       <div><span class="topbar-context">Universidad Nacional de San Juan</span><span class="topbar-title">Dirección de Concursos Nodocentes</span></div>
       <span class="account"><span class="visually-hidden">Usuario: </span><span class="account-name">{{ request.user.get_username }}</span></span>
     </header>

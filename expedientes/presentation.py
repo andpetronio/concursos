@@ -26,10 +26,15 @@ def contexto_documental(concurso, *, jurados, error=None, error_etapa=None):
         )
         grupos[requisito.seccion].append({
             "numero": numero, "control": control, "requisito": requisito, "estado": estado, "form": formulario,
+            "estado_clase": {"Verificado": "completo", "Foja pendiente": "foja",
+                             "Pendiente exigible": "exigible", "Sin verificar": "sin-verificar",
+                             "No registrado": "no-registrado"}[estado],
         })
     return {
         "documentacion": documentacion,
         "form_etapa_documental": error_etapa or EtapaDocumentalForm(instance=documentacion.seguimiento, prefix="etapa"),
-        "secciones_documentales": [{"codigo": codigo, "nombre": nombre, "filas": grupos[codigo]}
+        "secciones_documentales": [{"codigo": codigo, "nombre": nombre, "filas": grupos[codigo],
+                                     "completos": sum(fila["control"].completo for fila in grupos[codigo]),
+                                     "total": len(grupos[codigo])}
                                     for codigo, nombre in SECCIONES],
     }

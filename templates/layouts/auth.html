@@ -2,9 +2,17 @@
 {% block layout %}
 <main id="contenido" class="auth-layout" tabindex="-1">
   <div class="auth-container">
-    {% include "components/brand.html" %}
-    <div class="card auth-card">{% block content %}{% endblock %}</div>
-    <p class="auth-footer">Universidad Nacional de San Juan</p>
+    <section class="auth-introduction" aria-labelledby="identity-title">
+      <p class="product-name">SiCon<span class="eyebrow">Concursos Nodocentes</span></p>
+      <h2 id="identity-title">La gestión de concursos,<br>en un solo lugar.</h2>
+      <p>Un espacio de trabajo para la Dirección de Concursos Nodocentes de la Universidad Nacional de San Juan.</p>
+      <div class="artwork-slot"><span>Espacio reservado para<br>ilustración abstracta</span></div>
+      <p class="field-help">Registro, seguimiento documental y proyectos editables. El expediente y los actos oficiales mantienen su curso habitual.</p>
+    </section>
+    <div class="auth-access">
+      <div class="card auth-card">{% block content %}{% endblock %}</div>
+      <p class="auth-footer">Universidad Nacional de San Juan</p>
+    </div>
   </div>
 </main>
 {% endblock %}

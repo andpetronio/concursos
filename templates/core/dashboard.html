@@ -1,14 +1,27 @@
 {% extends "layouts/private.html" %}
-{% block title %}Panel inicial · Concursos Nodocentes{% endblock %}
+{% block title %}Panel inicial · SiCon{% endblock %}
 {% block content %}
-{% include "components/page_header.html" with section="Inicio" title="Panel inicial" description="Sistema de Gestión de Concursos Nodocentes" %}
-<section class="card welcome-card" aria-labelledby="welcome-title">
-  <span class="eyebrow">Dirección de Concursos Nodocentes</span>
-  <h2 id="welcome-title">Bienvenido al espacio de trabajo</h2>
-  <p>Desde este sistema se acompañará la gestión administrativa de los concursos de la UNSJ.</p>
+{% include "components/page_header.html" with section="SiCon · Espacio de trabajo" title="Panel inicial" description="Accedé a las tareas de gestión de concursos nodocentes." %}
+<section class="card welcome-card" aria-labelledby="work-title">
+  <span class="eyebrow">Gestión de concursos</span>
+  <h2 id="work-title">¿En qué concurso vas a trabajar?</h2>
+  {% if perms.concursos.view_concurso %}
+    <p>Buscá por expediente o cargo. Desde la ficha podés consultar participantes, controlar documentación y revisar los borradores disponibles.</p>
+    <div class="actions">
+      {% url 'concursos:lista' as lista_url %}{% include "components/button.html" with href=lista_url label="Consultar concursos" %}
+      {% if perms.concursos.add_concurso %}{% url 'concursos:crear' as crear_url %}{% include "components/button.html" with href=crear_url label="Registrar concurso" extra_class="button-secondary" %}{% endif %}
+    </div>
+  {% else %}
+    <p>Tu cuenta todavía no tiene acceso a concursos. Solicitá los permisos al administrador.</p>
+  {% endif %}
 </section>
-<div class="card-grid">
-  <section class="card"><h2>Gestión de concursos</h2>{% if perms.concursos.view_concurso %}<p>Consultá los concursos registrados y su historial de estados.</p><a href="{% url 'concursos:lista' %}">Ver concursos</a>{% else %}<p>Tu cuenta todavía no tiene acceso a concursos. Solicitá los permisos al administrador.</p>{% endif %}</section>
-  {% include "components/card.html" with title="El expediente sigue su curso" description="La aplicación acompaña el trabajo administrativo. El expediente y los actos oficiales continúan por sus canales habituales." %}
-</div>
+<section class="section" aria-labelledby="tasks-title">
+  <div class="section-heading"><h2 id="tasks-title">Desde la ficha de cada concurso</h2><p>Consultá o actualizá según los permisos de tu cuenta.</p></div>
+  <div class="card-grid task-grid">
+    {% include "components/card.html" with title="Participantes" description="Jurados titulares y suplentes, veedores de APUNSJ e inscripciones de aspirantes." %}
+    {% include "components/card.html" with title="Control documental" description="Etapa activa, requisitos, fojas e historial de verificaciones. El estado administrativo se registra por separado." %}
+    {% include "components/card.html" with title="Proyectos y borradores" description="Revisión de datos, disponibilidad y descarga de documentos editables. Generar no emite ni verifica actuaciones." %}
+  </div>
+</section>
+<aside class="notice" aria-label="Alcance del sistema"><strong>El expediente sigue su curso.</strong> SiCon no reemplaza el expediente ni los actos administrativos oficiales.</aside>
 {% endblock %}

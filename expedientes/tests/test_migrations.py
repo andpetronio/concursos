@@ -36,7 +36,16 @@ class InicializacionDocumentalMigrationTests(TransactionTestCase):
             executor.migrate(destinos)
             nuevas = executor.loader.project_state(destinos).apps
             for app, modelo, pk, original in muestras:
-                self.assertEqual(nuevas.get_model(app, modelo).objects.values().get(pk=pk), original)
+                actual = nuevas.get_model(app, modelo).objects.values().get(pk=pk)
+                # Las migraciones posteriores pueden agregar columnas: comparar solo
+                # los campos históricos para asegurar que sus valores no cambiaron.
+                self.assertEqual({campo: actual[campo] for campo in original}, original)
+                if (app, modelo) == ("concursos", "concurso"):
+                    nuevos_texto = ("ex_titular", "motivo_baja", "resolucion_baja",
+                                    "iniciador_tratamiento", "iniciador_nombre", "iniciador_cargo")
+                    self.assertEqual({campo: actual[campo] for campo in nuevos_texto},
+                                     {campo: "" for campo in nuevos_texto})
+                    self.assertIsNone(actual["fecha_baja"])
             Control = nuevas.get_model("expedientes", "ControlDocumental")
             controles = Control.objects.filter(concurso_id=concurso.pk)
             self.assertEqual(controles.count(), 21)
@@ -52,7 +61,10 @@ class InicializacionDocumentalMigrationTests(TransactionTestCase):
     def test_ampliacion_conserva_19_controles_checks_fojas_observaciones_y_bitacoras(self):
         executor = MigrationExecutor(connection)
         destinos = executor.loader.graph.leaf_nodes()
-        anterior = [("expedientes", "0002_etapa_documental")]
+        # El modelo histórico de concursos debe coincidir con el esquema físico:
+        # volver solo expedientes atrás deja los nuevos NOT NULL de concursos.
+        anterior = [("concursos", "0003_concurso_clasificacion_anterior_and_more"),
+                    ("expedientes", "0002_etapa_documental")]
         executor.migrate(anterior)
         try:
             apps = executor.loader.project_state(anterior).apps
@@ -80,8 +92,13 @@ class InicializacionDocumentalMigrationTests(TransactionTestCase):
             executor.migrate(destinos)
             nuevas = executor.loader.project_state(destinos).apps
             for nombre, original in muestras.items():
-                self.assertEqual(list(nuevas.get_model("expedientes", nombre).objects.filter(
-                    pk__in=[o["id"] for o in original]).order_by("pk").values()), original)
+                actuales = list(nuevas.get_model("expedientes", nombre).objects.filter(
+                    pk__in=[o["id"] for o in original]).order_by("pk").values())
+                # Las columnas nuevas deben ser aditivas y no alterar los valores
+                # de los campos registrados antes de la ampliación.
+                campos_anteriores = tuple(original[0]) if original else ()
+                self.assertEqual([{campo: fila[campo] for campo in campos_anteriores}
+                                  for fila in actuales], original)
             Control = nuevas.get_model("expedientes", "ControlDocumental")
             nuevos = Control.objects.filter(requisito__in=["oficio_apunsj", "notificacion_jurados"])
             self.assertEqual(Control.objects.count(), 21)
@@ -107,6 +124,10 @@ class InicializacionDocumentalMigrationTests(TransactionTestCase):
             self.assertEqual(list(Control.objects.order_by("pk").values()), antes)
             with self.assertRaisesMessage(IrreversibleError, "tienen datos o historial"):
                 MigrationExecutor(connection).migrate(anterior)
+            # El intento de reversión pudo deshacer migraciones posteriores
+            # antes de detenerse en la 0004. Restaurar el esquema completo
+            # antes de consultar el modelo actual (incluidos PPAL y ACTIV).
+            MigrationExecutor(connection).migrate(destinos)
             self.assertEqual(list(Control.objects.order_by("pk").values()), antes)
         finally:
             MigrationExecutor(connection).migrate(destinos)

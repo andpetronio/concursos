@@ -1,0 +1,5 @@
+<div class="actions participation-actions">
+  {% url editar_route concurso.pk registro.pk as editar_url %}{% include "components/button.html" with href=editar_url label=editar_label extra_class="button-secondary participation-edit" %}
+  {% url 'concursos:persona_editar' concurso.pk registro.persona.pk as persona_url %}
+  {% with correction_url=persona_url|add:"?seccion="|add:return_section %}{% include "components/button.html" with href=correction_url label="Corregir persona" extra_class="button-secondary participation-correct" %}{% endwith %}
+</div>

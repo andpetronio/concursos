@@ -1,0 +1,25 @@
+{% extends "layouts/private.html" %}
+{% block title %}Configuración institucional · UNSJ{% endblock %}
+{% block content %}
+{% include "components/page_header.html" with section="Configuración institucional" title="Destinatario de APUNSJ" description="Autoridad destinataria del oficio de solicitud de veedor. Los cambios no alteran borradores ya generados." only %}
+<form method="post" class="card section">
+  {% csrf_token %}
+  {% include "components/form_section_header.html" with heading_id="destinatario-heading" title="Autoridad destinataria" description="Completá los datos institucionales verificados. El título profesional es opcional." only %}
+  {% if form.non_field_errors %}<div class="field-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form.hidden_fields %}{{ field }}{% if field.errors %}<div class="field-errors" role="alert">{{ field.errors }}</div>{% endif %}{% endfor %}
+  <div class="form-grid">{% for field in form.visible_fields %}{% include "components/field.html" with field=field %}{% endfor %}</div>
+  <div class="form-actions">{% include "components/button.html" with label="Guardar configuración" %}</div>
+</form>
+
+<section class="card section">
+  <h2>Jefatura de Personal</h2>
+  <p>Destinatario del oficio previo a la convocatoria para elegir jurados por el estamento.</p>
+  <p><a href="{% url 'documentos:configuracion_personal' %}">Configurar jefatura de Personal</a></p>
+</section>
+
+<section class="card section">
+  <h2>Membrete institucional vigente</h2>
+  <p>Administrá la imagen institucional vigente para oficios y notificaciones. No altera los documentos ya generados.</p>
+  <p><a href="{% url 'documentos:membrete' %}">Configurar membrete</a></p>
+</section>
+{% endblock %}

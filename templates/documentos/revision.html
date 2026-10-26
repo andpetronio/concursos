@@ -1,0 +1,168 @@
+{% extends "layouts/private.html" %}
+{% block title %}Revisar borrador · UNSJ{% endblock %}
+{% block content %}
+{% include "components/page_header.html" with section="Documentos" title=disponibilidad.tipo.nombre description="Preparación de un documento editable. No equivale a emisión, firma ni incorporación al expediente." only %}
+<div class="document-review-context">
+  <p class="field-help">Expediente <strong>{{ concurso.expediente }}</strong> · {{ concurso.denominacion }}</p>
+  <a class="button button-secondary" href="{{ concurso.get_absolute_url }}#documentos">Volver a documentos del concurso</a>
+</div>
+
+<section class="card section document-review-availability" aria-labelledby="pendientes-heading">
+  <div class="document-review-status">
+    <div>
+      <h2 id="pendientes-heading">Disponibilidad del borrador</h2>
+      <p class="field-help">Los requisitos se revalidan al generar; no se presumen hechos no registrados.</p>
+    </div>
+    <span class="document-generation-state{% if disponibilidad.disponible %} is-ready{% else %} is-pending{% endif %}">
+      {% if disponibilidad.disponible %}Datos disponibles{% else %}Generación bloqueada{% endif %}
+    </span>
+  </div>
+  {% if grupos_convocatoria %}
+    <p class="field-help">El ex titular, la baja, el iniciador, el turno y el domicilio de trabajo se cargan en la ficha del concurso. Las fojas y los códigos PPAL / ACTIV se completan en Control documental.</p>
+    {% if disponibilidad.disponible %}
+      <p><strong>Documentación previa y jurados completos.</strong> Podés preparar los datos específicos del proyecto.</p>
+    {% else %}
+      <p><strong>Faltan datos para habilitar la convocatoria:</strong></p>
+    {% endif %}
+  {% else %}<p>{{ disponibilidad.tipo.pendientes }}</p>{% endif %}
+  {% if concurso.modalidad == 'acotado' %}<p>No existe un modelo específico aprobado para Acotado. Se requiere revisión administrativa antes de usar el documento.</p>{% endif %}
+  {% if disponibilidad.faltantes %}
+    <div class="document-review-missing">
+      <h3>Datos o actuaciones pendientes ({{ disponibilidad.faltantes|length }})</h3>
+      <ul>{% for faltante in disponibilidad.faltantes %}<li>{{ faltante }}</li>{% endfor %}</ul>
+    </div>
+  {% endif %}
+  {% if grupos_convocatoria %}
+    <div class="actions">
+      <a href="{{ concurso.get_absolute_url }}#control-documental">Revisar control documental</a>
+      <a href="{{ concurso.get_absolute_url }}#jurados-heading">Revisar jurados</a>
+      {% if perms.concursos.change_concurso %}<a href="{% url 'concursos:editar' concurso.pk %}">Editar el concurso</a>{% endif %}
+    </div>
+  {% endif %}
+  {% if destinatario and perms.documentos.configurar_institucion %}<a href="{% url 'documentos:configuracion' %}">Administrar destinatario de APUNSJ</a>{% endif %}
+</section>
+
+{% if grupos_convocatoria %}
+<section class="card section" aria-labelledby="resumen-convocatoria-heading">
+  {% include "components/form_section_header.html" with heading_id="resumen-convocatoria-heading" title="Datos del concurso" description="Se recuperan automáticamente de la ficha; no tenés que volver a cargarlos." only %}
+  <dl class="detail-list">
+    <dt>Expediente</dt><dd>{{ concurso.expediente }}</dd>
+    <dt>Modalidad</dt><dd>{{ concurso.get_modalidad_display }}</dd>
+    <dt>Cargo</dt><dd>{{ concurso.denominacion }}</dd>
+    <dt>Funciones del proyecto</dt><dd>{{ concurso.denominacion }}</dd>
+    <dt>Jurisdicción</dt><dd>{{ concurso.get_jurisdiccion_display|default:"Pendiente" }}</dd>
+    <dt>Descripción de tareas (opcional)</dt><dd>{{ concurso.funciones|default:"No afecta la convocatoria" }}</dd>
+  </dl>
+  <div class="actions">
+    {% if perms.concursos.change_concurso %}<a href="{% url 'concursos:editar' concurso.pk %}">Editar datos generales, turno y domicilio del concurso</a>{% endif %}
+    <a href="{{ concurso.get_absolute_url }}#jurados-heading">Consultar jurados</a>
+  </div>
+  <details class="additional-data">
+    <summary>Ver todos los datos que se incorporarán al documento</summary>
+    <dl class="detail-list additional-data-content">{% for etiqueta, valor in datos_concurso %}<dt>{{ etiqueta }}</dt><dd>{{ valor|default:"No registrado (opcional)" }}</dd>{% endfor %}</dl>
+  </details>
+</section>
+{% else %}
+{% if disponibilidad.tipo.codigo == "jurados" %}
+<section class="card section" aria-labelledby="revision-jurados-heading">
+  {% include "components/form_section_header.html" with heading_id="revision-jurados-heading" title="Datos de las notificaciones" description="Estos datos se recuperan de SiCon. No es necesario cargarlos nuevamente." only %}
+  <dl class="detail-list">
+    <dt>Expediente</dt><dd>{{ concurso.expediente }}</dd>
+    <dt>Resolución oficial de convocatoria</dt><dd>{{ concurso.resolucion_convocatoria|default:"Pendiente de registrar" }}</dd>
+    <dt>Fecha de la nota</dt><dd>Se establece automáticamente en San Juan al generar los documentos.</dd>
+    <dt>Membrete</dt><dd>Se utiliza el vigente en Configuración institucional.</dd>
+  </dl>
+  {% if perms.concursos.change_concurso %}<p><a href="{% url 'concursos:editar' concurso.pk %}">Registrar o corregir la resolución de convocatoria</a></p>{% endif %}
+</section>
+{% elif disponibilidad.tipo.codigo == "elecciones" or disponibilidad.tipo.codigo == "solicitud_jurados_rectorado" %}
+<section class="card section">
+  <h2>Solicitud preparatoria anterior a la convocatoria</h2>
+  <p>Se recuperan los datos del concurso; no exige jurados designados ni resolución de convocatoria.</p>
+  {% if disponibilidad.tipo.codigo == "elecciones" %}
+    <p>Destinatario: {{ fuentes.destinatario_personal.tratamiento }} {{ fuentes.destinatario_personal.titulo }} {{ fuentes.destinatario_personal.nombre }} {{ fuentes.destinatario_personal.apellido }} · {{ fuentes.destinatario_personal.cargo }}</p>
+    {% if perms.documentos.configurar_institucion %}<a href="{% url 'documentos:configuracion_personal' %}">Configurar jefatura de Personal</a>{% endif %}
+  {% else %}<p>Oficio provisional dirigido al Rector, sujeto a validación de redacción institucional.</p>{% endif %}
+  <p>Membrete institucional vigente de Configuración institucional.</p>
+</section>
+{% else %}
+<section class="card section" aria-labelledby="revision-heading">
+  {% include "components/form_section_header.html" with heading_id="revision-heading" title="Datos automáticos" description="Se utilizarán los datos registrados; no es necesario volver a ingresarlos." only %}
+  <details class="document-review-data">
+    <summary>Ver datos del concurso incorporados al borrador</summary>
+    <dl class="detail-list">{% for etiqueta, valor in datos_concurso %}<dt>{{ etiqueta }}</dt><dd>{{ valor|default:"No registrado (opcional)" }}</dd>{% endfor %}</dl>
+  </details>
+  {% if destinatario %}<h3>Destinatario</h3><p>{{ destinatario.tratamiento }} {{ destinatario.cargo }} de APUNSJ<br>{{ destinatario.titulo }} {{ destinatario.nombre }} {{ destinatario.apellido }}<br>Presente</p>{% endif %}
+  <p class="field-help">Versión de plantilla: {{ disponibilidad.tipo.version|default:"No disponible" }}.</p>
+</section>
+{% endif %}
+{% endif %}
+
+
+
+<details class="card section additional-data">
+  <summary>Consultar participantes y actuaciones utilizados</summary>
+  <div class="additional-data-content">
+    <p class="field-help">Estos datos se revalidan al generar. Si cambiaron, volvé a abrir la revisión.</p>
+    {% if fuentes.jurados %}<h3>Jurados</h3><ul>{% for jurado in fuentes.jurados %}<li>{{ jurado.titulo }} {{ jurado.persona.nombre }} {{ jurado.persona.apellido }} · {{ jurado.representacion }} · {{ jurado.calidad }} · {{ jurado.unidad }}</li>{% endfor %}</ul>{% endif %}
+    {% if fuentes.aspirantes %}<h3>Aspirantes</h3><ul>{% for aspirante in fuentes.aspirantes %}<li>ID {{ aspirante.id }} · {{ aspirante.persona.apellido }}, {{ aspirante.persona.nombre }} · DNI {{ aspirante.persona.dni }}</li>{% endfor %}</ul>{% endif %}
+    {% if fuentes.actuaciones_verificadas %}<h3>Actuaciones verificadas</h3><ul>{% for control in fuentes.actuaciones_verificadas %}<li>{{ control.requisito }}{% if control.fojas %} · fs. {{ control.fojas }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+  </div>
+</details>
+
+<form method="post" class="card section" aria-labelledby="generacion-heading">
+  {% csrf_token %}
+  {% if disponibilidad.tipo.codigo == "jurados" %}
+    {% include "components/form_section_header.html" with heading_id="generacion-heading" title="Generar seis notificaciones" description="Se conserva cada archivo con sus datos históricos. Generar una nota no acredita su notificación." only %}
+  {% else %}
+    {% include "components/form_section_header.html" with heading_id="generacion-heading" title="Preparar el borrador" description="Los datos complementarios corresponden exclusivamente a este proyecto. No cambian la ficha del concurso ni acreditan actuaciones." only %}
+  {% endif %}
+  {% if form.non_field_errors %}<div class="field-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form.hidden_fields %}{{ field }}{% if field.errors %}<div class="field-errors" role="alert">{{ field.errors }}</div>{% endif %}{% endfor %}
+
+  {% if grupos_convocatoria %}
+    <p class="field-help"><strong>Datos que completará SiCon:</strong> ordenanzas 33/10-CS y 20/11-CS, autoridad Rector, Secretaría Administrativa Financiera, jurados y fojas, condiciones remunerativas, publicidad, probanzas y prueba de oposición, afectación presupuestaria y horario según turno.</p>
+    {% if concurso.modalidad != "cerrado_interno" %}<p class="field-help">Los requisitos generales del modelo solo se incorporan automáticamente para Cerrado Interno. En esta modalidad deberás revisarlos y completarlos en Word antes de utilizar el proyecto.</p>{% endif %}
+    <p class="field-help">Solo necesitás indicar la fecha de apertura de inscripciones. El horario será siempre de 8 a 12 hs durante cinco (5) días hábiles. El turno, domicilio y jurisdicción se configuran en la ficha del concurso; los códigos presupuestarios, en Control documental.</p>
+    {% for grupo in grupos_convocatoria %}
+      <section class="revision-group" id="revision-{{ grupo.codigo }}" aria-labelledby="revision-{{ grupo.codigo }}-heading">
+        <h3 id="revision-{{ grupo.codigo }}-heading">{{ grupo.titulo }}</h3>
+        <p class="field-help">{{ grupo.descripcion }}</p>
+        <div class="form-grid">
+          {% for field in grupo.campos %}{% include "components/field.html" with field=field %}{% endfor %}
+        </div>
+      </section>
+    {% endfor %}
+    {% for field in form.visible_fields %}{% if field.name == 'revision_administrativa' %}{% include "components/checkbox_field.html" with field=field %}{% endif %}{% endfor %}
+  {% else %}
+    {% if campos_complementarios %}
+      <div class="document-review-form-intro">
+        <h3>Datos complementarios del borrador</h3>
+        <p class="field-help">Completá exclusivamente los antecedentes correspondientes a este documento. No se guardan como datos generales del concurso.</p>
+      </div>
+      <div class="document-review-form-grid">
+        {% for field in campos_complementarios %}
+          {% if field.field.widget.input_type == "checkbox" %}{% include "components/checkbox_field.html" with field=field %}
+          {% else %}{% include "components/field.html" with field=field %}{% endif %}
+        {% endfor %}
+      </div>
+    {% elif disponibilidad.tipo.codigo != "jurados" %}
+      <p class="field-help">No se solicitan datos complementarios para este documento.</p>
+    {% endif %}
+    {% if campos_presupuesto %}
+      <details class="document-review-budget" {% if errores_presupuesto %}open{% endif %}>
+        <summary>Datos presupuestarios de la designación ({{ campos_presupuesto|length }} campos)</summary>
+        <p class="field-help">Completá todos los valores desde la afectación presupuestaria acreditada. Esta sección no modifica el control documental.</p>
+        <div class="document-review-form-grid">
+          {% for field in campos_presupuesto %}{% include "components/field.html" with field=field %}{% endfor %}
+        </div>
+      </details>
+    {% endif %}
+    {% if campo_revision_administrativa %}{% include "components/checkbox_field.html" with field=campo_revision_administrativa %}{% endif %}
+  {% endif %}
+  {% if disponibilidad.disponible %}
+    <div class="form-actions document-review-actions">{% if disponibilidad.tipo.codigo == "jurados" %}{% include "components/button.html" with label="Generar seis notificaciones" %}{% else %}{% include "components/button.html" with label="Generar borrador DOCX" %}{% endif %}<a href="{{ concurso.get_absolute_url }}#documentos">Cancelar y volver al concurso</a></div>
+  {% else %}
+    <p class="notice">Generación bloqueada. Completá los requisitos del resumen de disponibilidad antes de continuar.</p>
+  {% endif %}
+</form>
+{% endblock %}

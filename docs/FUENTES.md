@@ -1,6 +1,6 @@
 # Fuentes normativas y modelos proporcionados
 
-Estos documentos existen como **archivos originales del proyecto del usuario**, no se incluyen en este kit. Su ausencia no impide SDD-001. Para fases posteriores hay que tener acceso explícito a los PDF y revisarlos antes de programar restricciones normativas o generar plantillas.
+Los cinco modelos PDF están disponibles en `documentos/modelos/` durante la recuperación SDD-005. Sus 19 páginas fueron extraídas y revisadas visualmente; se utilizan como referencia de estructura, no como hechos acreditados de otros concursos. La normativa listada a continuación es una fuente distinta y no queda sustituida por esos ejemplos.
 
 ## Normativa
 - `ordenenza 33-2010-CS.pdf`: Ordenanza 33/10-CS, texto actualizado del Reglamento de Concursos; regula modalidad, publicidad, inscripciones, jurado, oposición, dictamen, resultado y designación. Su contenido incluye referencias a modificatorias; verificar su aplicación concreta en cada caso.
@@ -19,3 +19,8 @@ Estos documentos existen como **archivos originales del proyecto del usuario**, 
 3. Los **modelos** son ejemplos de redacción y datos, no prueba de reglas generales.
 
 Ante una tensión entre práctica y norma, no esconder ni automatizar la contradicción: describirla y solicitar criterio institucional.
+
+## Inspección de modelos en recuperación SDD-005
+Convocatoria: 8 páginas; aprobación de dictamen: 4; designación: 5; elecciones: 1; notificación: 1. Los primeros cuatro usan A4; notificación usa Letter. Evidencia de extracción/PNG fuera del repositorio: `/private/tmp/sdd005-model-analysis/`. Se reconstruyen estructura VISTO/CONSIDERANDO/artículos, anexo y presupuesto agrupado. Las notas usan membrete recortado sin firma ni conmemoración fechada; no se copian nombres, firmas o datos de ejemplos.
+
+Incidencias: convocatoria omite artículo 4 y duplica 8; aprobación/designación denominan «Resolución 6/14-R» una referencia que otras fuentes llaman Ordenanza. La primera se normaliza mecánicamente sin inventar disposiciones, pendiente de aprobación administrativa; la segunda exige fundamento exacto acreditado del operador, sin resolver por intuición una contradicción jurídica. Los ejemplos contienen unanimidad, ausencia de recursos, jubilación, códigos presupuestarios y limitaciones que no se generalizan.

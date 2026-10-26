@@ -86,3 +86,31 @@ Migración atómica con preflight de todos los registros. Acepta códigos o deno
 - El catálogo pasa de 19 a 21 controles, conservando cinco bloques. Tras publicación se presentan oficio a APUNSJ solicitando veedor y notas de notificación a jurados; ambos obligatorios desde Convocatoria, sin foja y de carga en cualquier orden. Notificaciones es un único control general para los seis jurados.
 - Los cinco requisitos previos al proyecto de convocatoria no cambian. La ausencia de veedor designado no bloquea el avance; controlar el oficio de solicitud sigue siendo obligatorio. La futura generación en SDD-005 no implica verificación automática.
 - Migraciones aditivas nuevas de esquema y datos, con carga idempotente de los dos faltantes, sin recrear ni actualizar los 19 controles previos, etapa o historiales. Reversión solo de semillas nuevas intactas; detenerse si se utilizaron para preservar sus datos/bitácoras. No aplicar en base persistente durante esta corrección.
+
+## SDD-005 — fuentes, recuperación y conservación (23/10/2026)
+- El pedido expreso acepta SDD-001 a SDD-004 y autoriza SDD-005. Se conserva `specs/005-generacion-docx.md`, único archivo existente, aunque el pedido lo nombra `005-documentos.md`. Nota para elección de representantes reemplaza el acta de sorteo en el catálogo de seis tipos.
+- La entrega inicial se limitó a APUNSJ por fuentes no accesibles entonces. En la recuperación los cinco PDF ya están disponibles en `documentos/modelos/`, fueron extraídos e inspeccionados en sus 19 páginas; se autoriza completar las salidas reutilizando el motor. APUNSJ permanece provisional y pendiente de validación formal.
+- `python-docx==1.2.0` compone Word editable en memoria, con helpers compartidos. Los bytes se conservan en registro protegido de base de datos, junto a snapshot JSON, SHA-256, versión y autor/fecha. Sin rutas de disco arbitrarias, media pública, registros editables ni administración de borrado; no se crean campos generales nuevos en Concurso. Inmutabilidad a nivel de API/ORM normal, no mecanismo contra administradores directos de la base.
+- Configuración de APUNSJ única, con versión esperada y bloqueo para prevenir sobrescrituras; no catálogo general de organismos. Permisos explícitos e independientes para configuración y generación/descarga, sin asignación automática a roles existentes.
+- No existen campos estructurados de tratamiento de jurados ni número/fecha de resolución oficial. Checklist no prueba emisión ni permite inferir esos valores. Quedan pendientes del modelo/documento correspondiente, no se inventan campos ni hechos.
+- No existe modelo Acotado aprobado: advertencia y confirmación expresa de revisión administrativa, registrada en la instantánea; no se interpreta normativa para suplir la fuente faltante.
+
+### Recuperación SDD-005 tras reinicio de extensiones
+- Se preservó el trabajo existente: modelos, migración, configuración, permisos, snapshots, motor APUNSJ y cambios parciales en catálogo/formulario/servicio. La regresión inicial reprodujo el renderer ausente antes de completarlo.
+- Formularios por tipo y huella obligatoria de revisión enlazan cambios existentes; se revalidan fuentes pertinentes bajo transacción. Complementos críticos requeridos sustituyen cualquier salida «PENDIENTE» o hecho de ejemplo.
+- Un registro de generación `jurados` conserva el ZIP y manifiesto de seis notas con SHA-256 individual. La descarga individual extrae exactamente los bytes guardados; no necesita modelos nuevos ni regeneración a demanda.
+- Las fuentes contienen numeración defectuosa y hechos no universales. Se normaliza mecánicamente convocatoria a ocho artículos consecutivos, sin inventar artículo faltante; se explicita aprobación pendiente. Las referencias contradictorias a 6/14-R se resuelven con texto institucional acreditado, no con una regla jurídica inferida. No se automatizan jubilación, ausencia de recursos, unanimidad, plazos, limitaciones ni selección de ganador.
+- Reconstrucción con Arial 12, interlineado 1,5, resoluciones A4 y notas de jurado Letter; membrete sin firma ni conmemoración fechada. Anexo de doce apartados y presupuesto con agrupaciones de trece columnas. Ajustes tipográficos, redacción y numeración requieren aceptación administrativa/visual.
+- No se aplican migraciones a la base persistente ni se reconstruye/recrea su servicio. Las pruebas se ejecutan en contenedores desechables con código montado solo lectura y base PostgreSQL de pruebas creada/destruida.
+
+
+### SDD-005 | Simplificación de convocatoria (23/10/2026)
+
+- La revisión del proyecto de convocatoria requiere **solo** fecha de apertura de inscripciones y lugar para solicitar mayores detalles.
+- En el concurso se registran turno de trabajo (mañana: 7 a 14; tarde: 14 a 21) y domicilio de trabajo opcional. Si falta turno, el generador señala cómo completarlo.
+- Inscripciones: 8 a 12 hs durante cinco días hábiles desde la fecha indicada, sin calcular una fecha de cierre que podría depender de feriados.
+- El marco normativo 33/10-CS y 20/11-CS, el órgano que resuelve (Rector), la intervención SAF, la remuneración, la publicidad, las probanzas y la oposición se resuelven mediante textos de plantilla. No se solicita firmante ni lugar/fecha del borrador de convocatoria.
+- Los integrantes del jurado de personal y sus fojas se recuperan de participantes y control documental.
+- Requisitos particulares y temarios quedan como encabezados a completar en el archivo Word. Los requisitos generales del modelo solo se aplican por defecto a **Cerrado Interno**; otras modalidades requieren revisión en el Word y el circuito especial de Acotado mantiene su advertencia.
+- De la tabla presupuestaria, el código PPAL y la actividad son variables registrados en la afectación (dos dígitos). **El código PPAL no es la partida de gasto 1.1**, que permanece fija en el modelo. Los demás códigos de la tabla son los del modelo de convocatoria y deben revisarse si cambiara su codificación institucional.
+- Los datos de designación y de los demás documentos no se alteran.

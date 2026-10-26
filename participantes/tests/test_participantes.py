@@ -48,7 +48,7 @@ class ParticipanteTests(TestCase):
 
     def test_jurado_progresivo_y_plaza_unica_en_formulario_y_base(self):
         response = self.client.post(self.url("jurado_crear"), JURADO)
-        self.assertRedirects(response, self.concurso.get_absolute_url())
+        self.assertRedirects(response, self.concurso.get_absolute_url() + "#jurados")
         jurado = Jurado.objects.get()
         self.assertEqual(jurado.persona.dni, "12345678")
         self.assertEqual(jurado.persona.creado_por, self.operador)

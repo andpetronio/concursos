@@ -1,13 +1,13 @@
 {% extends "components/table.html" %}
 {% block columns %}
-<th scope="col">Representación</th><th scope="col">Calidad</th><th scope="col">Persona</th><th scope="col">Título</th><th scope="col">Unidad</th><th scope="col">Contacto</th>{% if perms.concursos.change_concurso %}<th scope="col">Acciones</th>{% endif %}
+<th scope="col">Apellido y nombre</th><th scope="col">Participación</th><th scope="col">Unidad</th><th scope="col">Contacto</th>{% if perms.concursos.change_concurso %}<th scope="col">Acciones</th>{% endif %}
 {% endblock %}
 {% block rows %}
 {% for jurado in jurados %}<tr>
-  <td>{{ jurado.get_representacion_display }}</td><td>{{ jurado.get_calidad_display }}</td>
-  <td>{{ jurado.persona.apellido }}, {{ jurado.persona.nombre }}<br>DNI {{ jurado.persona.dni }}</td>
-  <td>{{ jurado.titulo }}{% if jurado.cargo %}<br><span class="field-help">Cargo registrado anteriormente: {{ jurado.cargo }}</span>{% endif %}</td>
-  <td>{{ jurado.unidad|default:"Pendiente de completar" }}</td><td>{{ jurado.email|default:"—" }}<br>{{ jurado.telefono|default:"—" }}</td>
-  {% if perms.concursos.change_concurso %}<td><a href="{% url 'concursos:jurado_editar' concurso.pk jurado.pk %}">Editar participación</a><br><a href="{% url 'concursos:persona_editar' concurso.pk jurado.persona.pk %}">Corregir persona</a></td>{% endif %}
+  <td>{% include "components/person_identity.html" with persona=jurado.persona only %}</td>
+  <td><div class="participation-data"><span>Representación: {{ jurado.get_representacion_display }}</span><span>Calidad: {{ jurado.get_calidad_display }}</span><span>Título: {{ jurado.titulo }}</span>{% if jurado.cargo %}<span>Cargo registrado anteriormente: {{ jurado.cargo }}</span>{% endif %}</div></td>
+  <td><span class="participation-data">{{ jurado.unidad|default:"Pendiente de completar" }}</span></td>
+  <td><div class="participation-data"><span>{{ jurado.email|default:"Sin correo registrado" }}</span><span>{{ jurado.telefono|default:"Sin teléfono registrado" }}</span></div></td>
+  {% if perms.concursos.change_concurso %}<td>{% include "participantes/acciones.html" with return_section="jurados" registro=jurado editar_route="concursos:jurado_editar" editar_label="Editar participación" %}</td>{% endif %}
 </tr>{% endfor %}
 {% endblock %}

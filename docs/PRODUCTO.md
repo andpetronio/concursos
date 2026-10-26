@@ -40,7 +40,7 @@ Facilitar el trabajo de la Dirección de Concursos Nodocentes: registrar concurs
 - Fojas individuales o rangos positivos ascendentes; normalizar espacios y rechazar referencias inválidas. Un check sin la foja exigida puede guardarse como carga parcial y sigue pendiente. Los requisitos sin foja no muestran ese campo.
 - Al registrar aprobación sin comunicación del dictamen se advierte de forma visible, permitiendo guardar. Un dictamen completo puede sugerir Con dictamen; confirmación y permiso de estado son independientes. No se propone Finalizado ni se interpreta un check como acto oficial emitido.
 - Consulta e historiales con `concursos.view_concurso`; escritura documental y selección de etapa requieren además `expedientes.change_controldocumental`, sin asignación automática a cuentas. Los historiales y requisitos no se eliminan desde la aplicación.
-- Servicios de consulta y habilitación disponibles para SDD-005. SDD-004 no genera documentos, identifica actos oficiales ni desarrolla circuitos extraordinarios. Entrega pendiente de aceptación funcional; no autoriza SDD-005.
+- Servicios de consulta y habilitación disponibles para SDD-005. SDD-004 no genera documentos, identifica actos oficiales ni desarrolla circuitos extraordinarios. El usuario aceptó SDD-001 a SDD-004 y autorizó expresamente SDD-005 el 23/10/2026.
 
 ### Checklist habitual (happy path)
 1. Propuesta de jurados por autoridad de dependencia — foja.
@@ -76,7 +76,7 @@ Las situaciones extraordinarias (impugnaciones, excusaciones, suspensiones, conc
 
 ## Documentos editables
 - Todos los documentos producidos por el sistema deben poder descargarse en DOCX editable.
-- Previstos: proyecto de resolución de convocatoria, oficio a APUNSJ solicitando veedor, notificaciones individuales a jurados, acta de sorteo de temas, proyecto de aprobación del dictamen, proyecto de designación.
+- Previstos: proyecto de resolución de convocatoria, oficio a APUNSJ solicitando veedor, notificaciones individuales a jurados, nota para elección de representantes del personal, proyecto de aprobación del dictamen, proyecto de designación.
 - Una plantilla/proyecto generado NO equivale a un documento oficial incorporado al expediente. Número, fecha, foja y acto emitido se registrarán por separado.
 
 ## Integraciones con CoPla — PENDIENTES
@@ -106,3 +106,9 @@ Las situaciones extraordinarias (impugnaciones, excusaciones, suspensiones, conc
 ## Regla de interoperabilidad proyectada
 - Una resolución de designación puede originar varias novedades en CoPla; el sistema de Concursos **no** decide ni registra por sí solo limitaciones/ATF. CoPla analiza y exige actos administrativos y aprobación para ejecutar novedades.
 - La validación futura por DNI para concursos cerrados considera jerarquía invertida del escalafón (categoría 1 superior a categoría 7) y no bloquea automáticamente sin revisión administrativa.
+
+### SDD-005: entrega documental recuperada (aceptación pendiente)
+- Seis tipos implementados desde datos verificables: cinco PDF originales disponibles e inspeccionados, más APUNSJ provisional. Complementos críticos requeridos por tipo; su falta bloquea generación, sin placeholders. Seis notas individuales se conservan y descargan también como ZIP histórico. No se presume fidelidad visual Word sin validación.
+- Mérito y persona propuesta para designación son expresos, no derivados del orden de inscripción. Presupuesto, hechos de actuaciones, normativa, autoridades y condiciones requieren datos acreditados; no se copian ejemplos como ciertos.
+- APUNSJ: destinatario institucional acotado y configurable por permiso específico, tratamiento/cargo coherentes y título opcional. El oficio es siempre BORRADOR NO EMITIDO, sin lugar, fecha, número ni firmante inventados; esos datos se indican como no incorporados. Acotado requiere revisión administrativa explícita.
+- Generar y descargar requiere permiso documental y consulta de concurso. Se conservan bytes, hash, plantilla versionada, datos usados y actor/fecha; cambios posteriores de concurso o autoridad no alteran antecedentes. Ninguna generación modifica el procedimiento administrativo ni completa controles. Ver `SDD-005-EVIDENCIA.md` para pendientes de aceptación.

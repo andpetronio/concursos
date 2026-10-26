@@ -1,56 +1,97 @@
 {% extends "layouts/private.html" %}
+{% load static %}
+{% block scripts %}{{ block.super }}<script src="{% static 'js/detail-tabs.js' %}" defer></script>{% endblock %}
 {% block title %}Concurso {{ concurso.expediente }} · UNSJ{% endblock %}
 {% block content %}
-{% include "components/page_header.html" with section="Ficha del concurso" title=concurso.expediente description=concurso.denominacion %}
-<div class="actions">
-  <a href="{% url 'concursos:lista' %}">Volver al listado</a>
-  {% if perms.concursos.change_concurso %}{% url 'concursos:editar' concurso.pk as editar_url %}{% include "components/button.html" with href=editar_url label="Editar datos" extra_class="button-secondary" %}{% endif %}
-  {% if perms.concursos.cambiar_estado_concurso %}{% url 'concursos:estado' concurso.pk as estado_url %}{% include "components/button.html" with href=estado_url label="Cambiar estado o situación" %}{% endif %}
+<a class="back-link" href="{% url 'concursos:lista' %}">Volver al listado</a>
+<div data-detail-tabs>
+<div class="detail-tabs-bar">
+<nav class="detail-tabs-navigation" data-detail-tab-navigation aria-label="Secciones de la ficha">
+  <a href="#resumen">Resumen</a><a href="#datos-concurso">Datos generales</a><a href="#jurados">Jurados</a><a href="#veedores">Veedores</a><a href="#aspirantes">Aspirantes</a><a href="#control-documental">Control documental</a><a href="#documentos">Documentos</a><a href="#historial">Historial</a>
+</nav>
+<p class="detail-tabs-help field-help" data-detail-tabs-help hidden></p>
 </div>
-<section class="card section" aria-labelledby="estado-actual">
-  <h2 id="estado-actual">Estado actual</h2>
-  <dl class="detail-list">
-    <dt>Estado principal</dt><dd>{% include "components/status.html" with label=concurso.get_estado_display %}</dd>
-    <dt>Situación administrativa</dt><dd>{% include "components/status.html" with label=concurso.get_situacion_display %}</dd>
+<div data-detail-panel id="panel-resumen">
+<header id="resumen" class="card record-summary section" tabindex="-1" aria-labelledby="cargo-title">
+  <p class="eyebrow">Ficha del concurso</p>
+  <h1 id="cargo-title">{{ concurso.denominacion }}</h1>
+  <p class="record-subtitle">Expediente {{ concurso.expediente }}</p>
+  <p class="field-help">{{ concurso.unidad }} · {{ concurso.dependencia }}</p>
+  <dl class="summary-facts">
+    <div><dt>Modalidad</dt><dd>{{ concurso.get_modalidad_display }}</dd></div>
+    <div><dt>Categoría</dt><dd>{{ concurso.categoria }}</dd></div>
+    <div><dt>Tramo</dt><dd>{{ concurso.tramo }}</dd></div>
+    <div><dt>Agrupamiento</dt><dd>{{ concurso.get_agrupamiento_display }}</dd></div>
   </dl>
-  <p class="field-help">El estado se registra manualmente y es independiente del control documental.</p>
-</section>
-<section class="card section" aria-labelledby="datos-concurso">
-  <h2 id="datos-concurso">Datos generales, cargo y estructura</h2>
-  <dl class="detail-list">{% for label, value in datos_concurso %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}</dl>
+  <div class="record-status" aria-labelledby="estado-actual">
+    <h2 id="estado-actual" class="visually-hidden">Estado actual</h2>
+    <dl class="summary-facts">
+      <div><dt>Estado administrativo</dt><dd>{% include "components/status.html" with label=concurso.get_estado_display %}</dd></div>
+      <div><dt>Situación administrativa</dt><dd>{% include "components/status.html" with label=concurso.get_situacion_display %}</dd></div>
+      <div><dt>Etapa documental</dt><dd>{{ documentacion.seguimiento.get_etapa_display }}</dd></div>
+    </dl>
+    <p class="field-help">El estado se registra manualmente y es independiente del control documental.</p>
+  </div>
+  <div class="actions">
+    {% include "components/button.html" with href="#control-documental" label="Ir al control documental" %}
+    {% if perms.concursos.change_concurso %}{% url 'concursos:editar' concurso.pk as editar_url %}{% include "components/button.html" with href=editar_url label="Editar datos" extra_class="button-secondary" %}{% endif %}
+    {% if perms.concursos.cambiar_estado_concurso %}{% url 'concursos:estado' concurso.pk as estado_url %}{% include "components/button.html" with href=estado_url label="Cambiar estado o situación" extra_class="button-secondary" %}{% endif %}
+  </div>
+</header>
+</div>
+
+<div data-detail-panel id="panel-datos-concurso">
+<section id="datos-concurso" class="card section" tabindex="-1" aria-labelledby="datos-heading">
+  <h2 id="datos-heading">Datos generales, cargo y estructura</h2>
+  <dl class="detail-list record-details">{% for label, value in datos_concurso %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}</dl>
   {% if concurso.modalidad == 'acotado' %}{% include "concursos/referencia_acotado.html" %}{% endif %}
 </section>
-<section class="section" aria-labelledby="historial-title">
-  <div class="section-heading"><h2 id="historial-title">Historial de estados y situaciones</h2><p>Registro de cambios realizados en el trámite.</p></div>
-  {% include "concursos/historial_tabla.html" with table_label="Historial de estados y situaciones" %}
-  {% include "components/pagination.html" %}
-</section>
-<section class="card section" aria-labelledby="jurados-heading">
+</div>
+<div data-detail-panel id="panel-jurados">
+<section id="jurados" class="card section participant-table" tabindex="-1" aria-labelledby="jurados-heading">
   {% include "components/form_section_header.html" with heading_id="jurados-heading" title="Jurados" description="Tres representaciones, cada una con titular y suplente. Se pueden cargar progresivamente." only %}
   {% if perms.concursos.add_concurso %}<div class="actions">{% url 'concursos:jurado_crear' concurso.pk as jurado_url %}{% include "components/button.html" with href=jurado_url label="Agregar integrante" extra_class="button-secondary" %}</div>{% endif %}
   {% if jurados %}
+  {% include "components/table_scroll_help.html" only %}
   {% include "participantes/jurados_tabla.html" with table_label="Integrantes del jurado" %}
   {% else %}{% include "components/empty_state_inline.html" with description="Todavía no hay integrantes del jurado registrados." only %}{% endif %}
 </section>
-<section class="card section" aria-labelledby="veedores-heading">
+</div>
+<div data-detail-panel id="panel-veedores">
+<section id="veedores" class="card section participant-table" tabindex="-1" aria-labelledby="veedores-heading">
   {% include "components/form_section_header.html" with heading_id="veedores-heading" title="Veedores · APUNSJ" description="La designación y presencia son opcionales; su ausencia no bloquea el trámite." only %}
   {% if perms.concursos.add_concurso %}<div class="actions">{% url 'concursos:veedor_crear' concurso.pk as veedor_url %}{% include "components/button.html" with href=veedor_url label="Agregar veedor" extra_class="button-secondary" %}</div>{% endif %}
   {% if veedores %}
+  {% include "components/table_scroll_help.html" only %}
   {% include "participantes/veedores_tabla.html" with table_label="Veedores de APUNSJ" %}
   {% else %}{% include "components/empty_state_inline.html" with description="No hay veedores registrados. El concurso puede continuar." only %}{% endif %}
 </section>
-<section class="card section" aria-labelledby="aspirantes-heading">
+</div>
+<div data-detail-panel id="panel-aspirantes">
+<section id="aspirantes" class="card section participant-table" tabindex="-1" aria-labelledby="aspirantes-heading">
   {% include "components/form_section_header.html" with heading_id="aspirantes-heading" title="Aspirantes" description="Registrar al recibir el acta de inscriptos. Esta carga todavía no depende del checklist documental." only %}
   {% if perms.concursos.add_concurso %}<div class="actions">{% url 'concursos:aspirante_crear' concurso.pk as aspirante_url %}{% include "components/button.html" with href=aspirante_url label="Agregar aspirante" extra_class="button-secondary" %}</div>{% endif %}
   {% if aspirantes %}
+  {% include "components/table_scroll_help.html" only %}
   {% include "participantes/aspirantes_tabla.html" with table_label="Aspirantes" %}
   {% else %}{% include "components/empty_state_inline.html" with description="Todavía no hay aspirantes registrados." only %}{% endif %}
 </section>
+</div>
+<div data-detail-panel id="panel-control-documental">
 {% include "expedientes/checklist.html" %}
-<section class="card section" aria-labelledby="otras-secciones">
-  <h2 id="otras-secciones">Secciones previstas</h2>
-  <ul class="future-navigation"><li>Documentos · No disponible</li></ul>
+</div>
+<div data-detail-panel id="panel-documentos">
+{% include "documentos/seccion.html" %}
+</div>
+<div data-detail-panel id="panel-historial">
+<section id="historial" class="section" tabindex="-1" aria-labelledby="historial-title">
+  <div class="section-heading"><h2 id="historial-title">Historial de estados y situaciones</h2><p>Registro de cambios realizados en el trámite.</p></div>
+  {% include "concursos/historial_tabla.html" with table_label="Historial de estados y situaciones" %}
+  {% include "components/pagination.html" with fragment="historial" %}
 </section>
+</div>
+</div>
+
 <section class="section" aria-label="Registro de modificaciones">
   <p class="field-help">Creado por {{ concurso.creado_por.get_username }} el {{ concurso.creado_en|date:"d/m/Y H:i" }}. Última modificación por {{ concurso.actualizado_por.get_username }} el {{ concurso.actualizado_en|date:"d/m/Y H:i" }}.</p>
 </section>

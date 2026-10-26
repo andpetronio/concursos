@@ -77,6 +77,8 @@ class ConcursoDetailView(AccesoConcursoMixin, DetailView):
         context.update(contexto_documental(self.object, jurados=context["jurados"],
                                           error=getattr(self, "documental_error", None),
                                           error_etapa=getattr(self, "documental_error_etapa", None)))
+        from documentos.services import contexto_documentos
+        context.update(contexto_documentos(self.object))
         return context
 
 

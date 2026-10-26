@@ -1,11 +1,12 @@
 {% extends "components/table.html" %}
 {% block columns %}
-<th scope="col">Apellido y nombre</th><th scope="col">DNI</th><th scope="col">Correo electrónico</th><th scope="col">Expediente de inscripción</th>{% if perms.concursos.change_concurso %}<th scope="col">Acciones</th>{% endif %}
+<th scope="col">Apellido y nombre</th><th scope="col">Expediente de inscripción</th><th scope="col">Correo electrónico</th>{% if perms.concursos.change_concurso %}<th scope="col">Acciones</th>{% endif %}
 {% endblock %}
 {% block rows %}
 {% for aspirante in aspirantes %}<tr>
-  <td>{{ aspirante.persona.apellido }}, {{ aspirante.persona.nombre }}</td><td>{{ aspirante.persona.dni }}</td>
-  <td>{{ aspirante.email|default:"—" }}</td><td>{{ aspirante.expediente_inscripcion|default:"—" }}</td>
-  {% if perms.concursos.change_concurso %}<td><a href="{% url 'concursos:aspirante_editar' concurso.pk aspirante.pk %}">Editar inscripción</a><br><a href="{% url 'concursos:persona_editar' concurso.pk aspirante.persona.pk %}">Corregir persona</a></td>{% endif %}
+  <td>{% include "components/person_identity.html" with persona=aspirante.persona only %}</td>
+  <td><span class="participation-data">{{ aspirante.expediente_inscripcion|default:"No registrado" }}</span></td>
+  <td><span class="participation-data">{{ aspirante.email|default:"Sin correo registrado" }}</span></td>
+  {% if perms.concursos.change_concurso %}<td>{% include "participantes/acciones.html" with return_section="aspirantes" registro=aspirante editar_route="concursos:aspirante_editar" editar_label="Editar inscripción" %}</td>{% endif %}
 </tr>{% endfor %}
 {% endblock %}

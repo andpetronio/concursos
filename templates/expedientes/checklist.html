@@ -1,25 +1,43 @@
-<section class="section" id="control-documental" aria-labelledby="documental-heading">
-  {% include "components/form_section_header.html" with heading_id="documental-heading" title="Control documental" description="Registrá la documentación incorporada al expediente. El expediente y los actos administrativos oficiales se conservan fuera del sistema." only %}
+<section class="section documentary-workspace" id="control-documental" aria-labelledby="documental-heading">
+  {% include "components/form_section_header.html" with heading_id="documental-heading" title="Control documental" description="Consultá los requisitos del expediente y abrí solo el que necesites registrar o corregir." only %}
   <div class="card document-summary">
-    <p><strong>{{ documentacion.completos|length }} de {{ documentacion.total }} requisitos completos.</strong> {{ documentacion.pendientes_exigibles|length }} pendientes exigibles. {{ documentacion.no_registrados_futuros|length }} de etapas futuras sin completar.</p>
+    <div class="document-summary-top">
+      <div>
+        <p class="document-summary-count"><strong>{{ documentacion.completos|length }} de {{ documentacion.total }} requisitos completos</strong></p>
+        <p class="field-help">{{ documentacion.pendientes_exigibles|length }} pendientes exigibles · {{ documentacion.no_registrados_futuros|length }} sin completar en etapas futuras</p>
+      </div>
+      <div class="document-current-stage">
+        <span class="document-meta-label">Etapa documental</span>
+        <strong>{{ documentacion.seguimiento.get_etapa_display }}</strong>
+      </div>
+    </div>
+    <div class="document-summary-guidance">
+      {% if documentacion.habilitacion.habilitado %}
+        <p>{% include "components/status.html" with label="Requisitos previos de convocatoria completos" %}</p>
+        <p class="field-help">La documentación previa y los demás datos exigidos están completos para preparar el proyecto. Esto no acredita una resolución emitida ni modifica el estado administrativo.</p>
+      {% else %}
+        <p>{% include "components/status.html" with label="Documentación previa pendiente" %}</p>
+        <details class="document-summary-details"><summary>Ver requisitos que faltan para preparar el proyecto ({{ documentacion.habilitacion.faltantes|length }})</summary>
+          <ul>{% for pendiente in documentacion.habilitacion.faltantes %}<li>{{ pendiente }}</li>{% endfor %}</ul>
+        </details>
+      {% endif %}
+    </div>
     {% if perms.expedientes.change_controldocumental %}
-      <form method="post" action="{% url 'concursos:etapa_documental' concurso.pk %}#control-documental">
-        {% csrf_token %}
-        {% for hidden in form_etapa_documental.hidden_fields %}{{ hidden }}{{ hidden.errors }}{% endfor %}
-        {% include "components/form_errors.html" with form=form_etapa_documental %}
-        {% include "components/field.html" with field=form_etapa_documental.etapa %}
-        {% include "components/button.html" with label="Guardar etapa documental" extra_class="button-secondary" %}
-      </form>
-    {% else %}<p>Etapa documental activa: <strong>{{ documentacion.seguimiento.get_etapa_display }}</strong>.</p>{% endif %}
-    <p><a href="{% url 'concursos:etapa_historial' concurso.pk %}">Ver historial de etapas documentales</a></p>
-    {% if documentacion.habilitacion.habilitado %}
-      <p>{% include "components/status.html" with label="Documentación previa completa" %}</p>
-      <p>Listo para generar el proyecto de resolución de convocatoria cuando esté disponible la generación documental.</p>
-    {% else %}
-      <p>{% include "components/status.html" with label="Documentación previa pendiente" %}</p>
-      <details><summary>Ver qué falta para habilitar el proyecto de convocatoria ({{ documentacion.habilitacion.faltantes|length }})</summary><ul>{% for pendiente in documentacion.habilitacion.faltantes %}<li>{{ pendiente }}</li>{% endfor %}</ul></details>
+      <details class="document-stage-editor" {% if form_etapa_documental.errors %}open{% endif %}>
+        <summary>Cambiar etapa documental</summary>
+        <form method="post" action="{% url 'concursos:etapa_documental' concurso.pk %}#control-documental">
+          {% csrf_token %}
+          {% for hidden in form_etapa_documental.hidden_fields %}{{ hidden }}{{ hidden.errors }}{% endfor %}
+          {% include "components/form_errors.html" with form=form_etapa_documental %}
+          {% include "components/field.html" with field=form_etapa_documental.etapa %}
+          {% include "components/button.html" with label="Guardar etapa documental" extra_class="button-secondary" %}
+        </form>
+      </details>
     {% endif %}
-    <p class="field-help">La etapa documental se selecciona manualmente y es independiente del estado administrativo. Los requisitos de esa etapa y de las anteriores son exigibles. Los cinco de preparación siempre son necesarios para convocatoria. Esta selección no establece vencimientos.</p>
+    <div class="document-summary-footer">
+      <a href="{% url 'concursos:etapa_historial' concurso.pk %}">Ver historial de etapas</a>
+      <span class="field-help">La etapa es independiente del estado administrativo del concurso. Los requisitos de la etapa y las anteriores son exigibles.</span>
+    </div>
     {% if documentacion.advertencias %}
       <details class="notice" open><summary>Documentación registrada fuera de la secuencia orientativa</summary><ul>{% for aviso in documentacion.advertencias %}<li>{{ aviso }}</li>{% endfor %}</ul><p>El orden es orientativo y no impide registrar los documentos.</p></details>
     {% endif %}
@@ -30,9 +48,14 @@
     {% endif %}
   </div>
   {% for seccion in secciones_documentales %}
-    <section class="card section" aria-labelledby="documental-seccion-{{ seccion.codigo }}">
-      {% include "components/form_section_header.html" with heading_id="documental-seccion-"|add:seccion.codigo title=seccion.nombre only %}
-      {% for fila in seccion.filas %}{% include "expedientes/control_fila.html" %}{% endfor %}
+    <section class="card section document-section" aria-labelledby="documental-seccion-{{ seccion.codigo }}">
+      <div class="document-section-heading">
+        <h3 id="documental-seccion-{{ seccion.codigo }}">{{ seccion.nombre }}</h3>
+        <span class="document-section-progress" aria-label="{{ seccion.completos }} de {{ seccion.total }} requisitos completos">{{ seccion.completos }}/{{ seccion.total }} completos</span>
+      </div>
+      <div class="document-section-list">
+        {% for fila in seccion.filas %}{% include "expedientes/control_fila.html" %}{% endfor %}
+      </div>
     </section>
   {% endfor %}
 </section>

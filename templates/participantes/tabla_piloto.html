@@ -1,0 +1,27 @@
+{% extends "components/table.html" %}
+{% comment %}Proposal-only participant composition. Production tables remain unchanged.{% endcomment %}
+{% block columns %}
+<th scope="col">Apellido y nombre</th><th scope="col">{% if tipo == "aspirante" %}Inscripción{% else %}Participación{% endif %}</th><th scope="col">Contacto</th>{% if perms.concursos.change_concurso %}<th scope="col">Acciones</th>{% endif %}
+{% endblock %}
+{% block rows %}
+{% for registro in registros %}<tr>
+  <td>{% include "components/person_identity.html" with persona=registro.persona only %}</td>
+  <td>
+    {% if tipo == "jurado" %}
+      <strong>{{ registro.get_calidad_display }}</strong> · {{ registro.get_representacion_display }}
+      <p class="field-help">Título: {{ registro.titulo }}<br>Unidad: {{ registro.unidad|default:"Pendiente de completar" }}{% if registro.cargo %}<br>Cargo registrado anteriormente: {{ registro.cargo }}{% endif %}</p>
+    {% elif tipo == "veedor" %}
+      APUNSJ<br>{{ registro.cargo|default:"Sin cargo registrado" }}
+    {% else %}
+      Expediente {{ registro.expediente_inscripcion|default:"no registrado" }}
+    {% endif %}
+  </td>
+  <td>{{ registro.email|default:"Sin correo registrado" }}{% if tipo != "aspirante" %}<br><span class="field-help">{{ registro.telefono|default:"Sin teléfono registrado" }}</span>{% endif %}</td>
+  {% if perms.concursos.change_concurso %}
+  <td><div class="actions table-actions">
+    <a href="{% url editar_route concurso.pk registro.pk %}">{{ editar_label }}</a>
+    <a href="{% url 'concursos:persona_editar' concurso.pk registro.persona.pk %}">Corregir persona</a>
+  </div></td>
+  {% endif %}
+</tr>{% endfor %}
+{% endblock %}
