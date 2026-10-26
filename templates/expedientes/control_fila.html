@@ -1,57 +1,80 @@
 <article id="documental-{{ fila.control.pk }}" class="document-control" aria-labelledby="documental-titulo-{{ fila.control.pk }}">
-  <div class="document-control-overview">
-    <div class="document-control-identity">
-      <h4 id="documental-titulo-{{ fila.control.pk }}">{{ fila.numero }}. {{ fila.requisito.nombre }}</h4>
-      <div class="document-control-facts">
-        {% if fila.requisito.requiere_foja %}
-          <span>Fojas: <strong>{{ fila.control.fojas|default:"Sin registrar" }}</strong></span>
-        {% endif %}
-        {% if fila.control.requisito == 'afectacion_presupuestaria' %}
-          <span>PPAL: <strong>{{ fila.control.partida_principal|default:"Sin registrar" }}</strong></span>
-          <span>ACTIV: <strong>{{ fila.control.actividad_presupuestaria|default:"Sin registrar" }}</strong></span>
-        {% endif %}
-        {% if fila.control.observaciones %}<span>Observaciones registradas</span>{% endif %}
-      </div>
-    </div>
-    <span class="document-control-status document-control-status--{{ fila.estado_clase }}">{{ fila.estado }}</span>
-  </div>
   {% if perms.expedientes.change_controldocumental %}
-    <details class="document-control-editor" {% if fila.form.errors %}open{% endif %}>
-      <summary>Editar requisito</summary>
-      <div class="document-editor-body">
-        {% if fila.requisito.ayuda %}<p class="field-help">{{ fila.requisito.ayuda }}</p>{% endif %}
-        <form method="post" action="{% url 'concursos:control_documental' concurso.pk fila.control.pk %}#documental-{{ fila.control.pk }}" aria-labelledby="documental-titulo-{{ fila.control.pk }}">
-          {% csrf_token %}
-          {% for hidden in fila.form.hidden_fields %}{{ hidden }}{{ hidden.errors }}{% endfor %}
-          {% include "components/form_errors.html" with form=fila.form %}
-          <div class="document-control-grid">
-            {% include "components/checkbox_field.html" with field=fila.form.verificado %}
-            {% if fila.requisito.requiere_foja %}{% include "components/field.html" with field=fila.form.fojas %}{% endif %}
+    <form method="post" action="{% url 'concursos:control_documental' concurso.pk fila.control.pk %}#documental-{{ fila.control.pk }}" class="document-toggle-form{% if fila.form.errors %} document-toggle-form--errors{% endif %}" data-document-fojas-required="{{ fila.requisito.requiere_foja|yesno:'true,false' }}" data-document-budget-required="{% if fila.control.requisito == 'afectacion_presupuestaria' %}true{% else %}false{% endif %}" aria-labelledby="documental-titulo-{{ fila.control.pk }}">
+      {% csrf_token %}
+      {% for hidden in fila.form.hidden_fields %}{{ hidden }}{{ hidden.errors }}{% endfor %}
+      <div class="document-control-overview">
+        <div class="document-control-identity">
+          <h4 id="documental-titulo-{{ fila.control.pk }}">{{ fila.numero }}. {{ fila.requisito.nombre }}</h4>
+          <div class="document-control-facts" data-document-facts>
+            {% if fila.requisito.requiere_foja %}<span>Fojas: <strong data-document-fojas>{{ fila.control.fojas|default:"Sin registrar" }}</strong></span>{% endif %}
             {% if fila.control.requisito == 'afectacion_presupuestaria' %}
-              {% include "components/field.html" with field=fila.form.partida_principal %}
-              {% include "components/field.html" with field=fila.form.actividad_presupuestaria %}
-              <p class="field-help document-budget-help">PPAL y ACTIV son códigos de dos posiciones. El valor 1 se guarda como 01. No confundir PPAL con la partida de gasto 1.1.</p>
+              <span>PPAL: <strong data-document-ppal>{{ fila.control.partida_principal|default:"Sin registrar" }}</strong></span>
+              <span>ACTIV: <strong data-document-activ>{{ fila.control.actividad_presupuestaria|default:"Sin registrar" }}</strong></span>
             {% endif %}
-            <div class="document-control-observations">{% include "components/field.html" with field=fila.form.observaciones %}</div>
+            {% if fila.control.observaciones %}<span data-document-has-notes>Observaciones registradas</span>{% endif %}
           </div>
-          <div class="document-editor-actions">
-            {% include "components/button.html" with label="Guardar requisito" extra_class="button-secondary" %}
-            <span class="field-help">Se registra cada modificación en el historial del expediente.</span>
-          </div>
-        </form>
+        </div>
+        <div class="document-control-verification">
+          <span class="document-control-status document-control-status--{{ fila.estado_clase }}" data-document-state>{{ fila.estado }}</span>
+          <label class="document-verification-toggle" for="{{ fila.form.verificado.id_for_label }}">
+            <span>Verificado</span>
+            {{ fila.form.verificado }}
+            <span class="document-switch-track" aria-hidden="true"></span>
+          </label>
+        </div>
       </div>
-    </details>
-  {% elif fila.control.observaciones or fila.requisito.ayuda %}
-    <details class="document-control-editor document-control-readonly"><summary>Ver información adicional</summary>
-      {% if fila.requisito.ayuda %}<p class="field-help">{{ fila.requisito.ayuda }}</p>{% endif %}
-      {% if fila.control.observaciones %}<p class="document-observation"><strong>Observaciones:</strong> {{ fila.control.observaciones }}</p>{% endif %}
-    </details>
+      {% include "components/form_errors.html" with form=fila.form %}
+      {% if fila.form.verificado.errors %}<div class="field-errors" role="alert">{{ fila.form.verificado.errors }}</div>{% endif %}
+      {% if fila.requisito.requiere_foja or fila.control.requisito == 'afectacion_presupuestaria' %}
+        <div class="document-control-revealed">
+          {% if fila.requisito.requiere_foja %}
+            {% include "components/field.html" with field=fila.form.fojas %}
+          {% endif %}
+          {% if fila.control.requisito == 'afectacion_presupuestaria' %}
+            {% include "components/field.html" with field=fila.form.partida_principal %}
+            {% include "components/field.html" with field=fila.form.actividad_presupuestaria %}
+            <p class="field-help document-budget-help">PPAL y ACTIV son códigos de dos posiciones. El valor 1 se guarda como 01. No confundir PPAL con la partida de gasto 1.1.</p>
+          {% endif %}
+        </div>
+      {% endif %}
+      <details class="document-control-notes" {% if fila.form.observaciones.errors %}open{% endif %}>
+        <summary>Observaciones{% if fila.control.observaciones %} (registradas){% endif %}</summary>
+        {% if fila.requisito.ayuda %}<p class="field-help">{{ fila.requisito.ayuda }}</p>{% endif %}
+        {% include "components/field.html" with field=fila.form.observaciones %}
+      </details>
+      <div class="document-auto-feedback" data-document-auto-feedback>
+        <span class="document-auto-status" role="status" aria-live="polite" data-document-auto-status></span>
+        <button type="button" class="button button-secondary document-auto-retry" data-document-auto-retry hidden>Reintentar</button>
+        <a href="{{ concurso.get_absolute_url }}#documental-{{ fila.control.pk }}" class="document-auto-reload" data-document-auto-reload hidden>Recargar ficha</a>
+        <button type="submit" class="button button-secondary" data-document-fallback-save>Guardar cambios</button>
+      </div>
+    </form>
+  {% else %}
+    <div class="document-control-overview">
+      <div class="document-control-identity">
+        <h4 id="documental-titulo-{{ fila.control.pk }}">{{ fila.numero }}. {{ fila.requisito.nombre }}</h4>
+        <div class="document-control-facts" data-document-facts>
+          {% if fila.requisito.requiere_foja %}<span>Fojas: <strong data-document-fojas>{{ fila.control.fojas|default:"Sin registrar" }}</strong></span>{% endif %}
+          {% if fila.control.requisito == 'afectacion_presupuestaria' %}
+            <span>PPAL: <strong data-document-ppal>{{ fila.control.partida_principal|default:"Sin registrar" }}</strong></span>
+            <span>ACTIV: <strong data-document-activ>{{ fila.control.actividad_presupuestaria|default:"Sin registrar" }}</strong></span>
+          {% endif %}
+          {% if fila.control.observaciones %}<span data-document-has-notes>Observaciones registradas</span>{% endif %}
+        </div>
+      </div>
+      <span class="document-control-status document-control-status--{{ fila.estado_clase }}">{{ fila.estado }}</span>
+    </div>
+    {% if fila.control.observaciones or fila.requisito.ayuda %}
+      <details class="document-control-readonly"><summary>Ver información adicional</summary>
+        {% if fila.requisito.ayuda %}<p class="field-help">{{ fila.requisito.ayuda }}</p>{% endif %}
+        {% if fila.control.observaciones %}<p class="document-observation"><strong>Observaciones:</strong> {{ fila.control.observaciones }}</p>{% endif %}
+      </details>
+    {% endif %}
   {% endif %}
-  {% if fila.control.actualizado_por or fila.control.verificado_en %}
-    <div class="document-control-meta">
+  <div class="document-control-meta" data-document-meta>
       {% if fila.control.actualizado_por %}<span>Actualizado por {{ fila.control.actualizado_por.get_username }} · {{ fila.control.actualizado_en|date:"d/m/Y H:i" }}</span>{% endif %}
       {% if fila.control.verificado_en %}<span>Última verificación: {{ fila.control.responsable.get_username }} · {{ fila.control.verificado_en|date:"d/m/Y H:i" }}</span>{% endif %}
       {% if fila.control.actualizado_por %}<a href="{% url 'concursos:control_historial' concurso.pk fila.control.pk %}">Ver historial de correcciones</a>{% endif %}
     </div>
-  {% endif %}
 </article>

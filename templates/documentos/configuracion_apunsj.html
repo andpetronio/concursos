@@ -1,0 +1,14 @@
+{% extends "layouts/private.html" %}
+{% block title %}Secretaría General de APUNSJ · SiCon{% endblock %}
+{% block content %}
+{% include "components/page_header.html" with section="Configuración institucional" title="Secretaría General de APUNSJ" description="Configurá el destinatario del oficio de solicitud de veedor. Los documentos históricos no se modifican." only %}
+<a class="back-link" href="{% url 'documentos:configuracion' %}">Volver a configuración institucional</a>
+<form method="post" class="card section">
+  {% csrf_token %}
+  {% include "components/form_section_header.html" with heading_id="destinatario-heading" title="Autoridad destinataria" description="Completá los datos institucionales verificados. El título profesional es opcional." only %}
+  {% if form.non_field_errors %}<div class="field-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form.hidden_fields %}{{ field }}{% if field.errors %}<div class="field-errors" role="alert">{{ field.errors }}</div>{% endif %}{% endfor %}
+  <div class="form-grid">{% for field in form.visible_fields %}{% include "components/field.html" with field=field %}{% endfor %}</div>
+  <div class="form-actions">{% include "components/button.html" with label="Guardar configuración" %}</div>
+</form>
+{% endblock %}

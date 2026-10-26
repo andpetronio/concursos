@@ -15,7 +15,7 @@ from core.models import SessionActivity
 from participantes.models import Jurado, Persona
 
 from expedientes.catalogo import REQUISITOS
-from expedientes.models import CambioControlDocumental, ControlDocumental, SeguimientoDocumental
+from expedientes.models import CambioControlDocumental, CambioEtapaDocumental, ControlDocumental, SeguimientoDocumental
 from expedientes.services import actualizar_control, actualizar_etapa, consultar_documentacion, habilitacion_convocatoria
 from expedientes.validators import normalizar_fojas
 
@@ -87,6 +87,101 @@ class DocumentalTests(TestCase):
                                    calidad=calidad, titulo="Título de prueba", unidad="Unidad de servicio",
                                    creado_por=self.editor, actualizado_por=self.editor)
 
+    def test_avance_automatico_solo_al_completar_quinto_previo_sin_convocar(self):
+        for requisito in REQUISITOS[:4]:
+            respuesta = self.guardar(requisito.codigo, fojas="12/15" if requisito.requiere_foja else "")
+            self.assertEqual(respuesta.status_code, 302)
+            self.assertEqual(self.concurso.seguimiento_documental.etapa, "preparacion")
+        seguimiento = SeguimientoDocumental.objects.get(concurso=self.concurso)
+        self.assertEqual((seguimiento.etapa, seguimiento.version), ("preparacion", 1))
+        self.assertFalse(seguimiento.historial.exists())
+
+        self.assertEqual(self.guardar("vacancia").status_code, 302)
+        seguimiento.refresh_from_db()
+        evento = seguimiento.historial.get()
+        self.assertEqual((seguimiento.etapa, seguimiento.version), ("convocatoria", 2))
+        self.assertEqual((evento.origen, evento.anterior, evento.nueva, evento.usuario),
+                         (CambioEtapaDocumental.Origen.AUTOMATICO, "preparacion", "convocatoria", self.editor))
+        self.assertEqual(CambioControlDocumental.objects.count(), 5)
+        self.assertEqual(len(consultar_documentacion(self.concurso).pendientes_exigibles), 3)
+        self.concurso.refresh_from_db()
+        self.assertEqual((self.concurso.estado, self.concurso.version, self.concurso.historial.count()),
+                         ("preparacion", 1, 1))
+        self.assertFalse(habilitacion_convocatoria(self.concurso).habilitado)  # Todavía faltan los jurados.
+        historial = self.client.get(reverse("concursos:etapa_historial", args=[self.concurso.pk]))
+        self.assertContains(historial, "Automático")
+
+    def test_autoguardado_actualiza_etapa_contadores_y_estados_sin_refrescar(self):
+        for requisito in REQUISITOS[:4]:
+            self.guardar(requisito.codigo, fojas="5" if requisito.requiere_foja else "")
+        control = self.control("vacancia")
+        respuesta = self.client.post(
+            self.url(control), {
+                f"control-{control.pk}-version_esperada": control.version,
+                f"control-{control.pk}-verificado": "on",
+            }, HTTP_X_REQUESTED_WITH="XMLHttpRequest", HTTP_ACCEPT="application/json",
+        )
+        self.assertEqual(respuesta.status_code, 200)
+        datos = respuesta.json()
+        self.assertEqual(datos["etapa_documental"], {
+            "codigo": "convocatoria", "nombre": "Convocatoria", "version": 2,
+        })
+        self.assertEqual(datos["totales"]["pendientes"], 3)
+        siguiente = self.control("publicacion_convocatoria")
+        self.assertEqual(datos["estados_controles"][str(siguiente.pk)]["estado"], "Pendiente exigible")
+        self.assertEqual(datos["totales"]["secciones"]["preparacion"]["completos"], 5)
+        self.assertIn('data-document-stage-name', self.client.get(self.concurso.get_absolute_url()).content.decode())
+        self.assertIn("Documentación previa completa", datos["habilitacion_html"])
+        self.assertIn("Todavía faltan otros datos o jurados", datos["habilitacion_html"])
+
+    def test_rollback_manual_respeta_decision_sin_reavance_ni_retroceso_automatico(self):
+        self.completar_preparacion()
+        seguimiento = SeguimientoDocumental.objects.get(concurso=self.concurso)
+        self.assertEqual(seguimiento.etapa, "convocatoria")
+        actualizar_etapa(concurso_id=self.concurso.pk, etapa="preparacion", usuario=self.editor,
+                         version_esperada=seguimiento.version)
+        control = self.control("vacancia")
+        self.guardar("vacancia", verificado=False)
+        self.guardar("vacancia")
+        seguimiento.refresh_from_db()
+        self.assertEqual((seguimiento.etapa, seguimiento.version), ("preparacion", 3))
+        self.assertEqual(list(seguimiento.historial.values_list("origen", flat=True)),
+                         [CambioEtapaDocumental.Origen.MANUAL, CambioEtapaDocumental.Origen.AUTOMATICO])
+        # No retroceder al faltar requisitos de etapas ya alcanzadas.
+        actualizar_etapa(concurso_id=self.concurso.pk, etapa="convocatoria", usuario=self.editor,
+                         version_esperada=seguimiento.version)
+        self.guardar("vacancia", verificado=False)
+        seguimiento.refresh_from_db()
+        self.assertEqual(seguimiento.etapa, "convocatoria")
+
+    def test_historicos_completos_no_avanzan_por_editar_observaciones(self):
+        for requisito in REQUISITOS[:5]:
+            ControlDocumental.objects.filter(concurso=self.concurso, requisito=requisito.codigo).update(
+                verificado=True, fojas="9" if requisito.requiere_foja else "",
+            )
+        self.guardar("vacancia", observaciones="Corrección posterior")
+        seguimiento = SeguimientoDocumental.objects.get(concurso=self.concurso)
+        self.assertEqual((seguimiento.etapa, seguimiento.version, seguimiento.historial.count()),
+                         ("preparacion", 1, 0))
+
+    def test_si_falla_historial_de_avance_se_revierte_el_quinto_documento(self):
+        for requisito in REQUISITOS[:4]:
+            self.guardar(requisito.codigo, fojas="5" if requisito.requiere_foja else "")
+        control = self.control("vacancia")
+        with patch("expedientes.services.CambioEtapaDocumental.objects.create",
+                   side_effect=RuntimeError("Falla de bitácora de etapa")):
+            with self.assertRaisesMessage(RuntimeError, "Falla de bitácora de etapa"):
+                actualizar_control(
+                    concurso_id=self.concurso.pk, control_id=control.pk,
+                    datos={"verificado": True}, usuario=self.editor, version_esperada=control.version,
+                )
+        control.refresh_from_db()
+        seguimiento = SeguimientoDocumental.objects.get(concurso=self.concurso)
+        self.assertEqual((control.verificado, control.version), (False, 1))
+        self.assertFalse(control.historial.exists())
+        self.assertEqual((seguimiento.etapa, seguimiento.version, seguimiento.historial.count()),
+                         ("preparacion", 1, 0))
+
     def test_inicializa_21_sin_verificaciones_ni_historial_ficticio(self):
         self.assertEqual(self.concurso.controles_documentales.count(), 21)
         self.assertEqual(set(self.concurso.controles_documentales.values_list("requisito", flat=True)),
@@ -137,6 +232,9 @@ class DocumentalTests(TestCase):
         self.assertEqual((control.partida_principal, control.actividad_presupuestaria), ("01", "02"))
         self.assertEqual(control.historial.first().nuevo["partida_principal"], "01")
         self.assertEqual(control.historial.first().nuevo["actividad_presupuestaria"], "02")
+        historial = self.client.get(self.url(control, historial=True))
+        self.assertContains(historial, "Antes · PPAL Sin registrar / ACTIV Sin registrar")
+        self.assertContains(historial, "Después · PPAL 01 / ACTIV 02")
         with self.assertRaises(ValidationError):
             actualizar_control(concurso_id=self.concurso.pk, control_id=control.pk,
                 datos={**datos, "partida_principal": "1.1"},
@@ -330,7 +428,7 @@ class DocumentalTests(TestCase):
     def test_ui_agrupa_catalogo_y_no_imputa_incumplimiento_a_etapas_futuras(self):
         response = self.client.get(self.concurso.get_absolute_url())
         self.assertContains(response, "Documentación previa pendiente")
-        self.assertContains(response, "0 de 21 requisitos completos")
+        self.assertContains(response, "<span data-document-complete-count>0</span> de 21 requisitos completos")
         self.assertContains(response, 'aria-label="Verificado: Certificación de vacancia del cargo"')
         self.assertContains(response, '/control-documental/etapa/#control-documental')
         self.assertContains(response, "No registrado", count=16)
@@ -339,27 +437,98 @@ class DocumentalTests(TestCase):
         self.guardar("vacancia", observaciones="<script>prueba</script>")
         self.assertContains(self.client.get(self.concurso.get_absolute_url()), "&lt;script&gt;prueba&lt;/script&gt;")
 
-    def test_requisitos_se_consultan_compactos_y_se_editan_con_details_nativo(self):
+    def test_requisitos_se_verifican_con_interruptor_y_campo_fojas_condicional(self):
         response = self.client.get(self.concurso.get_absolute_url())
-        self.assertContains(response, '<summary>Editar requisito</summary>', count=21)
-        self.assertContains(response, 'class="document-control-editor"', count=21)
-        self.assertNotContains(response, 'class="document-control-editor" open')
+        self.assertContains(response, 'class="document-toggle-form"', count=21)
+        self.assertContains(response, 'class="document-verification-toggle"', count=21)
+        self.assertContains(response, 'data-document-auto-feedback', count=21)
+        self.assertContains(response, 'data-document-fallback-save', count=21)
+        self.assertContains(response, 'js/document-autosave.js')
+        self.assertContains(response, 'Guardar cambios', count=21)
+        self.assertNotContains(response, 'document-toggle-save">Guardar</button>')
+        self.assertContains(response, 'class="document-control-revealed"', count=12)
+        self.assertContains(response, 'class="document-control-notes"', count=21)
+        self.assertNotContains(response, '<summary>Editar requisito</summary>')
         self.assertContains(response, '0/5 completos')
         self.assertContains(response, '0/3 completos')
         self.assertContains(response, '0/4 completos')
         self.assertContains(response, '0/6 completos')
-        self.assertContains(response, '0 de 21 requisitos completos')
+        self.assertContains(response, '<span data-document-complete-count>0</span> de 21 requisitos completos')
         self.assertContains(response, 'id="panel-control-documental"')
         self.assertContains(response, 'name="control-')
 
-    def test_error_documental_reabre_solo_el_requisito_y_conserva_valores(self):
+    def test_guardado_automatico_ajax_sin_foja_y_resumen_real(self):
+        control = self.control("vacancia")
+        datos = {f"control-{control.pk}-version_esperada": control.version,
+                 f"control-{control.pk}-verificado": "on"}
+        respuesta = self.client.post(self.url(control), datos,
+                                    HTTP_X_REQUESTED_WITH="XMLHttpRequest", HTTP_ACCEPT="application/json")
+        self.assertEqual(respuesta.status_code, 200)
+        body = respuesta.json()
+        self.assertTrue(body["ok"])
+        self.assertEqual(body["version"], 2)
+        self.assertEqual(body["estado"], "Verificado")
+        self.assertEqual(body["totales"]["completos"], 1)
+        self.assertEqual(body["totales"]["secciones"]["preparacion"], {"completos": 1, "total": 5})
+        self.assertIn("Documentación previa pendiente", body["habilitacion_html"])
+        control.refresh_from_db()
+        self.assertTrue(control.verificado)
+        self.assertEqual(control.historial.count(), 1)
+        # No-op: no inventa una segunda verificación ni un nuevo evento.
+        datos[f"control-{control.pk}-version_esperada"] = 2
+        otra = self.client.post(self.url(control), datos,
+                               HTTP_X_REQUESTED_WITH="XMLHttpRequest", HTTP_ACCEPT="application/json")
+        self.assertEqual(otra.status_code, 200)
+        self.assertEqual(otra.json()["version"], 2)
+        self.assertEqual(control.historial.count(), 1)
+
+    def test_guardado_automatico_ajax_fojas_presupuesto_y_error(self):
+        control = self.control("afectacion_presupuestaria")
+        prefix = f"control-{control.pk}-"
+        datos = {prefix + "version_esperada": 1, prefix + "verificado": "on",
+                 prefix + "fojas": "9/2", prefix + "partida_principal": "1",
+                 prefix + "actividad_presupuestaria": "02"}
+        invalida = self.client.post(self.url(control), datos,
+                                    HTTP_X_REQUESTED_WITH="XMLHttpRequest", HTTP_ACCEPT="application/json")
+        self.assertEqual(invalida.status_code, 400)
+        self.assertIn("fojas", invalida.json()["errores"])
+        control.refresh_from_db()
+        self.assertEqual(control.version, 1)
+        self.assertEqual(control.historial.count(), 0)
+        datos[prefix + "fojas"] = "12/15"
+        correcta = self.client.post(self.url(control), datos,
+                                    HTTP_X_REQUESTED_WITH="XMLHttpRequest", HTTP_ACCEPT="application/json")
+        self.assertEqual(correcta.status_code, 200)
+        self.assertEqual(correcta.json()["partida_principal"], "01")
+        self.assertEqual(correcta.json()["version"], 2)
+        control.refresh_from_db()
+        self.assertTrue(control.completo)
+        self.assertEqual(control.historial.count(), 1)
+        conflicto = self.client.post(self.url(control), datos,
+                                     HTTP_X_REQUESTED_WITH="XMLHttpRequest", HTTP_ACCEPT="application/json")
+        self.assertEqual(conflicto.status_code, 409)
+        self.assertIn("Otro operador", str(conflicto.json()))
+        self.assertEqual(control.historial.count(), 1)
+
+    def test_guardado_automatico_respeta_permiso_y_fallback_clasico(self):
+        control = self.control("vacancia")
+        datos = {f"control-{control.pk}-version_esperada": 1,
+                 f"control-{control.pk}-verificado": "on"}
+        normal = self.client.post(self.url(control), datos)
+        self.assertEqual(normal.status_code, 302)
+        self.login(self.lector)
+        respuesta = self.client.post(self.url(control), datos,
+                                    HTTP_X_REQUESTED_WITH="XMLHttpRequest", HTTP_ACCEPT="application/json")
+        self.assertEqual(respuesta.status_code, 403)
+
+    def test_error_documental_revela_fojas_y_conserva_valores(self):
         control = self.control('afectacion_presupuestaria')
         response = self.guardar('afectacion_presupuestaria', fojas='9/2', observaciones='Dato pendiente de corrección')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Dato pendiente de corrección')
         self.assertContains(response, 'id="documental-%s"' % control.pk)
-        self.assertContains(response, 'class="document-control-editor" open', count=1)
-        self.assertContains(response, '<summary>Editar requisito</summary>', count=21)
+        self.assertContains(response, 'class="document-toggle-form document-toggle-form--errors"', count=1)
+        self.assertContains(response, 'class="document-verification-toggle"', count=21)
         self.assertContains(response, 'el inicio no puede superar')
         control.refresh_from_db()
         self.assertEqual(control.version, 1)
@@ -376,7 +545,7 @@ class DocumentalTests(TestCase):
         self.assertContains(response, reverse('concursos:control_historial', args=[self.concurso.pk, control.pk]))
         self.login(self.lector)
         response = self.client.get(self.concurso.get_absolute_url())
-        self.assertNotContains(response, '<summary>Editar requisito</summary>')
+        self.assertNotContains(response, 'class="document-verification-toggle"')
         self.assertNotContains(response, f'name="control-{control.pk}-version_esperada"')
         self.assertContains(response, 'Ver información adicional')
         self.assertContains(response, 'Afectación registrada')
@@ -462,8 +631,11 @@ class DocumentalTests(TestCase):
         self.crear_jurado()
         self.assertFalse(self.concurso.veedors.exists())
         self.assertTrue(habilitacion_convocatoria(self.concurso).habilitado)
-        for version, etapa in enumerate(["convocatoria", "inscripciones", "oposicion", "finalizacion"], start=1):
-            actualizar_etapa(concurso_id=self.concurso.pk, etapa=etapa, usuario=self.editor, version_esperada=version)
+        for etapa in ["convocatoria", "inscripciones", "oposicion", "finalizacion"]:
+            seguimiento = SeguimientoDocumental.objects.get(concurso=self.concurso)
+            if seguimiento.etapa != etapa:
+                actualizar_etapa(concurso_id=self.concurso.pk, etapa=etapa, usuario=self.editor,
+                                 version_esperada=seguimiento.version)
             resultado = consultar_documentacion(self.concurso)
             self.assertTrue(nuevos <= {r.codigo for r in resultado.pendientes_exigibles})
             self.assertFalse(nuevos & {r.codigo for r in resultado.no_registrados_futuros})

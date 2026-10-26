@@ -8,7 +8,13 @@
   {% for hidden in form.hidden_fields %}{{ hidden }}{{ hidden.errors }}{% endfor %}
   <section class="card form-section" aria-labelledby="participante-heading">
     {% include "components/form_section_header.html" with heading_id="participante-heading" title=title description=description only %}
-    {% if identity %}<p class="field-help">Persona: {{ identity.apellido }}, {{ identity.nombre }} · DNI {{ identity.dni }}</p>{% endif %}
+    {% if identity %}
+      <div class="participant-form-identity" aria-label="Persona vinculada al concurso">
+        <span class="field-help">Persona vinculada</span>
+        <strong>{{ identity.apellido }}, {{ identity.nombre }}</strong>
+        <span class="participant-identity-dni">DNI {{ identity.dni }}</span>
+      </div>
+    {% endif %}
     {% include "components/form_errors.html" %}
     <div class="form-grid">
       {% for field in form.visible_fields %}{% include "components/field.html" with field=field %}{% endfor %}

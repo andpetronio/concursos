@@ -5,7 +5,7 @@ from io import BytesIO
 from zipfile import ZipFile, BadZipFile
 import hashlib
 from django.shortcuts import get_object_or_404, redirect
-from django.views.generic import FormView, View
+from django.views.generic import FormView, TemplateView, View
 from concursos.models import Concurso
 from concursos.views import AccesoConcursoMixin
 from . import services
@@ -14,9 +14,25 @@ from .models import DestinatarioAPUNSJ, DestinatarioPersonal, MembreteInstitucio
 from .registry import POR_CODIGO
 
 
-class ConfiguracionView(AccesoConcursoMixin, FormView):
+class ConfiguracionView(AccesoConcursoMixin, TemplateView):
+    """Portada institucional: las tres configuraciones tienen igual jerarquía."""
     permission_required = "documentos.configurar_institucion"
     template_name = "documentos/configuracion.html"
+
+    def get_context_data(self, **kwargs):
+        contexto = super().get_context_data(**kwargs)
+        contexto.update(
+            apunsj_actual=DestinatarioAPUNSJ.objects.filter(pk=1).first(),
+            personal_actual=DestinatarioPersonal.objects.filter(pk=1).first(),
+            membrete_actual=MembreteInstitucional.objects.filter(pk=1).first(),
+        )
+        return contexto
+
+
+class ConfiguracionAPUNSJView(AccesoConcursoMixin, FormView):
+    """Formulario APUNSJ separado, con permisos y control de versión originales."""
+    permission_required = "documentos.configurar_institucion"
+    template_name = "documentos/configuracion_apunsj.html"
     form_class = DestinatarioForm
 
     def get_form_kwargs(self):
@@ -32,7 +48,7 @@ class ConfiguracionView(AccesoConcursoMixin, FormView):
             form.add_error(None, error)
             return self.form_invalid(form)
         messages.success(self.request, "El destinatario de APUNSJ se actualizó. Las generaciones anteriores no se modificaron.")
-        return redirect("documentos:configuracion")
+        return redirect("documentos:configuracion_apunsj")
 
 
 class DestinatarioPersonalView(AccesoConcursoMixin, FormView):
@@ -115,7 +131,8 @@ class GeneracionView(AccesoConcursoMixin, FormView):
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        kwargs.update(acotado=self.get_concurso().modalidad == "acotado", tipo=self.get_tipo(), concurso=self.get_concurso())
+        kwargs.update(acotado=self.get_concurso().modalidad == "acotado" and self.get_tipo().codigo != "apunsj",
+                      tipo=self.get_tipo(), concurso=self.get_concurso())
         return kwargs
 
     def get_initial(self):

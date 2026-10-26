@@ -1,0 +1,14 @@
+{% if documentacion.habilitacion.habilitado %}
+  <p>{% include "components/status.html" with label="Requisitos previos de convocatoria completos" %}</p>
+  <p class="field-help">La documentación previa y los demás datos exigidos están completos para preparar el proyecto. Esto no acredita una resolución emitida ni modifica el estado administrativo.</p>
+{% else %}
+  {% if not documentacion.habilitacion.pendientes_documentales %}
+    <p>{% include "components/status.html" with label="Documentación previa completa" %}</p>
+    <p class="field-help">Los cinco controles previos están completos. Todavía faltan otros datos o jurados para preparar el proyecto; no implica resolución emitida ni estado «Convocado».</p>
+  {% else %}
+    <p>{% include "components/status.html" with label="Documentación previa pendiente" %}</p>
+  {% endif %}
+  <details class="document-summary-details"><summary>Ver requisitos que faltan para preparar el proyecto ({{ documentacion.habilitacion.faltantes|length }})</summary>
+    <ul>{% for pendiente in documentacion.habilitacion.faltantes %}<li>{{ pendiente }}</li>{% endfor %}</ul>
+  </details>
+{% endif %}

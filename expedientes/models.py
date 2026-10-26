@@ -95,11 +95,16 @@ class SeguimientoDocumental(models.Model):
 
 
 class CambioEtapaDocumental(models.Model):
+    class Origen(models.TextChoices):
+        MANUAL = "manual", "Manual"
+        AUTOMATICO = "automatico", "Automático"
+
     seguimiento = models.ForeignKey(SeguimientoDocumental, on_delete=models.PROTECT, related_name="historial")
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     fecha = models.DateTimeField(auto_now_add=True)
     anterior = models.CharField(max_length=20, choices=SECCIONES)
     nueva = models.CharField(max_length=20, choices=SECCIONES)
+    origen = models.CharField(max_length=12, choices=Origen.choices, default=Origen.MANUAL)
     version = models.PositiveIntegerField()
 
     class Meta:

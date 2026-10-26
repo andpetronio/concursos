@@ -35,9 +35,11 @@ El naranja identifica acciones, navegación activa y foco de marca; **no** se us
 
 ### Tipos de entrada y máscaras compartidas
 - DNI: `type="text"`, `inputmode="numeric"`, visual `99.999.999`; exactamente 8 dígitos, pegado con/sin puntos y ceros iniciales preservados. Nunca usar `number` para identificadores.
-- Expediente (concurso o inscripción): `type="text"`, `inputmode="numeric"`, patrón `99-NNNN-9999`. El segundo bloque es un entero 1–9999 de longitud variable, sin ceros de relleno. El guion que lo cierra se ingresa explícitamente: no inferir su longitud ni completar ceros.
-- El widget de expediente ofrece «Agregar guion» como ayuda compartida para teclados numéricos sin esa tecla. Es un botón sin envío, visible con JS, con referencia al campo y devolución de foco a la posición de edición.
-- Correo: `email`; teléfono: `tel`, sin máscara; fecha editable: `date` cuando se incorpore un campo de fecha. No enmascarar búsquedas de texto libre ni otros campos.
+- Expediente (concurso o inscripción): `type="text"`, `inputmode="text"`, máximo visible 12, patrón `99-NNNN-9999`. El segundo bloque es un entero 1–9999 de longitud variable, sin ceros de relleno. El guion que lo cierra se ingresa mediante el teclado cuando el bloque tiene menos de cuatro dígitos. No hay botón auxiliar ni texto explicativo extenso.
+- DNI: límite visible de 10 caracteres con puntos; normalización a ocho dígitos en el servidor.
+- Teléfono de jurado/veedor: `tel`, máscara `999-9999999`, máximo visible 11 (diez dígitos). Obligación de formato solo al cargar/corregir: históricos intactos.
+- Código presupuestario del concurso: máximo cinco caracteres nuevos. Los códigos PPAL y ACTIV continúan en dos dígitos. No alterar los campos descriptivos del presupuesto de designación.
+- Correo: `email`; fecha editable: `date`. No enmascarar búsquedas de texto libre ni otros campos.
 - Centralizar widgets/campos en `core/fields.py`, normalizadores y validaciones en `core/validators.py`, comportamiento progresivo en `static/js/forms.js`. Backend valida siempre, también sin JS; no agregar dependencias ni scripts por formulario.
 - Mantener posición de edición y selección al escribir, borrar o pegar. Borrar junto a un punto de DNI debe permitir continuar sin quedar atrapado en el separador. No reformatear valores históricos fuera de formato al abrir la edición: solo podrán conservarse sin cambios o corregirse explícitamente.
 - Información opcional complementaria puede agruparse en `details`/`summary` nativos, con estilos compartidos y foco de teclado. «Funciones del cargo» usa esta sección y queda abierta si contiene información o errores.

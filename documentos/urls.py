@@ -4,6 +4,7 @@ from . import views
 app_name = "documentos"
 urlpatterns = [
     path("configuracion-institucional/", views.ConfiguracionView.as_view(), name="configuracion"),
+    path("configuracion-institucional/apunsj/", views.ConfiguracionAPUNSJView.as_view(), name="configuracion_apunsj"),
     path("configuracion-institucional/personal/", views.DestinatarioPersonalView.as_view(), name="configuracion_personal"),
     path("configuracion-institucional/membrete/", views.MembreteInstitucionalView.as_view(), name="membrete"),
     path("configuracion-institucional/membrete/imagen/", views.ImagenMembreteView.as_view(), name="membrete_imagen"),

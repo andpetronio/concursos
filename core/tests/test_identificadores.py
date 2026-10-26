@@ -1,8 +1,8 @@
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase
 
-from core.fields import IdentificadorField
-from core.validators import normalizar_dni, validar_expediente
+from core.fields import IdentificadorField, TelefonoField
+from core.validators import normalizar_dni, validar_expediente, normalizar_telefono, validar_codigo_presupuestario
 
 
 class IdentificadoresTests(SimpleTestCase):
@@ -35,3 +35,35 @@ class IdentificadoresTests(SimpleTestCase):
         self.assertIn('inputmode="numeric"', html)
         self.assertIn('value="00.123.456"', html)
         self.assertEqual(IdentificadorField(formato="expediente", required=False).clean(""), "")
+
+    def test_mascaras_limites_y_sin_boton_agregar_guion(self):
+        dni = IdentificadorField(formato="dni", max_length=20)
+        expediente = IdentificadorField(formato="expediente", max_length=100)
+        telefono = TelefonoField()
+        self.assertIn('maxlength="10"', dni.widget.render("dni", "00123456"))
+        self.assertIn('maxlength="12"', expediente.widget.render("expediente", "01-1-2026"))
+        self.assertIn('maxlength="11"', telefono.widget.render("telefono", "264-1234567"))
+        self.assertIn('data-mask="telefono"', telefono.widget.render("telefono", ""))
+        self.assertNotIn("Agregar guion", expediente.widget.render("expediente", "01-1-2026"))
+        self.assertNotIn("Agregar guion", expediente.help_text)
+        self.assertEqual(expediente.clean("01-9999-2026"), "01-9999-2026")
+
+    def test_telefono_nuevo_y_codigo_presupuestario_validan_en_servidor(self):
+        self.assertEqual(normalizar_telefono("2641234567"), "264-1234567")
+        self.assertEqual(normalizar_telefono("264-1234567"), "264-1234567")
+        self.assertEqual(TelefonoField().clean(""), "")
+        for invalido in ("2", "123-4567", "264-12345678", "26a-1234567", "00123456789"):
+            with self.subTest(invalido=invalido), self.assertRaises(ValidationError):
+                TelefonoField().clean(invalido)
+        self.assertEqual(validar_codigo_presupuestario("10972"), "10972")
+        self.assertEqual(validar_codigo_presupuestario("A-12"), "A-12")
+        with self.assertRaises(ValidationError):
+            validar_codigo_presupuestario("123456")
+
+    def test_telefono_historico_se_conserva_sin_aceptar_otro_invalido(self):
+        telefono = TelefonoField()
+        telefono.conservar_actual("2")
+        self.assertEqual(telefono.clean("2"), "2")
+        with self.assertRaises(ValidationError):
+            telefono.clean("3")
+        self.assertEqual(telefono.clean("2641234567"), "264-1234567")

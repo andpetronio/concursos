@@ -1,12 +1,19 @@
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect
+from django.http import JsonResponse
+from django.urls import reverse
+from django.utils import timezone
+from django.template.loader import render_to_string
 from django.views.generic import ListView
 
 from concursos.views import AccesoConcursoMixin, ConcursoDetailView
 
 from .forms import ControlDocumentalForm, EtapaDocumentalForm
+from .catalogo import SECCIONES
 from .models import ControlDocumental, SeguimientoDocumental
+from .presentation import estado_de_control
+from .services import consultar_documentacion
 from .services import actualizar_control, actualizar_etapa
 
 
@@ -18,17 +25,70 @@ class ControlDocumentalUpdateView(ConcursoDetailView):
         self.object = self.get_object()
         control = get_object_or_404(ControlDocumental, pk=kwargs["control_id"], concurso=self.object)
         form = ControlDocumentalForm(request.POST, instance=control, prefix=f"control-{control.pk}")
+        auto = (request.headers.get("X-Requested-With") == "XMLHttpRequest"
+                and "application/json" in request.headers.get("Accept", ""))
         if form.is_valid():
             try:
-                actualizar_control(
+                control = actualizar_control(
                     concurso_id=self.object.pk, control_id=control.pk, datos=form.cleaned_data,
                     usuario=request.user, version_esperada=form.cleaned_data["version_esperada"],
                 )
             except ValidationError as error:
                 form.add_error(None, error)
             else:
+                if auto:
+                    # Responder con la verdad persistida, nunca con el estado optimista del navegador.
+                    documentacion = consultar_documentacion(self.object)
+                    estado, clase = estado_de_control(
+                        control, secciones_exigibles=documentacion.secciones_exigibles)
+                    por_seccion = {
+                        codigo: {
+                            "completos": sum(c.completo for c in documentacion.controles
+                                              if c.definicion.seccion == codigo),
+                            "total": sum(c.definicion.seccion == codigo for c in documentacion.controles),
+                        }
+                        for codigo, _ in SECCIONES
+                    }
+                    return JsonResponse({
+                        "ok": True, "version": control.version,
+                        "verificado": control.verificado, "fojas": control.fojas,
+                        "partida_principal": control.partida_principal,
+                        "actividad_presupuestaria": control.actividad_presupuestaria,
+                        "observaciones": control.observaciones,
+                        "estado": estado, "estado_clase": clase,
+                        "completo": control.completo,
+                        "usuario": request.user.get_username(),
+                        "actualizado_en": timezone.localtime(control.actualizado_en).strftime("%d/%m/%Y %H:%M"),
+                        "historial_url": reverse("concursos:control_historial", args=[self.object.pk, control.pk]),
+                        "etapa_documental": {
+                            "codigo": documentacion.seguimiento.etapa,
+                            "nombre": documentacion.seguimiento.get_etapa_display(),
+                            "version": documentacion.seguimiento.version,
+                        },
+                        "estados_controles": {
+                            str(item.pk): {
+                                "estado": estado_de_control(item, secciones_exigibles=documentacion.secciones_exigibles)[0],
+                                "clase": estado_de_control(item, secciones_exigibles=documentacion.secciones_exigibles)[1],
+                            }
+                            for item in documentacion.controles
+                        },
+                        "habilitacion_html": render_to_string("expedientes/habilitacion_resumen.html",
+                                                           {"documentacion": documentacion}, request=request),
+                        "totales": {
+                            "completos": len(documentacion.completos), "total": documentacion.total,
+                            "pendientes": len(documentacion.pendientes_exigibles),
+                            "futuros": len(documentacion.no_registrados_futuros),
+                            "secciones": por_seccion,
+                        },
+                    })
                 messages.success(request, "El control documental se guardó correctamente.")
                 return redirect(f"{self.object.get_absolute_url()}#documental-{control.pk}")
+        if auto:
+            errores = {campo: [str(mensaje) for mensaje in mensajes]
+                       for campo, mensajes in form.errors.items()}
+            conflicto = any("Otro operador modificó" in texto
+                            for mensajes in errores.values() for texto in mensajes)
+            return JsonResponse({"ok": False, "errores": errores}, status=409 if conflicto else 400)
         self.documental_error = (control.pk, form)
         return self.render_to_response(self.get_context_data())
 

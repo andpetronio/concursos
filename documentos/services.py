@@ -63,7 +63,7 @@ def faltantes_convocatoria(concurso, controles=None):
 
 def faltantes_jurisdiccion_oficios(concurso, tipo):
     """Los oficios previos necesitan la jurisdicción, aun sin resolución de convocatoria."""
-    if tipo.codigo in ("elecciones", "solicitud_jurados_rectorado") and not concurso.jurisdiccion:
+    if tipo.codigo == "elecciones" and not concurso.jurisdiccion:
         return ["Seleccionar jurisdicción en Datos del concurso antes de generar el oficio."]
     return []
 
@@ -94,6 +94,8 @@ def disponibilidad(concurso, tipo, destinatario=None):
     faltantes.extend(faltantes_antecedentes(concurso, tipo))
     if tipo.codigo == "apunsj":
         faltantes.extend(faltantes_destinatario(destinatario))
+        if not concurso.resolucion_convocatoria:
+            faltantes.append("Registrar la resolución oficial de convocatoria en Datos del concurso antes de solicitar el veedor.")
     if tipo.codigo == "elecciones":
         if concurso.modalidad != "cerrado_interno":
             faltantes.append("El modelo de elección del personal corresponde a Concurso Cerrado Interno; se requiere modelo específico para esta modalidad.")
@@ -105,7 +107,7 @@ def disponibilidad(concurso, tipo, destinatario=None):
             faltantes.append("Completar el antecedente acreditado de vacancia (otra causa).")
         if concurso.causa_vacancia in ("concurso", "efectivizacion", "jubilacion", "renuncia", "fallecimiento") and not concurso.ex_titular:
             faltantes.append("Completar el ex titular del cargo para fundamentar la vacancia.")
-    if tipo.codigo in ("elecciones", "solicitud_jurados_rectorado") and not MembreteInstitucional.objects.filter(pk=1).exists():
+    if tipo.codigo in ("elecciones", "apunsj") and not MembreteInstitucional.objects.filter(pk=1).exists():
         faltantes.append("Cargar el membrete vigente en Configuración institucional antes de generar el oficio.")
     if tipo.codigo == "jurados" and not concurso.resolucion_convocatoria:
         faltantes.append("Registrar la resolución oficial de convocatoria en Datos del concurso antes de notificar a los jurados.")
@@ -134,7 +136,7 @@ def faltantes_antecedentes(concurso, tipo, controles=None, aspirantes=None):
 # Agrupación exclusivamente de presentación: no cambia el catálogo ni la habilitación.
 GRUPOS_PRESENTACION = (
     ("preparatorios", "Oficios preparatorios", "Solicitudes anteriores a la resolución de convocatoria.",
-     ("solicitud_jurados_rectorado", "elecciones")),
+     ("elecciones",)),
     ("convocatoria", "Convocatoria y comunicaciones", "Proyecto de convocatoria y comunicaciones vinculadas.",
      ("convocatoria", "jurados", "apunsj")),
     ("posteriores", "Actuaciones posteriores", "Proyectos sujetos a antecedentes y validación administrativa.",
@@ -308,7 +310,7 @@ def fuentes_actuales(concurso, tipo, *, bloquear=False):
             "tratamiento", "cargo", "titulo", "nombre", "apellido", "version")} if jefatura else {},
         "membrete": (lambda m: {"version": m.version, "sha256": m.sha256, "tipo_mime": m.tipo_mime} if m else {})(
             (MembreteInstitucional.objects.select_for_update() if bloquear else MembreteInstitucional.objects)
-            .filter(pk=1).first()) if tipo.codigo in ("jurados", "elecciones", "solicitud_jurados_rectorado") else {},
+            .filter(pk=1).first()) if tipo.codigo in ("jurados", "elecciones", "apunsj") else {},
         "fuente": {"archivo": tipo.fuente, "sha256": hashlib.sha256(fuente_original(tipo).read_bytes()).hexdigest()}
             if tipo.fuente and fuente_original(tipo).is_file() else {},
         "plantilla_version": tipo.version,
@@ -346,6 +348,8 @@ def preparar_revision(*, concurso_id, tipo_codigo, usuario, datos, huella_espera
     faltantes.extend(faltantes_antecedentes(concurso, tipo, controles=controles, aspirantes=snapshot["aspirantes"]))
     if tipo.codigo == "apunsj":
         faltantes.extend(faltantes_destinatario(destinatario))
+        if not concurso.resolucion_convocatoria:
+            faltantes.append("Registrar la resolución oficial de convocatoria en Datos del concurso antes de solicitar el veedor.")
     if tipo.codigo == "elecciones":
         if concurso.modalidad != "cerrado_interno":
             faltantes.append("El oficio fuente solo está aprobado para Concurso Cerrado Interno.")
@@ -358,7 +362,7 @@ def preparar_revision(*, concurso_id, tipo_codigo, usuario, datos, huella_espera
             faltantes.append("Completar el antecedente acreditado de vacancia (otra causa).")
         if concurso.causa_vacancia in ("concurso", "efectivizacion", "jubilacion", "renuncia", "fallecimiento") and not concurso.ex_titular:
             faltantes.append("Completar ex titular del cargo.")
-    if tipo.codigo in ("elecciones", "solicitud_jurados_rectorado") and not snapshot["membrete"]:
+    if tipo.codigo in ("elecciones", "apunsj") and not snapshot["membrete"]:
         faltantes.append("Cargar el membrete vigente en Configuración institucional antes de generar el oficio.")
     if tipo.codigo == "jurados" and not concurso.resolucion_convocatoria:
         faltantes.append("Registrar la resolución oficial de convocatoria en Datos del concurso antes de notificar a los jurados.")
@@ -367,7 +371,8 @@ def preparar_revision(*, concurso_id, tipo_codigo, usuario, datos, huella_espera
     if faltantes:
         raise ValidationError(faltantes)
     from .forms import GeneracionForm
-    form = GeneracionForm({**datos, "huella_esperada": huella_esperada}, tipo=tipo, concurso=concurso, acotado=concurso.modalidad == "acotado")
+    form = GeneracionForm({**datos, "huella_esperada": huella_esperada}, tipo=tipo, concurso=concurso,
+                          acotado=concurso.modalidad == "acotado" and tipo.codigo != "apunsj")
     if not form.is_valid():
         raise ValidationError([f"{campo}: {', '.join(errores)}" for campo, errores in form.errors.items()])
     limpios = form.cleaned_data
@@ -377,17 +382,15 @@ def preparar_revision(*, concurso_id, tipo_codigo, usuario, datos, huella_espera
     snapshot["complementarios"] = {k: (v.isoformat() if isinstance(v, date) else v)
         for k, v in limpios.items() if not k.startswith("version_") and k != "huella_esperada"}
     snapshot["pendientes"] = []
-    if tipo.codigo in ("jurados", "elecciones", "solicitud_jurados_rectorado"):
+    if tipo.codigo in ("jurados", "elecciones", "apunsj"):
         # La fecha efectiva de preparación se captura en la generación y queda histórica.
         hoy = timezone.localdate()
         meses = ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
                  "agosto", "septiembre", "octubre", "noviembre", "diciembre")
         snapshot["complementarios"]["lugar_fecha"] = (
             f"San Juan, {hoy.day} de {meses[hoy.month - 1]} de {hoy.year}")
-        if tipo.codigo == "jurados":
+        if tipo.codigo in ("jurados", "apunsj"):
             snapshot["complementarios"]["res_convocatoria"] = concurso.resolucion_convocatoria
-    if tipo.codigo in ("apunsj", "solicitud_jurados_rectorado"):
-        snapshot["pendientes"] = tipo.pendientes
     return snapshot
 
 
@@ -399,7 +402,7 @@ def generar(*, concurso_id, tipo_codigo, usuario, version_concurso, version_dest
                "version_destinatario": version_destinatario, "revision_administrativa": revision_administrativa},
         huella_esperada=huella_esperada)
     tipo = POR_CODIGO[tipo_codigo]
-    if tipo.codigo in ("jurados", "elecciones", "solicitud_jurados_rectorado"):
+    if tipo.codigo in ("jurados", "elecciones", "apunsj"):
         membrete = MembreteInstitucional.objects.select_for_update().get(pk=1)
         if membrete.sha256 != snapshot["membrete"]["sha256"]:
             raise ValidationError("El membrete cambió. Volvé a abrir la revisión.")
@@ -417,7 +420,7 @@ def generar(*, concurso_id, tipo_codigo, usuario, version_concurso, version_dest
                     "sha256": hashlib.sha256(contenido_nota).hexdigest()})
         contenido = salida.getvalue()
     else:
-        contenido = renderizar(tipo, snapshot, membrete=imagen_membrete if tipo.codigo in ("elecciones", "solicitud_jurados_rectorado") else None)
+        contenido = renderizar(tipo, snapshot, membrete=imagen_membrete if tipo.codigo in ("elecciones", "apunsj") else None)
     return GeneracionDocumento.objects.create(
         concurso_id=concurso_id, tipo=tipo.codigo, plantilla_version=tipo.version, instantanea=snapshot,
         contenido=contenido, sha256=hashlib.sha256(contenido).hexdigest(), generado_por=usuario,

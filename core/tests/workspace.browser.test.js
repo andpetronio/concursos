@@ -83,7 +83,7 @@ const pause = () => new Promise(resolve => setTimeout(resolve, 100));
     })()`);
     assert(state.brand && state.form && state.security,JSON.stringify(state));
     assert(state.information.every(item=>item.visible === (width > 768)),JSON.stringify(state));
-    assert.equal(state.artwork,width>768);assert.equal(state.footer,width>768);assert.equal(state.columns,width>768?2:1);
+    assert.equal(state.artwork,false);assert.equal(state.footer,width>768);assert.equal(state.columns,width>768?2:1);
     loginChecks.push(state);
   };
   const login = async username => {

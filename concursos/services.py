@@ -1,7 +1,18 @@
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
+from .choices import EstadoConcurso
 from .models import CambioEstado, Concurso
+
+
+def sugerir_estado_convocado(concurso):
+    """Ofrece una revisión manual solo si hay resolución oficial registrada.
+
+    La existencia del número no cambia el estado ni acredita por sí sola el
+    acto fuera de SiCon. La decisión corresponde al usuario autorizado.
+    """
+    return (concurso.estado == EstadoConcurso.PREPARACION
+            and bool(concurso.resolucion_convocatoria.strip()))
 
 
 def comprobar_version(concurso, version_esperada):

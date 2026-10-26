@@ -1,8 +1,14 @@
 {% extends "components/table.html" %}
-{% block columns %}<th scope="col">Fecha y responsable</th><th scope="col">Verificación</th><th scope="col">Fojas</th><th scope="col">Observaciones</th>{% endblock %}
+{% block columns %}<th scope="col">Fecha y responsable</th><th scope="col">Verificación</th><th scope="col">Fojas</th>{% if control.requisito == 'afectacion_presupuestaria' %}<th scope="col">PPAL / ACTIV</th>{% endif %}<th scope="col">Observaciones</th>{% endblock %}
 {% block rows %}{% for cambio in object_list %}<tr>
   <td>{{ cambio.fecha|date:"d/m/Y H:i:s" }}<br>{{ cambio.usuario.get_username }}</td>
   <td>Antes: {{ cambio.anterior.verificado|yesno:"Verificado,Sin verificar" }}<br>Después: {{ cambio.nuevo.verificado|yesno:"Verificado,Sin verificar" }}</td>
   <td>Antes: {{ cambio.anterior.fojas|default:"Sin registrar" }}<br>Después: {{ cambio.nuevo.fojas|default:"Sin registrar" }}</td>
+  {% if control.requisito == 'afectacion_presupuestaria' %}
+  <td class="history-budget-values">
+    <span>Antes · PPAL {{ cambio.anterior.partida_principal|default:"Sin registrar" }} / ACTIV {{ cambio.anterior.actividad_presupuestaria|default:"Sin registrar" }}</span>
+    <span>Después · PPAL {{ cambio.nuevo.partida_principal|default:"Sin registrar" }} / ACTIV {{ cambio.nuevo.actividad_presupuestaria|default:"Sin registrar" }}</span>
+  </td>
+  {% endif %}
   <td class="text-preserve">Antes: {{ cambio.anterior.observaciones|default:"Sin observaciones" }}<br>Después: {{ cambio.nuevo.observaciones|default:"Sin observaciones" }}</td>
 </tr>{% endfor %}{% endblock %}

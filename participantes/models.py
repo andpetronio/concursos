@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 from concursos.models import Concurso
-from core.validators import normalizar_dni, validar_cambio, validar_expediente
+from core.validators import normalizar_dni, normalizar_telefono, validar_cambio, validar_expediente
 
 
 class Persona(models.Model):
@@ -73,6 +73,14 @@ class Jurado(Participacion):
     telefono = models.CharField("teléfono", max_length=40, blank=True)
     version = models.PositiveIntegerField(default=1, editable=False)
 
+    def clean(self):
+        super().clean()
+        if self.telefono:
+            try:
+                self.telefono = validar_cambio(self, "telefono", normalizar_telefono)
+            except ValidationError as error:
+                raise ValidationError({"telefono": error})
+
     def unique_error_message(self, model_class, unique_check):
         if model_class is Jurado and set(unique_check) == {"concurso", "representacion", "calidad"}:
             return ValidationError(
@@ -98,6 +106,14 @@ class Veedor(Participacion):
     email = models.EmailField("correo electrónico", blank=True)
     telefono = models.CharField("teléfono", max_length=40, blank=True)
     version = models.PositiveIntegerField(default=1, editable=False)
+
+    def clean(self):
+        super().clean()
+        if self.telefono:
+            try:
+                self.telefono = validar_cambio(self, "telefono", normalizar_telefono)
+            except ValidationError as error:
+                raise ValidationError({"telefono": error})
 
     class Meta:
         ordering = ["pk"]

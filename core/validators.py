@@ -34,3 +34,23 @@ def validar_cambio(instance, campo, normalizar):
         if instance.pk and type(instance).objects.filter(pk=instance.pk, **{campo: valor}).exists():
             return valor
         raise
+
+
+TELEFONO_ERROR = "Ingresá 10 dígitos con el formato 999-9999999."
+CODIGO_PRESUPUESTARIO_ERROR = "El código presupuestario no puede superar los 5 caracteres."
+
+
+def normalizar_telefono(valor):
+    """Permite diez dígitos pegados o el formato visible; no inventa prefijos."""
+    valor = str(valor).strip()
+    if re.fullmatch(r"[0-9]{10}", valor):
+        return f"{valor[:3]}-{valor[3:]}"
+    if not re.fullmatch(r"[0-9]{3}-[0-9]{7}", valor):
+        raise ValidationError(TELEFONO_ERROR)
+    return valor
+
+
+def validar_codigo_presupuestario(valor):
+    if len(str(valor)) > 5:
+        raise ValidationError(CODIGO_PRESUPUESTARIO_ERROR)
+    return valor

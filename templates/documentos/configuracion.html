@@ -1,25 +1,40 @@
 {% extends "layouts/private.html" %}
-{% block title %}Configuración institucional · UNSJ{% endblock %}
+{% block title %}Configuración institucional · SiCon{% endblock %}
 {% block content %}
-{% include "components/page_header.html" with section="Configuración institucional" title="Destinatario de APUNSJ" description="Autoridad destinataria del oficio de solicitud de veedor. Los cambios no alteran borradores ya generados." only %}
-<form method="post" class="card section">
-  {% csrf_token %}
-  {% include "components/form_section_header.html" with heading_id="destinatario-heading" title="Autoridad destinataria" description="Completá los datos institucionales verificados. El título profesional es opcional." only %}
-  {% if form.non_field_errors %}<div class="field-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
-  {% for field in form.hidden_fields %}{{ field }}{% if field.errors %}<div class="field-errors" role="alert">{{ field.errors }}</div>{% endif %}{% endfor %}
-  <div class="form-grid">{% for field in form.visible_fields %}{% include "components/field.html" with field=field %}{% endfor %}</div>
-  <div class="form-actions">{% include "components/button.html" with label="Guardar configuración" %}</div>
-</form>
-
-<section class="card section">
-  <h2>Jefatura de Personal</h2>
-  <p>Destinatario del oficio previo a la convocatoria para elegir jurados por el estamento.</p>
-  <p><a href="{% url 'documentos:configuracion_personal' %}">Configurar jefatura de Personal</a></p>
-</section>
-
-<section class="card section">
-  <h2>Membrete institucional vigente</h2>
-  <p>Administrá la imagen institucional vigente para oficios y notificaciones. No altera los documentos ya generados.</p>
-  <p><a href="{% url 'documentos:membrete' %}">Configurar membrete</a></p>
+{% include "components/page_header.html" with section="Administración" title="Configuración institucional" description="Administrá los destinatarios de oficios y el membrete institucional. Los cambios se aplican a documentos nuevos, sin modificar los ya generados." only %}
+<section class="institution-settings-grid" aria-label="Parámetros institucionales">
+  <article class="card institution-settings-card" aria-labelledby="config-apunsj-heading">
+    <h2 id="config-apunsj-heading">Secretaría General de APUNSJ</h2>
+    <p>Destinatario del oficio de solicitud de veedor.</p>
+    {% if apunsj_actual %}
+      <p class="institution-settings-state">Configurado · Versión {{ apunsj_actual.version }}</p>
+      <p class="institution-settings-current">{{ apunsj_actual.nombre }} {{ apunsj_actual.apellido }}</p>
+    {% else %}
+      <p class="institution-settings-state">Pendiente de configuración</p>
+    {% endif %}
+    <a class="button button-secondary institution-settings-action" href="{% url 'documentos:configuracion_apunsj' %}">{% if apunsj_actual %}Editar parámetro{% else %}Configurar parámetro{% endif %}</a>
+  </article>
+  <article class="card institution-settings-card" aria-labelledby="config-personal-heading">
+    <h2 id="config-personal-heading">Jefatura del Departamento de Personal</h2>
+    <p>Destinatario del oficio para elección de jurados por el personal.</p>
+    {% if personal_actual %}
+      <p class="institution-settings-state">Configurado · Versión {{ personal_actual.version }}</p>
+      <p class="institution-settings-current">{{ personal_actual.nombre }} {{ personal_actual.apellido }}</p>
+    {% else %}
+      <p class="institution-settings-state">Pendiente de configuración</p>
+    {% endif %}
+    <a class="button button-secondary institution-settings-action" href="{% url 'documentos:configuracion_personal' %}">{% if personal_actual %}Editar parámetro{% else %}Configurar parámetro{% endif %}</a>
+  </article>
+  <article class="card institution-settings-card" aria-labelledby="config-membrete-heading">
+    <h2 id="config-membrete-heading">Membrete institucional</h2>
+    <p>Imagen vigente para los nuevos oficios y notificaciones.</p>
+    {% if membrete_actual %}
+      <p class="institution-settings-state">Configurado · Versión {{ membrete_actual.version }}</p>
+      <p class="institution-settings-current">{{ membrete_actual.nombre_archivo }}</p>
+    {% else %}
+      <p class="institution-settings-state">Pendiente de configuración</p>
+    {% endif %}
+    <a class="button button-secondary institution-settings-action" href="{% url 'documentos:membrete' %}">{% if membrete_actual %}Editar parámetro{% else %}Configurar parámetro{% endif %}</a>
+  </article>
 </section>
 {% endblock %}

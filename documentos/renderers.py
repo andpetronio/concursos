@@ -25,28 +25,52 @@ def documento_base():
     return documento
 
 
-def oficio_apunsj(documento, datos):
-    destinatario = datos["destinatario"]
-    concurso = datos["concurso"]
-    documento.add_paragraph(f'{destinatario["tratamiento"]} {destinatario["cargo"]} de APUNSJ')
-    documento.add_paragraph(nombre_completo(destinatario))
-    documento.add_paragraph("Presente")
-    documento.add_paragraph(
-        "Se solicita la designación de un veedor de APUNSJ para el concurso que se identifica a continuación, "
-        "en el marco de la Ordenanza 33/10-CS y sujeto a la revisión administrativa que corresponda a su modalidad."
-    )
-    tabla = documento.add_table(rows=0, cols=2)
-    tabla.style = "Table Grid"
-    for etiqueta, valor in concurso["datos_presentados"]:
-        celdas = tabla.add_row().cells
-        celdas[0].text = etiqueta
-        celdas[1].text = valor or "No registrado (dato opcional)"
-    if concurso["modalidad"] == "acotado":
-        documento.add_paragraph("Modalidad Acotado: no existe un modelo específico aprobado. "
-                                "El operador confirmó la revisión administrativa; este borrador no sustituye dicha revisión.")
-    documento.add_paragraph("Datos no incorporados: lugar, fecha, número de oficio y autoridad firmante. "
-                            "Deben completarse y verificarse antes de utilizar o emitir el documento.")
-    documento.add_paragraph("La generación no implica emisión, firma, notificación ni incorporación al expediente.")
+def oficio_apunsj(documento, datos, *, membrete=None):
+    """Texto institucional actualizado: datos del concurso sin hechos de ejemplo."""
+    d = datos["destinatario"]
+    c = datos["concurso"]
+    x = datos["complementarios"]
+    from concursos.catalogos import CATALOGO_CARGOS
+    agrupamiento = CATALOGO_CARGOS[c["agrupamiento"]]["denominacion"]
+    tratamiento = "Señor" if d["tratamiento"] == "Sr." else "Señora"
+    _encabezado_oficio(documento, datos, (
+        tratamiento,
+        f'{d["cargo"]} de la',
+        "Asociación del Personal Nodocente de la UNSJ",
+        nombre_completo(d),
+    ), membrete)
+    unidad = grupo_con_articulo(c, "unidad", "articulo_unidad", "en")
+    dependencia = grupo_con_articulo(c, "dependencia", "articulo_dependencia", "de")
+    _cuerpo_oficio(documento,
+        "Me dirijo a usted con el propósito de solicitarle tenga a bien comunicar la "
+        "designación de un veedor en representación de la Asociación que preside, "
+        "conforme a lo previsto en el artículo 25º de la Ordenanza Nº 33/10-CS "
+        "y en el artículo 31º del Convenio Colectivo de Trabajo para el Personal "
+        "Nodocente, homologado por Decreto Nº 366/06-PEN.")
+    _cuerpo_oficio(documento,
+        f'Dicha intervención corresponde al Concurso {modalidad(datos)} de antecedentes '
+        f'y oposición que se tramita por Expediente Nº {c["expediente"]}, destinado a '
+        'cubrir, con carácter efectivo, un cargo de Planta Permanente del Personal '
+        f'Nodocente, Categoría {c["categoria"]}, Tramo {c["tramo"]}, '
+        f'Agrupamiento {c["agrupamiento"]}: {agrupamiento}, Código Presupuestario Nº '
+        f'{c["codigo_presupuestario"]}, con funciones de “{c["denominacion"]}” '
+        f'{unidad}, dependiente {dependencia} de la Universidad Nacional de San Juan, '
+        'conforme a las disposiciones de la Ordenanza Nº 33/10-CS y su modificatoria '
+        'Nº 20/11-CS.')
+    _cuerpo_oficio(documento,
+        'A tal efecto, solicito se informe el nombre y apellido, DNI, número de teléfono '
+        'y correo electrónico de la persona designada, así como una dirección de correo '
+        'electrónico institucional a la cual remitir copia de la Resolución '
+        f'Nº {x["res_convocatoria"]}.')
+    _cuerpo_oficio(documento,
+        'En virtud de la necesidad de dar continuidad a las actuaciones administrativas '
+        'del concurso, agradeceré que la información solicitada sea remitida a la mayor '
+        'brevedad posible.')
+    _cuerpo_oficio(documento, 'Sin otro particular, saludo a usted atentamente.')
+    # No presumir firmante ni insertar firma o sellos; queda espacio para suscripción ológrafa.
+    espacio = documento.add_paragraph()
+    espacio.paragraph_format.space_after = Pt(28)
+
 
 
 RENDERERS = {"apunsj": oficio_apunsj}
@@ -73,12 +97,12 @@ def renderizar(tipo, instantanea, *, membrete=None):
     renderer = RENDERERS.get(tipo.codigo)
     if renderer is None:
         raise ValidationError("Plantilla documental no disponible.")
-    documento = documento_base() if tipo.codigo == "apunsj" else base_institucional(tipo.codigo)
-    if tipo.codigo in ("jurados", "elecciones", "solicitud_jurados_rectorado"):
+    documento = base_institucional(tipo.codigo)
+    if tipo.codigo in ("jurados", "elecciones", "apunsj"):
         renderer(documento, instantanea, membrete=membrete)
     else:
         renderer(documento, instantanea)
-    if tipo.codigo in ("elecciones", "solicitud_jurados_rectorado"):
+    if tipo.codigo in ("elecciones", "apunsj"):
         _uniformar_tipografia_oficios(documento)
     salida = BytesIO()
     documento.save(salida)
@@ -101,8 +125,8 @@ from . import convocatoria_textos as ctext
 def base_institucional(tipo):
     documento = Document()
     seccion = documento.sections[0]
-    seccion.page_width, seccion.page_height = (Cm(21.59), Cm(27.94)) if tipo in ("jurados", "elecciones", "solicitud_jurados_rectorado") else (Cm(21), Cm(29.7))
-    seccion.top_margin = Cm(5) if tipo in ("jurados", "elecciones", "solicitud_jurados_rectorado") else Cm(2.5)
+    seccion.page_width, seccion.page_height = (Cm(21.59), Cm(27.94)) if tipo in ("jurados", "elecciones", "apunsj") else (Cm(21), Cm(29.7))
+    seccion.top_margin = Cm(5) if tipo in ("jurados", "elecciones", "apunsj") else Cm(2.5)
     seccion.bottom_margin = Cm(2.5)
     seccion.left_margin, seccion.right_margin = Cm(3), Cm(1.5)
     seccion.header_distance = seccion.footer_distance = Cm(1.25)
@@ -113,7 +137,7 @@ def base_institucional(tipo):
         formato = estilo.paragraph_format
         formato.space_before, formato.space_after = Pt(0), Pt(6)
         formato.line_spacing = 1.5
-    if tipo in ("jurados", "elecciones", "solicitud_jurados_rectorado"):
+    if tipo in ("jurados", "elecciones", "apunsj"):
         documento.styles["Normal"].font.size = Pt(11)
         documento.styles["Normal"].paragraph_format.line_spacing = 1.15
     normal = documento.styles["Normal"].paragraph_format
@@ -141,7 +165,7 @@ def base_institucional(tipo):
     documento.styles["Celda presupuestaria"].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
     # El proyecto de convocatoria se identifica como tal en su encabezado;
     # no agrega advertencias administrativas al pie de página.
-    if tipo not in ("convocatoria", "jurados", "elecciones", "solicitud_jurados_rectorado"):
+    if tipo not in ("convocatoria", "jurados", "elecciones", "apunsj"):
         pie = seccion.footer.paragraphs[0]
         pie.text = "BORRADOR NO EMITIDO · Requiere revisión administrativa · Sin firma"
         pie.paragraph_format.first_line_indent = Cm(0)
@@ -764,25 +788,6 @@ def elecciones(documento, datos, *, membrete=None):
     _firma_oficio(documento)
 
 
-def solicitud_jurados_rectorado(documento, datos, *, membrete=None):
-    """Provisorio: solicitud, no presume designación ni acto rectoral."""
-    _encabezado_oficio(documento, datos, (
-        "Sr. Rector de la Universidad Nacional de San Juan",
-    ), membrete)
-    _cuerpo_oficio(documento,
-        "Tengo el agrado de dirigirme a usted a fin de solicitar tenga a bien disponer la designación "
-        "de un (1) miembro titular y un (1) miembro suplente en representación del Rectorado, "
-        f"para integrar el Jurado del Concurso {modalidad(datos)} de antecedentes y oposición.")
-    _cuerpo_oficio(documento,
-        f'El concurso tramita por Expediente N.º {datos["concurso"]["expediente"]}, '
-        f'y tiene por objeto cubrir un cargo de planta permanente del Personal Nodocente Universitario, '
-        f'{_cargo_oficio(datos)}.')
-    _cuerpo_oficio(documento,
-        "La presente solicitud se formula en el marco del Reglamento de Concursos del Personal Nodocente "
-        "aprobado por Ordenanza N.º 33/10-CS, a efectos de incorporar las designaciones correspondientes "
-        "a las actuaciones del expediente.")
-    _cuerpo_oficio(documento, "Sin otro particular, saludo a usted atentamente.")
-    _firma_oficio(documento)
 
 
 def _firma_oficio(documento):
@@ -901,5 +906,4 @@ def notificacion_jurado(documento, datos, *, membrete=None):
 
 
 RENDERERS.update(convocatoria=convocatoria, jurados=notificacion_jurado, dictamen=dictamen,
-                 designacion=designacion, elecciones=elecciones,
-                 solicitud_jurados_rectorado=solicitud_jurados_rectorado)
+                 designacion=designacion, elecciones=elecciones)

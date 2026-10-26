@@ -71,6 +71,7 @@ class ConcursoDetailView(AccesoConcursoMixin, DetailView):
         )
         context["jurados"] = Jurado.objects.filter(concurso=self.object).select_related("persona")
         context["veedores"] = Veedor.objects.filter(concurso=self.object).select_related("persona")
+        context["sugerencia_convocado"] = services.sugerir_estado_convocado(self.object)
         context["aspirantes"] = Aspirante.objects.filter(concurso=self.object).select_related("persona")
         from expedientes.presentation import contexto_documental
         context["jurados"] = list(context["jurados"])
@@ -129,6 +130,15 @@ class CambioEstadoView(AccesoConcursoMixin, FormView):
     def get_initial(self):
         concurso = self.get_concurso()
         inicial = {"estado": concurso.estado, "situacion": concurso.situacion, "version_esperada": concurso.version}
+        if (self.request.GET.get("sugerencia") == "convocatoria"
+                and services.sugerir_estado_convocado(concurso)):
+            inicial.update(
+                estado="convocado",
+                justificacion=(
+                    "Revisión del estado tras registrar la Resolución "
+                    f"N.º {concurso.resolucion_convocatoria} de convocatoria."
+                ),
+            )
         if self.request.GET.get("sugerencia") == "dictamen":
             from expedientes.services import sugerencia_estado
             propuesta = sugerencia_estado(concurso, concurso.controles_documentales.all())

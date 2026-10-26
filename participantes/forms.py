@@ -1,6 +1,6 @@
 from django import forms
 from django.core.exceptions import ValidationError
-from core.fields import IdentificadorField, TelefonoInput
+from core.fields import IdentificadorField, TelefonoField
 
 from .models import Aspirante, Jurado, Persona, Veedor
 
@@ -31,13 +31,13 @@ class JuradoAltaForm(PersonaDatosForm):
     titulo = forms.CharField(label="Título", max_length=150)
     unidad = Jurado._meta.get_field("unidad").formfield()
     email = forms.EmailField(label="Correo electrónico", required=False)
-    telefono = forms.CharField(label="Teléfono", max_length=40, required=False, widget=TelefonoInput)
+    telefono = TelefonoField()
 
 
 class VeedorAltaForm(PersonaDatosForm):
     cargo = forms.CharField(max_length=150, required=False)
     email = forms.EmailField(label="Correo electrónico", required=False)
-    telefono = forms.CharField(label="Teléfono", max_length=40, required=False, widget=TelefonoInput)
+    telefono = TelefonoField()
 
 
 class AspiranteAltaForm(PersonaDatosForm):
@@ -57,17 +57,29 @@ class FormularioVersionado(forms.ModelForm):
 
 
 class JuradoEdicionForm(FormularioVersionado):
+    telefono = TelefonoField()
+
     class Meta:
         model = Jurado
         fields = ("representacion", "calidad", "titulo", "unidad", "email", "telefono")
-        widgets = {"telefono": TelefonoInput}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.fields["telefono"].conservar_actual(self.instance.telefono)
 
 
 class VeedorEdicionForm(FormularioVersionado):
+    telefono = TelefonoField()
+
     class Meta:
         model = Veedor
         fields = ("cargo", "email", "telefono")
-        widgets = {"telefono": TelefonoInput}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.fields["telefono"].conservar_actual(self.instance.telefono)
 
 
 class AspiranteEdicionForm(FormularioVersionado):

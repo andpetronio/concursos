@@ -1,5 +1,6 @@
 from django import forms
 from core.fields import IdentificadorField
+from core.validators import validar_codigo_presupuestario
 
 from .choices import EstadoConcurso, ModalidadConcurso, SituacionAdministrativa
 from .models import Concurso
@@ -49,12 +50,19 @@ class ConcursoForm(forms.ModelForm):
         self.fields["categoria"].choices = [("", "Seleccioná una categoría"), *opciones]
         # Cada POST se valida con las categorías del agrupamiento enviado.
         self.fields["modalidad"].choices = [("", "Seleccioná un tipo de concurso"), *ModalidadConcurso.choices]
+        self.fields["codigo_presupuestario"].widget.attrs["maxlength"] = 5
         self.fields["categoria"].widget.attrs["data-dependent-category"] = ""
         self.catalogo_cargos = opciones_dependientes()
         if self.instance.pk:
             self.fields["expediente"].conservar_actual(self.instance.expediente)
             self.fields["version_esperada"].required = True
             self.initial["version_esperada"] = self.instance.version
+
+    def clean_codigo_presupuestario(self):
+        valor = self.cleaned_data["codigo_presupuestario"]
+        if self.instance.pk and valor == self.instance.codigo_presupuestario:
+            return valor
+        return validar_codigo_presupuestario(valor)
 
     def clean(self):
         datos = super().clean()

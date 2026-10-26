@@ -8,11 +8,13 @@
 <section class="card section" aria-label="Búsqueda y filtros">
   <div class="section-heading"><h2>Buscar concursos</h2><p>Filtrá el listado para encontrar un trámite.</p></div>
   {% include "components/form_errors.html" with form=filtros %}
-  <form method="get" action="{% url 'concursos:lista' %}" class="filter-form">
+  <form method="get" action="{% url 'concursos:lista' %}" class="filter-form" role="search">
     {% for field in filtros %}{% include "components/field.html" with field=field %}{% endfor %}
-    {% include "components/button.html" with label="Buscar" %}
+    <div class="filter-actions">
+      {% include "components/button.html" with label="Buscar" %}
+      {% if filtros.q.value or filtros.estado.value %}<a href="{% url 'concursos:lista' %}" class="filter-clear">Limpiar filtros</a>{% endif %}
+    </div>
   </form>
-  <a href="{% url 'concursos:lista' %}">Limpiar filtros</a>
 </section>
 {% if concursos %}
   <div class="section-heading"><h2>Resultados</h2><p role="status">{{ page_obj.paginator.count }} concurso{{ page_obj.paginator.count|pluralize:"s" }} encontrado{{ page_obj.paginator.count|pluralize:"s" }}.</p></div>
@@ -20,7 +22,10 @@
   {% include "components/pagination.html" %}
 {% elif filtros.errors %}
   {% include "components/empty_state.html" with title="Revisá los filtros" description="Corregí los campos señalados para realizar la búsqueda." %}
+{% elif filtros.q.value or filtros.estado.value %}
+  {% include "components/empty_state.html" with title="No se encontraron concursos" description="Probá con otro expediente, cargo o estado. Podés limpiar los filtros para ver el listado completo." %}
+  <p class="empty-state-action"><a href="{% url 'concursos:lista' %}" class="button button-secondary">Limpiar filtros</a></p>
 {% else %}
-  {% include "components/empty_state.html" with title="No hay concursos para mostrar" description="Todavía no se registraron concursos o ninguno coincide con los filtros. Podés limpiar la búsqueda para volver a consultar." %}
+  {% include "components/empty_state.html" with title="No hay concursos para mostrar" description="Todavía no se registraron concursos." %}
 {% endif %}
 {% endblock %}

@@ -3,8 +3,8 @@
 {% block rows %}
 {% for concurso in concursos %}
 <tr>
-  <td><a href="{{ concurso.get_absolute_url }}">{{ concurso.expediente }}<span class="visually-hidden"> · {{ concurso.denominacion }} · Concurso {{ concurso.pk }}</span></a></td>
-  <td>{{ concurso.denominacion }}</td>
+  <td class="concurso-list-expediente"><a href="{{ concurso.get_absolute_url }}">{{ concurso.expediente }}<span class="visually-hidden"> · {{ concurso.denominacion }} · Concurso {{ concurso.pk }}</span></a></td>
+  <td class="concurso-list-cargo"><strong>{{ concurso.denominacion }}</strong></td>
   <td>{{ concurso.codigo_presupuestario }}</td>
   <td>{% include "components/status.html" with label=concurso.get_estado_display %}</td>
   <td>{% include "components/status.html" with label=concurso.get_situacion_display %}</td>

@@ -22,9 +22,7 @@
           <div class="document-generation-identity">
             <h4>{{ documento.tipo.nombre }}</h4>
             <p>{{ documento.tipo.descripcion }}</p>
-            {% if documento.tipo.codigo == "apunsj" or documento.tipo.codigo == "solicitud_jurados_rectorado" %}
-              <span class="document-generation-note">Modelo provisorio, pendiente de validación institucional</span>
-            {% elif documento.tipo.codigo == "dictamen" or documento.tipo.codigo == "designacion" %}
+            {% if documento.tipo.codigo == "dictamen" or documento.tipo.codigo == "designacion" %}
               <span class="document-generation-note">Proyecto pendiente de revisión y consolidación administrativa</span>
             {% endif %}
           </div>

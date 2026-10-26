@@ -29,6 +29,11 @@ DESTINATARIO = {"tratamiento": "Sr.", "cargo": "Secretario General", "titulo": "
                 "nombre": "Nombre ficticio", "apellido": "Apellido ficticio"}
 
 
+def editable_font_family(registro):
+    documento = Document(BytesIO(bytes(registro.contenido)))
+    return documento.styles["Normal"].font.name
+
+
 @override_settings(PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"])
 class DocumentosTests(TestCase):
     @classmethod
@@ -44,6 +49,12 @@ class DocumentosTests(TestCase):
     def setUp(self):
         self.concurso = concurso_services.crear_concurso(datos=DATOS, usuario=self.operador)
         self.destinatario = services.guardar_destinatario(datos=DESTINATARIO, usuario=self.operador, version_esperada=0)
+        self.concurso.resolucion_convocatoria = "3279/26-R"
+        self.concurso.save(update_fields=["resolucion_convocatoria"])
+        imagen = (Path(__file__).parent / "assets" / "unsj-crest-wordmark.png").read_bytes()
+        self.membrete = services.guardar_membrete(
+            imagen={"contenido": imagen, "tipo_mime": "image/png", "nombre_archivo": "membrete-ficticio.png"},
+            usuario=self.operador, version_esperada=0)
         self.login(self.operador)
 
     def login(self, usuario, client=None):
@@ -76,6 +87,30 @@ class DocumentosTests(TestCase):
         return "\n".join([p.text for p in documento.paragraphs] + [
             c.text for tabla in documento.tables for fila in tabla.rows for c in fila.cells])
 
+    def test_oficio_apunsj_exige_resolucion_y_membrete(self):
+        self.concurso.resolucion_convocatoria = ""
+        self.concurso.save(update_fields=["resolucion_convocatoria"])
+        estado = services.disponibilidad(self.concurso, POR_CODIGO["apunsj"], self.destinatario)
+        self.assertFalse(estado["disponible"])
+        self.assertTrue(any("resolución oficial" in x for x in estado["faltantes"]))
+        with self.assertRaisesMessage(ValidationError, "resolución oficial"):
+            self.generar()
+        self.concurso.resolucion_convocatoria = "3279/26-R"
+        self.concurso.save(update_fields=["resolucion_convocatoria"])
+        MembreteInstitucional.objects.all().delete()
+        with self.assertRaisesMessage(ValidationError, "Cargar el membrete"):
+            self.generar()
+        self.assertFalse(GeneracionDocumento.objects.exists())
+
+    def test_oficio_apunsj_ignora_resolucion_y_fecha_inventadas_por_cliente(self):
+        registro = self.generar(complementarios={"res_convocatoria": "9999/26-R", "lugar_fecha": "Otra fecha"})
+        texto = self.texto(registro)
+        self.assertIn("3279/26-R", texto)
+        self.assertNotIn("9999/26-R", texto)
+        self.assertNotIn("Otra fecha", texto)
+        self.assertEqual(registro.instantanea["complementarios"]["res_convocatoria"], "3279/26-R")
+        self.assertEqual(registro.instantanea["pendientes"], [])
+
     def test_docx_editable_y_encabezados_para_ambos_tratamientos(self):
         for tratamiento, cargo in [("Sr.", "Secretario General"), ("Sra.", "Secretaria General")]:
             with self.subTest(tratamiento=tratamiento):
@@ -84,13 +119,22 @@ class DocumentosTests(TestCase):
                     usuario=self.operador, version_esperada=self.destinatario.version)
                 registro = self.generar()
                 texto = self.texto(registro)
-                self.assertIn(f"{tratamiento} {cargo} de APUNSJ", texto)
+                self.assertIn(f"{cargo} de la", texto)
+                self.assertIn("Asociación del Personal Nodocente de la UNSJ", texto)
                 self.assertIn("Nombre ficticio Apellido ficticio", texto)
                 self.assertIn("Presente", texto)
-                self.assertIn("BORRADOR NO EMITIDO", texto)
+                self.assertNotIn("BORRADOR NO EMITIDO", texto)
                 self.assertIn(self.concurso.expediente, texto)
-                self.assertIn("Ordenanza 33/10-CS", texto)
-                self.assertIn("Datos no incorporados: lugar, fecha, número de oficio y autoridad firmante", texto)
+                self.assertIn("Ordenanza Nº 33/10-CS", texto)
+                self.assertIn("el artículo 25º de la Ordenanza Nº 33/10-CS", texto)
+                self.assertIn("artículo 31º", texto)
+                self.assertIn("correo electrónico", texto)
+                self.assertIn("Resolución Nº 3279/26-R", texto)
+                self.assertNotIn("no existe un modelo específico aprobado", texto)
+                self.assertEqual(registro.instantanea["membrete"]["sha256"], self.membrete.sha256)
+                self.assertIn("San Juan,", registro.instantanea["complementarios"]["lugar_fecha"])
+                self.assertEqual(registro.plantilla_version, "apunsj-3")
+                self.assertEqual(editable_font_family(registro), "Arial")
                 self.assertNotIn("{{", texto)
                 with ZipFile(BytesIO(bytes(registro.contenido))) as archivo:
                     self.assertIn("word/document.xml", archivo.namelist())
@@ -99,6 +143,28 @@ class DocumentosTests(TestCase):
                 salida = BytesIO()
                 editable.save(salida)
                 self.assertIn("Edición de prueba", Document(BytesIO(salida.getvalue())).paragraphs[-1].text)
+
+    def test_nueva_redaccion_apunsj_respeta_parrafos_y_variables(self):
+        registro = self.generar()
+        documento = Document(BytesIO(bytes(registro.contenido)))
+        contenido = "\n".join(p.text for p in documento.paragraphs)
+        self.assertIn("Me dirijo a usted con el propósito de solicitarle tenga a bien comunicar", contenido)
+        self.assertIn("designación de un veedor en representación de la Asociación que preside", contenido)
+        self.assertIn("Convenio Colectivo de Trabajo para el Personal Nodocente", contenido)
+        self.assertIn("homologado por Decreto Nº 366/06-PEN", contenido)
+        self.assertIn(f"Concurso {self.concurso.get_modalidad_display()} de antecedentes y oposición", contenido)
+        self.assertIn(f"Expediente Nº {self.concurso.expediente}", contenido)
+        self.assertIn(f"Código Presupuestario Nº {self.concurso.codigo_presupuestario}", contenido)
+        self.assertIn(f"con funciones de “{self.concurso.denominacion}”", contenido)
+        self.assertIn("así como una dirección de correo electrónico institucional", contenido)
+        self.assertIn("Resolución Nº 3279/26-R", contenido)
+        self.assertIn("la mayor brevedad posible", contenido)
+        self.assertIn("Sin otro particular, saludo a usted atentamente.", contenido)
+        self.assertNotIn("Atento a que por Expediente", contenido)
+        self.assertNotIn("A los efectos de la prosecución", contenido)
+        self.assertNotIn("17-697-2024", contenido)
+        self.assertNotIn("2339/26-R", contenido)
+        self.assertEqual(registro.plantilla_version, "apunsj-3")
 
     def test_destinatario_incompleto_y_cargo_incompatible(self):
         for campo in ["nombre", "apellido", "tratamiento", "cargo"]:
@@ -115,15 +181,51 @@ class DocumentosTests(TestCase):
 
     def test_configuracion_permiso_especifico_y_no_asignacion_automatica(self):
         url = reverse("documentos:configuracion")
+        edicion = reverse("documentos:configuracion_apunsj")
         self.login(self.lector)
         self.assertEqual(self.client.get(url).status_code, 403)
+        self.assertEqual(self.client.get(edicion).status_code, 403)
         with self.assertRaises(PermissionDenied):
             services.guardar_destinatario(datos=DESTINATARIO, usuario=self.lector, version_esperada=1)
         self.login(self.configurador)
         self.assertEqual(self.client.get(url).status_code, 200)
-        self.assertEqual(self.client.post(url, {**DESTINATARIO, "nombre": "Otra autoridad", "version_esperada": 1}).status_code, 302)
+        self.assertEqual(self.client.get(edicion).status_code, 200)
+        self.assertEqual(self.client.post(url, {**DESTINATARIO, "nombre": "Otra autoridad", "version_esperada": 1}).status_code, 405)
+        self.assertRedirects(self.client.post(edicion, {**DESTINATARIO, "nombre": "Otra autoridad", "version_esperada": 1}), edicion)
+        self.assertEqual(DestinatarioAPUNSJ.objects.get(pk=1).nombre, "Otra autoridad")
         self.assertEqual(self.client.get(self.url_revision()).status_code, 403)
         self.assertFalse(self.lector.has_perm("documentos.generar_documento"))
+
+    def test_configuracion_institucional_muestra_tres_parametros_del_mismo_nivel(self):
+        respuesta = self.client.get(reverse("documentos:configuracion"))
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTemplateUsed(respuesta, "documentos/configuracion.html")
+        self.assertNotIn("form", respuesta.context)
+        self.assertContains(respuesta, 'class="card institution-settings-card"', count=3)
+        for titulo, destino in (
+            ("Secretaría General de APUNSJ", "documentos:configuracion_apunsj"),
+            ("Jefatura del Departamento de Personal", "documentos:configuracion_personal"),
+            ("Membrete institucional", "documentos:membrete"),
+        ):
+            self.assertContains(respuesta, titulo)
+            self.assertContains(respuesta, f'href="{reverse(destino)}"')
+        self.assertContains(respuesta, "Pendiente de configuración")  # Personal sin cargar.
+        self.assertContains(respuesta, self.destinatario.nombre)
+        self.assertContains(respuesta, self.membrete.nombre_archivo)
+        self.assertNotContains(respuesta, "Guardar configuración")
+
+    def test_configuracion_apunsj_preserva_versionado_y_navegacion(self):
+        edicion = reverse("documentos:configuracion_apunsj")
+        respuesta = self.client.get(edicion)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTemplateUsed(respuesta, "documentos/configuracion_apunsj.html")
+        self.assertContains(respuesta, "Volver a configuración institucional")
+        self.assertContains(respuesta, 'class="nav-link is-active" href="/concursos/configuracion-institucional/" aria-current="page"')
+        self.assertEqual(respuesta.context["form"]["version_esperada"].value(), 1)
+        respuesta = self.client.post(edicion, {**DESTINATARIO, "nombre": "Nombre corregido", "version_esperada": 0})
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(respuesta.context["form"].non_field_errors())
+        self.assertEqual(DestinatarioAPUNSJ.objects.get(pk=1).nombre, self.destinatario.nombre)
 
     def test_configuracion_version_obsoleta_no_sobrescribe(self):
         services.guardar_destinatario(datos={**DESTINATARIO, "nombre": "Autoridad nueva"}, usuario=self.operador, version_esperada=1)
@@ -151,7 +253,7 @@ class DocumentosTests(TestCase):
         self.assertEqual(bytes(registro.contenido), contenido)
         self.assertEqual(registro.instantanea, snapshot)
         self.assertEqual(registro.sha256, hashlib.sha256(contenido).hexdigest())
-        self.assertEqual(registro.plantilla_version, "apunsj-1")
+        self.assertEqual(registro.plantilla_version, "apunsj-3")
         for operacion in [registro.save, registro.delete,
                           lambda: GeneracionDocumento.objects.filter(pk=registro.pk).update(tipo="otro"),
                           lambda: GeneracionDocumento.objects.filter(pk=registro.pk).delete()]:
@@ -180,10 +282,8 @@ class DocumentosTests(TestCase):
 
     @patch("pathlib.Path.is_file", return_value=False)
     def test_fuentes_ausentes_bloquean_cinco_tipos_y_convocatoria_consulta_servicio(self, fuente_ausente):
-        self.assertEqual(len(TIPOS), 7)
+        self.assertEqual(len(TIPOS), 6)
         for tipo in TIPOS:
-            if tipo.codigo in ("apunsj", "solicitud_jurados_rectorado"):
-                continue
             with self.subTest(tipo=tipo.codigo):
                 with patch.object(expediente_services, "habilitacion_convocatoria", wraps=expediente_services.habilitacion_convocatoria) as habilitar:
                     estado = services.disponibilidad(self.concurso, tipo, self.destinatario)
@@ -197,16 +297,13 @@ class DocumentosTests(TestCase):
                                      usuario=self.operador, version_concurso=1, version_destinatario=1)
         self.assertFalse(GeneracionDocumento.objects.exists())
 
-    def test_acotado_requiere_revision_administrativa_explicita(self):
+    def test_apunsj_modelo_incluye_modalidad_acotado_sin_revision_excepcional(self):
         self.concurso.modalidad = "acotado"
         self.concurso.save()
-        with self.assertRaises(ValidationError):
-            self.generar()
-        self.assertEqual(self.post_generacion().status_code, 200)
-        self.assertFalse(GeneracionDocumento.objects.exists())
-        registro = self.generar(revision_administrativa=True)
-        self.assertIn("no existe un modelo específico aprobado", self.texto(registro))
-        self.assertTrue(registro.instantanea["complementarios"]["revision_administrativa"])
+        registro = self.generar()
+        self.assertIn("Concurso Acotado", self.texto(registro))
+        self.assertNotIn("no existe un modelo específico aprobado", self.texto(registro))
+        self.assertFalse(registro.instantanea["complementarios"]["revision_administrativa"])
 
     def test_permisos_lectura_generacion_y_descarga_aislamiento(self):
         registro = self.generar()
@@ -236,7 +333,7 @@ class DocumentosTests(TestCase):
         client.post(reverse("login"), {"username": self.operador.username, "password": PASSWORD,
                                        "csrfmiddlewaretoken": token})
         self.assertEqual(client.post(self.url_revision(), {"version_concurso": 1, "version_destinatario": 1}).status_code, 403)
-        self.assertEqual(client.post(reverse("documentos:configuracion"), DESTINATARIO).status_code, 403)
+        self.assertEqual(client.post(reverse("documentos:configuracion_apunsj"), DESTINATARIO).status_code, 403)
         respuesta = self.post_generacion()
         self.assertEqual(respuesta.status_code, 302)
         with patch("documentos.services.renderizar", side_effect=AssertionError("No debe regenerar")):
@@ -261,7 +358,7 @@ class DocumentosTests(TestCase):
 
     def test_configuracion_inicial_no_preselecciona_tratamiento_o_cargo(self):
         DestinatarioAPUNSJ.objects.all().delete()
-        respuesta = self.client.get(reverse("documentos:configuracion"))
+        respuesta = self.client.get(reverse("documentos:configuracion_apunsj"))
         self.assertEqual(respuesta.status_code, 200)
         for campo in ("tratamiento", "cargo"):
             self.assertEqual(respuesta.context["form"].fields[campo].choices[0], ("", "Seleccioná una opción"))
@@ -328,11 +425,6 @@ class ContinuacionDocumentosTests(TestCase):
     setUpTestData = classmethod(DocumentosTests.setUpTestData.__func__)
     def setUp(self):
         DocumentosTests.setUp(self)
-        datos_imagen = (Path(__file__).parent / "assets" / "unsj-crest-wordmark.png").read_bytes()
-        self.membrete = services.guardar_membrete(
-            imagen={"contenido": datos_imagen, "tipo_mime": "image/png",
-                    "nombre_archivo": "membrete-ficticio.png"},
-            usuario=self.operador, version_esperada=0)
         self.jefatura = services.guardar_destinatario_personal(
             datos={"tratamiento": "Sra.", "cargo": "Jefa del Departamento de Personal",
                    "titulo": "Lic.", "nombre": "Persona", "apellido": "Ficticia"},
@@ -883,7 +975,7 @@ class ContinuacionDocumentosTests(TestCase):
     def test_oficios_preparatorios_rechazan_jurisdiccion_ausente_sin_error_interno(self):
         self.concurso.jurisdiccion = ""
         self.concurso.save(update_fields=["jurisdiccion"])
-        for tipo in ("elecciones", "solicitud_jurados_rectorado"):
+        for tipo in ("elecciones",):
             with self.subTest(tipo=tipo):
                 estado = services.disponibilidad(self.concurso, POR_CODIGO[tipo])
                 self.assertFalse(estado["disponible"])
@@ -894,17 +986,15 @@ class ContinuacionDocumentosTests(TestCase):
 
     def test_oficios_preparatorios_no_necesitan_resolucion_ni_jurados(self):
         self.assertFalse(self.concurso.jurados.exists())
-        self.assertFalse(self.concurso.resolucion_convocatoria)
-        for tipo in ("elecciones", "solicitud_jurados_rectorado"):
+        self.concurso.resolucion_convocatoria = ""
+        self.concurso.save(update_fields=["resolucion_convocatoria"])
+        for tipo in ("elecciones",):
             with self.subTest(tipo=tipo):
                 registro = self.generar_tipo(tipo, {})
                 documento = Document(BytesIO(bytes(registro.contenido)))
                 texto = self.texto(registro)
                 self.assertIn(self.concurso.expediente, texto)
-                if tipo == "elecciones":
-                    self.assertIn("Persona Ficticia", texto)
-                else:
-                    self.assertIn("Sr. Rector", texto)
+                self.assertIn("Persona Ficticia", texto)
                 self.assertIn("Jurado", texto)
                 self.assertNotIn("BORRADOR NO EMITIDO", texto)
                 self.assertEqual(registro.instantanea["membrete"]["sha256"], self.membrete.sha256)
@@ -940,13 +1030,26 @@ class ContinuacionDocumentosTests(TestCase):
         with self.assertRaisesMessage(ValidationError, "Los datos cambiaron"):
             self.generar_tipo("elecciones", huella_esperada=historial.instantanea.get("revision_huella", "invalida"))
 
-    def test_oficio_rectorado_indica_que_es_provisional(self):
-        registro = self.generar_tipo("solicitud_jurados_rectorado", {})
-        texto = self.texto(registro)
-        self.assertIn("un (1) miembro titular y un (1) miembro suplente", texto)
-        self.assertNotIn("ha sido designado", texto)
-        self.assertEqual(registro.plantilla_version, "jurados-rectorado-2")
-        self.assertIn("provisorio", registro.instantanea["pendientes"].lower() if isinstance(registro.instantanea["pendientes"], str) else str(registro.instantanea["pendientes"]).lower())
+    def test_oficio_rectorado_retirado_sin_perder_descargas_historicas(self):
+        from .registry import POR_CODIGO
+        self.assertNotIn("solicitud_jurados_rectorado", POR_CODIGO)
+        self.assertEqual(self.client.get(self.url_revision("solicitud_jurados_rectorado")).status_code, 404)
+        with self.assertRaisesMessage(ValidationError, "Tipo de documento desconocido"):
+            services.generar(concurso_id=self.concurso.pk, tipo_codigo="solicitud_jurados_rectorado",
+                            usuario=self.operador, version_concurso=self.concurso.version)
+        base = self.generar_tipo("elecciones", {})
+        # Se conserva un registro del tipo retirado para verificar la ruta histórica.
+        antiguo = GeneracionDocumento.objects.create(
+            concurso=self.concurso, tipo="solicitud_jurados_rectorado",
+            plantilla_version="jurados-rectorado-2", instantanea=base.instantanea,
+            contenido=bytes(base.contenido), sha256=base.sha256, generado_por=self.operador)
+        self.assertIn("Rector", antiguo.nombre_tipo)
+        respuesta = self.client.get(reverse("documentos:descargar", args=[self.concurso.pk, antiguo.pk]))
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.content, bytes(antiguo.contenido))
+        ficha = self.client.get(self.concurso.get_absolute_url())
+        self.assertNotContains(ficha, "Revisar oficio al Rector")
+        self.assertContains(ficha, "Oficio al Rector solicitando jurados (histórico)")
 
     def test_membrete_institucional_permisos_archivo_validaciones_y_concurrencia(self):
         url = reverse("documentos:membrete")

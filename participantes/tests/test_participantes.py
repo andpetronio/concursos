@@ -18,7 +18,7 @@ START = datetime(2026, 2, 1, 12, tzinfo=timezone.utc)
 PASSWORD = "ClaveFicticiaParticipantes-2026!"
 PERSONA = {"apellido": "Apellido Ficticio", "nombre": "Nombre Ficticio", "dni": "12.345.678"}
 JURADO = {**PERSONA, "representacion": "dependencia", "calidad": "titular",
-          "titulo": "Técnico", "unidad": "Unidad de prueba", "email": "prueba@example.invalid", "telefono": "0000-0000"}
+          "titulo": "Técnico", "unidad": "Unidad de prueba", "email": "prueba@example.invalid", "telefono": "000-0000000"}
 
 
 @override_settings(PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"])
@@ -387,3 +387,37 @@ class ParticipanteTests(TestCase):
             persona.delete()
         with self.assertRaises(ProtectedError):
             self.concurso.delete()
+
+    def test_mascara_y_validacion_de_telefonos_en_altas(self):
+        self.assertContains(self.client.get(self.url("jurado_crear")), 'maxlength="11"')
+        invalido = self.client.post(self.url("jurado_crear"), {**JURADO, "telefono": "264-1234"})
+        self.assertIn("telefono", invalido.context["form"].errors)
+        self.assertEqual(Jurado.objects.count(), 0)
+        correcto = self.client.post(self.url("jurado_crear"), {**JURADO, "telefono": "2641234567"})
+        self.assertEqual(correcto.status_code, 302)
+        self.assertEqual(Jurado.objects.get().telefono, "264-1234567")
+
+    def test_telefono_historico_de_jurado_se_preserva_al_editar(self):
+        self.client.post(self.url("jurado_crear"), JURADO)
+        jurado = Jurado.objects.get()
+        Jurado.objects.filter(pk=jurado.pk).update(telefono="2")
+        jurado.refresh_from_db()
+        url = self.url("jurado_editar", None, jurado.pk)
+        self.assertContains(self.client.get(url), 'data-legacy-value="2"')
+        response = self.client.post(url, {
+            "representacion": jurado.representacion, "calidad": jurado.calidad,
+            "titulo": "Título modificado", "unidad": jurado.unidad,
+            "email": jurado.email, "telefono": "2", "version_esperada": jurado.version,
+        })
+        self.assertEqual(response.status_code, 302)
+        jurado.refresh_from_db()
+        self.assertEqual(jurado.telefono, "2")
+        self.assertEqual(jurado.titulo, "Título modificado")
+        response = self.client.post(url, {
+            "representacion": jurado.representacion, "calidad": jurado.calidad,
+            "titulo": "Otro", "unidad": jurado.unidad, "email": "",
+            "telefono": "3", "version_esperada": jurado.version,
+        })
+        self.assertIn("telefono", response.context["form"].errors)
+        jurado.refresh_from_db()
+        self.assertEqual(jurado.telefono, "2")

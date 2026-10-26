@@ -2,7 +2,7 @@
 {% block title %}Historial de control documental · {{ concurso.expediente }}{% endblock %}
 {% block content %}
 {% include "components/page_header.html" with section="Control documental" title="Historial de correcciones" description=control.definicion.nombre %}
-<p><a href="{{ concurso.get_absolute_url }}#documental-{{ control.pk }}">Volver al control del concurso {{ concurso.expediente }}</a></p>
+<a class="back-link" href="{{ concurso.get_absolute_url }}#documental-{{ control.pk }}">Volver al control del concurso {{ concurso.expediente }}</a>
 <section class="section" aria-label="Correcciones del requisito">
   {% if object_list %}{% include "expedientes/historial_tabla.html" with table_label="Historial de correcciones documentales" %}{% include "components/pagination.html" %}
   {% else %}{% include "components/empty_state_inline.html" with description="No hay correcciones registradas para este requisito." only %}{% endif %}

@@ -1,6 +1,6 @@
 {% extends "layouts/private.html" %}
 {% load static %}
-{% block scripts %}{{ block.super }}<script src="{% static 'js/detail-tabs.js' %}" defer></script>{% endblock %}
+{% block scripts %}{{ block.super }}<script src="{% static 'js/detail-tabs.js' %}" defer></script><script src="{% static 'js/document-autosave.js' %}" defer></script>{% endblock %}
 {% block title %}Concurso {{ concurso.expediente }} · UNSJ{% endblock %}
 {% block content %}
 <a class="back-link" href="{% url 'concursos:lista' %}">Volver al listado</a>
@@ -31,6 +31,16 @@
       <div><dt>Etapa documental</dt><dd>{{ documentacion.seguimiento.get_etapa_display }}</dd></div>
     </dl>
     <p class="field-help">El estado se registra manualmente y es independiente del control documental.</p>
+    {% if sugerencia_convocado %}
+      <div class="notice" role="status">
+        <p><strong>Revisar estado «Convocado».</strong> En el concurso se registró la Resolución N.º {{ concurso.resolucion_convocatoria }} como resolución oficial de convocatoria. El estado administrativo sigue en «Preparación».</p>
+        {% if perms.concursos.cambiar_estado_concurso %}
+          <a href="{% url 'concursos:estado' concurso.pk %}?sugerencia=convocatoria">Revisar y confirmar cambio de estado</a>
+        {% else %}
+          <p class="field-help">El cambio requiere un usuario con permiso para modificar el estado. No se aplica automáticamente.</p>
+        {% endif %}
+      </div>
+    {% endif %}
   </div>
   <div class="actions">
     {% include "components/button.html" with href="#control-documental" label="Ir al control documental" %}

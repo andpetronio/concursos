@@ -33,8 +33,10 @@ def actualizar_etapa(*, concurso_id, etapa, usuario, version_esperada):
         return seguimiento
     seguimiento.version += 1
     seguimiento.save(update_fields=["etapa", "version"])
-    CambioEtapaDocumental.objects.create(seguimiento=seguimiento, usuario=usuario,
-                                        anterior=anterior, nueva=etapa, version=seguimiento.version)
+    CambioEtapaDocumental.objects.create(
+        seguimiento=seguimiento, usuario=usuario, anterior=anterior,
+        nueva=etapa, version=seguimiento.version, origen=CambioEtapaDocumental.Origen.MANUAL,
+    )
     return seguimiento
 
 
@@ -49,11 +51,53 @@ def instantanea(control):
     }
 
 
+# Estos cinco controles acreditan la preparación documental, no la emisión del acto.
+_PREVIOS = tuple(r.codigo for r in REQUISITOS if r.seccion == "preparacion")
+
+
+def _avanzar_documentacion_previa(*, seguimiento, controles_previos, estaba_completa, usuario):
+    """Avanza solo cuando se completa el último previo y no hubo retorno manual.
+
+    Se invoca dentro de la misma transacción y con el seguimiento bloqueado
+    antes del control, evitando dos avances en guardados concurrentes.
+    """
+    if seguimiento.etapa != "preparacion" or estaba_completa:
+        return
+    if not all(codigo in controles_previos and controles_previos[codigo].completo for codigo in _PREVIOS):
+        return
+    # Un regreso manual a Preparación es una decisión del operador: no reavanzar.
+    if seguimiento.historial.filter(nueva="preparacion").exists():
+        return
+    version_anterior = seguimiento.version
+    seguimiento.etapa = "convocatoria"
+    seguimiento.version += 1
+    seguimiento.save(update_fields=["etapa", "version"])
+    CambioEtapaDocumental.objects.create(
+        seguimiento=seguimiento, usuario=usuario,
+        anterior="preparacion", nueva="convocatoria", version=version_anterior + 1,
+        origen=CambioEtapaDocumental.Origen.AUTOMATICO,
+    )
+
+
 @transaction.atomic
 def actualizar_control(*, concurso_id, control_id, datos, usuario, version_esperada):
     if not usuario.has_perms(("concursos.view_concurso", "expedientes.change_controldocumental")):
         raise PermissionDenied
+    # Orden de bloqueo compartido con actualizar_etapa: primero seguimiento.
+    seguimiento = SeguimientoDocumental.objects.select_for_update().get(concurso_id=concurso_id)
     control = ControlDocumental.objects.select_for_update().get(pk=control_id, concurso_id=concurso_id)
+    controles_previos = {}
+    estaba_completa = False
+    if seguimiento.etapa == "preparacion" and control.requisito in _PREVIOS:
+        controles_previos = {
+            item.requisito: item for item in ControlDocumental.objects.filter(
+                concurso_id=concurso_id, requisito__in=_PREVIOS,
+            )
+        }
+        estaba_completa = all(
+            codigo in controles_previos and controles_previos[codigo].completo
+            for codigo in _PREVIOS
+        )
     if control.version != version_esperada:
         raise ValidationError("Otro operador modificó este control. Volvé a abrir la ficha y revisá los datos antes de guardar.")
     anterior = instantanea(control)
@@ -73,6 +117,12 @@ def actualizar_control(*, concurso_id, control_id, datos, usuario, version_esper
     CambioControlDocumental.objects.create(
         control=control, usuario=usuario, version=control.version, anterior=anterior, nuevo=instantanea(control),
     )
+    if controles_previos:
+        controles_previos[control.requisito] = control
+        _avanzar_documentacion_previa(
+            seguimiento=seguimiento, controles_previos=controles_previos,
+            estaba_completa=estaba_completa, usuario=usuario,
+        )
     return control
 
 

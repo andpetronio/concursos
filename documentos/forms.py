@@ -78,7 +78,7 @@ class GeneracionForm(forms.Form):
                 label="Fecha de apertura de inscripciones", input_formats=["%Y-%m-%d"],
                 widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
                 help_text="Desde esta fecha, durante cinco (5) días hábiles, siempre de 8 a 12 hs.")
-        if tipo and tipo.codigo not in ("apunsj", "elecciones", "solicitud_jurados_rectorado"):
+        if tipo and tipo.codigo not in ("apunsj", "elecciones"):
             if tipo.codigo != "convocatoria":
                 for nombre, etiqueta, tipos, largo in COMPLEMENTOS:
                     if tipo.codigo in tipos and not (tipo.codigo == "jurados" and nombre in ("marco_normativo", "firmante", "lugar_fecha")):

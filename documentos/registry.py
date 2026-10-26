@@ -15,8 +15,6 @@ class TipoDocumento:
 
 
 TIPOS = (
-    TipoDocumento("solicitud_jurados_rectorado", "Oficio al Rector solicitando jurados", "Solicitud preparatoria provisional de titular y suplente del Rectorado.",
-                  "", "Datos del concurso y membrete configurado", "Ningún dato adicional", "Texto provisorio sujeto a validación institucional", "jurados-rectorado-2"),
     TipoDocumento("elecciones", "Nota para elección de representantes del personal", "Solicitud preparatoria; no afirma elección ni designación.",
                   "Nota para elecciones por el estamento.docx.pdf", "Identificación del concurso y estructura",
                   "Jefatura de Personal configurada y antecedentes de vacancia del concurso", "Requiere jefatura de Personal, membrete y antecedentes acreditados", "elecciones-5"),
@@ -26,9 +24,9 @@ TIPOS = (
     TipoDocumento("jurados", "Notificaciones individuales a jurados", "Seis notas individuales editables, conservadas también en ZIP.",
                   "Modelo nota notificación Jurado.docx.pdf", "Concurso, persona, título, unidad, representación y carácter",
                   "Resolución oficial desde la ficha del concurso; fecha automática de preparación", "La resolución oficial debe estar emitida; generar la nota no acredita notificación", "jurados-5"),
-    TipoDocumento("apunsj", "Oficio a APUNSJ solicitando veedor", "Borrador editable dirigido a la autoridad institucional configurada.",
-                  "", "Datos generales del concurso y destinatario configurado",
-                  "Confirmación de revisión administrativa para Acotado", "Lugar, fecha, número de oficio y firmante no incorporados", "apunsj-1"),
+    TipoDocumento("apunsj", "Oficio a APUNSJ solicitando veedor", "Solicitud de datos de veedor según el modelo institucional.",
+                  "solicitar veedor.docx", "Concurso, resolución oficial, destinatario APUNSJ y membrete vigente",
+                  "Sin datos complementarios: fecha automática y resolución desde la ficha", "Requiere resolución oficial de convocatoria registrada", "apunsj-3"),
     TipoDocumento("dictamen", "Proyecto de resolución de aprobación del dictamen", "Sin presunción de resultados ni hechos administrativos.",
                   "PROYECTO RES. APROBANDO DICTAMEN.pdf", "Concurso, jurados, aspirantes y actuaciones verificadas",
                   "Evaluaciones, resultados, mérito, comunicaciones e impugnaciones acreditadas", "Los antecedentes y complementos críticos son obligatorios", "dictamen-3"),

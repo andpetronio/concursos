@@ -6,6 +6,9 @@
   <h2>Registrar cambio</h2>
   <p>Estado actual: <strong>{{ concurso.get_estado_display }}</strong>. Situación: <strong>{{ concurso.get_situacion_display }}</strong>.</p>
   <p class="field-help">El cambio es manual. Al confirmarlo se guardarán los valores anteriores y nuevos, tu usuario, la fecha y la justificación opcional.</p>
+  {% if request.GET.sugerencia == 'convocatoria' and form.initial.estado == 'convocado' %}
+    <div class="notice"><p>Se propone «Convocado» por haberse registrado la resolución oficial de convocatoria. Revisá los datos antes de confirmar: la sugerencia no guarda cambios por sí sola.</p></div>
+  {% endif %}
   {% include "components/form_errors.html" %}
   <form method="post">
     {% csrf_token %}

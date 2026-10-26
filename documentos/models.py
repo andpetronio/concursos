@@ -87,6 +87,8 @@ class GeneracionDocumento(models.Model):
     def nombre_tipo(self):
         from .registry import POR_CODIGO
         tipo = POR_CODIGO.get(self.tipo)
+        if self.tipo == "solicitud_jurados_rectorado":
+            return "Oficio al Rector solicitando jurados (histórico)"
         return tipo.nombre if tipo else "Documento histórico"
 
     def save(self, *args, **kwargs):
@@ -100,7 +102,7 @@ class GeneracionDocumento(models.Model):
 
 
 class MembreteInstitucional(models.Model):
-    """Imagen vigente para notificaciones. La imagen queda en PostgreSQL, no en /media."""
+    """Imagen vigente para oficios y notificaciones, conservada en PostgreSQL."""
     contenido = models.BinaryField(editable=False)
     nombre_archivo = models.CharField(max_length=150)
     tipo_mime = models.CharField(max_length=20)

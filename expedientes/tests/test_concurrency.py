@@ -57,6 +57,34 @@ class ConcurrenciaDocumentalTests(TransactionTestCase):
         self.assertEqual(self.competir([editar(c) for c in controles]), ["guardado", "guardado"])
         self.assertEqual(self.concurso.controles_documentales.filter(verificado=True, version=2).count(), 2)
 
+    def test_dos_ultimos_controles_concurrentes_generan_un_solo_avance_automatico(self):
+        from expedientes.catalogo import REQUISITOS
+        from expedientes.models import CambioEtapaDocumental, SeguimientoDocumental
+
+        for requisito in REQUISITOS[:3]:
+            control = self.concurso.controles_documentales.get(requisito=requisito.codigo)
+            actualizar_control(concurso_id=self.concurso.pk, control_id=control.pk,
+                datos={"verificado": True, "fojas": "12"}, usuario=self.usuario,
+                version_esperada=control.version)
+        presup = self.concurso.controles_documentales.get(requisito="afectacion_presupuestaria")
+        vacancia = self.concurso.controles_documentales.get(requisito="vacancia")
+
+        def guardar(control, datos):
+            return lambda actor: actualizar_control(concurso_id=self.concurso.pk,
+                control_id=control.pk, datos=datos, usuario=actor, version_esperada=1)
+
+        self.assertEqual(self.competir([
+            guardar(presup, {"verificado": True, "fojas": "14",
+                            "partida_principal": "01", "actividad_presupuestaria": "02"}),
+            guardar(vacancia, {"verificado": True}),
+        ]), ["guardado", "guardado"])
+        seguimiento = SeguimientoDocumental.objects.get(concurso=self.concurso)
+        self.assertEqual((seguimiento.etapa, seguimiento.version, seguimiento.historial.count()),
+                         ("convocatoria", 2, 1))
+        self.assertEqual(seguimiento.historial.get().origen, CambioEtapaDocumental.Origen.AUTOMATICO)
+        self.assertEqual(presup.historial.count(), 1)
+        self.assertEqual(vacancia.historial.count(), 1)
+
     def test_etapa_concurrente_no_sobrescribe_otro_operador(self):
         def editar(etapa):
             return lambda actor: actualizar_etapa(concurso_id=self.concurso.pk, etapa=etapa, usuario=actor, version_esperada=1)

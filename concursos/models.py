@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.core.validators import RegexValidator
 from django.urls import reverse
-from core.validators import validar_cambio, validar_expediente
+from core.validators import validar_cambio, validar_expediente, validar_codigo_presupuestario
 
 from .choices import EstadoConcurso, ModalidadConcurso, SituacionAdministrativa
 from .catalogos import AGRUPAMIENTOS, CATEGORIAS, tramo_para
@@ -116,6 +116,11 @@ class Concurso(models.Model):
                 validar_cambio(self, "expediente", validar_expediente)
             except ValidationError as error:
                 errores["expediente"] = error
+        if self.codigo_presupuestario:
+            try:
+                validar_cambio(self, "codigo_presupuestario", validar_codigo_presupuestario)
+            except ValidationError as error:
+                errores["codigo_presupuestario"] = error
         if self.agrupamiento and self.categoria:
             try:
                 esperado = tramo_para(self.agrupamiento, self.categoria)

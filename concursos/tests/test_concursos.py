@@ -18,7 +18,7 @@ DATOS = {
     "expediente": "01-1-2026", "modalidad": "cerrado_interno",
     "denominacion": "Auxiliar de biblioteca", "funciones": "Organizar material de prueba",
     "agrupamiento": "03", "categoria": "5",
-    "tramo": "Intermedio", "codigo_presupuestario": "COD-PRUEBA-001",
+    "tramo": "Intermedio", "codigo_presupuestario": "10972",
     "unidad": "Unidad de prueba", "dependencia": "Dependencia de prueba",
     "cadena_jerarquica": "Unidad de prueba / Dependencia de prueba",
 }
@@ -90,6 +90,57 @@ class ConcursoTests(TestCase):
         concurso.resolucion_convocatoria = "3278/26-CS"
         with self.assertRaises(ValidationError):
             concurso.full_clean()
+
+    def test_sugerencia_convocado_requiere_resolucion_oficial_y_estado_preparacion(self):
+        concurso = self.concurso()
+        detalle_url = concurso.get_absolute_url()
+        estado_url = self.url("estado", concurso)
+        self.assertNotContains(self.client.get(detalle_url), "Revisar estado «Convocado»")
+        sin_resolucion = self.client.get(estado_url, {"sugerencia": "convocatoria"})
+        self.assertEqual(sin_resolucion.context["form"].initial["estado"], EstadoConcurso.PREPARACION)
+
+        concurso = services.editar_concurso(
+            pk=concurso.pk, datos={"resolucion_convocatoria": "2339/26-R"},
+            usuario=self.operador, version_esperada=concurso.version,
+        )
+        respuesta = self.client.get(detalle_url)
+        self.assertContains(respuesta, "Revisar estado «Convocado»")
+        self.assertContains(respuesta, "2339/26-R")
+        self.assertContains(respuesta, "?sugerencia=convocatoria")
+        sugerida = self.client.get(estado_url, {"sugerencia": "convocatoria"})
+        self.assertEqual(sugerida.context["form"].initial["estado"], EstadoConcurso.CONVOCADO)
+        self.assertIn("2339/26-R", sugerida.context["form"].initial["justificacion"])
+        concurso.refresh_from_db()
+        self.assertEqual(concurso.estado, EstadoConcurso.PREPARACION)
+        self.assertEqual(concurso.historial.count(), 1)  # Consultar sugerencia no genera actos.
+
+        confirmado = self.cambio(
+            concurso, estado=EstadoConcurso.CONVOCADO,
+            justificacion=sugerida.context["form"].initial["justificacion"],
+        )
+        self.assertEqual(confirmado.status_code, 302)
+        concurso.refresh_from_db()
+        self.assertEqual(concurso.estado, EstadoConcurso.CONVOCADO)
+        evento = concurso.historial.latest("pk")
+        self.assertEqual(evento.usuario, self.operador)
+        self.assertEqual(evento.estado_nuevo, EstadoConcurso.CONVOCADO)
+        self.assertIn("2339/26-R", evento.justificacion)
+        self.assertNotContains(self.client.get(detalle_url), "Revisar estado «Convocado»")
+        ya_convocado = self.client.get(estado_url, {"sugerencia": "convocatoria"})
+        self.assertEqual(ya_convocado.context["form"].initial["estado"], EstadoConcurso.CONVOCADO)
+        self.assertNotIn("justificacion", ya_convocado.context["form"].initial)
+
+    def test_sugerencia_convocado_no_otorga_permiso_para_cambiar_estado(self):
+        concurso = self.concurso(resolucion_convocatoria="2339/26-R")
+        self.login(self.lector)
+        respuesta = self.client.get(concurso.get_absolute_url())
+        self.assertContains(respuesta, "Revisar estado «Convocado»")
+        self.assertContains(respuesta, "requiere un usuario con permiso")
+        self.assertNotContains(respuesta, "Revisar y confirmar cambio de estado")
+        self.assertEqual(self.client.get(self.url("estado", concurso), {"sugerencia": "convocatoria"}).status_code, 403)
+        concurso.refresh_from_db()
+        self.assertEqual(concurso.estado, EstadoConcurso.PREPARACION)
+        self.assertEqual(concurso.historial.count(), 1)
 
     def test_alta_inicial_auditada_e_ignora_campos_no_editables(self):
         response = self.client.post(reverse("concursos:crear"), {
@@ -270,7 +321,7 @@ class ConcursoTests(TestCase):
     def test_busqueda_por_expediente_cargo_funciones_y_codigo(self):
         concurso = self.concurso()
         self.concurso(expediente="02-2-2026", denominacion="Otro cargo", funciones="Otras tareas", codigo_presupuestario="OTRO")
-        for q in ("01-1", "biblioteca", "material", "COD-PRUEBA"):
+        for q in ("01-1", "biblioteca", "material", "10972"):
             with self.subTest(q=q):
                 response = self.client.get(reverse("concursos:lista"), {"q": q.lower()})
                 self.assertEqual([c.pk for c in response.context["concursos"]], [concurso.pk])
@@ -294,7 +345,8 @@ class ConcursoTests(TestCase):
         self.assertContains(self.client.get(reverse("concursos:lista")), "No hay concursos para mostrar")
         self.concurso()
         response = self.client.get(reverse("concursos:lista"), {"q": "sin coincidencia"})
-        self.assertContains(response, "No hay concursos para mostrar")
+        self.assertContains(response, "No se encontraron concursos")
+        self.assertContains(response, "Limpiar filtros")
 
     def test_paginacion_conserva_busqueda_y_filtro(self):
         for _ in range(21):
@@ -410,3 +462,20 @@ class ConcursoTests(TestCase):
             concurso.delete()
         with self.assertRaises(ProtectedError):
             self.operador.delete()
+
+    def test_codigo_presupuestario_cinco_caracteres_y_legado_intacto(self):
+        response = self.client.post(reverse("concursos:crear"), {**DATOS, "codigo_presupuestario": "123456"})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("codigo_presupuestario", response.context["form"].errors)
+        self.assertEqual(Concurso.objects.count(), 0)
+        concurso = self.concurso()
+        Concurso.objects.filter(pk=concurso.pk).update(codigo_presupuestario="CODIGO-HISTORICO")
+        concurso.refresh_from_db()
+        self.assertContains(self.client.get(self.url("editar", concurso)), 'maxlength="5"')
+        response = self.client.post(self.url("editar", concurso), {
+            **DATOS, "codigo_presupuestario": "CODIGO-HISTORICO",
+            "version_esperada": concurso.version,
+        })
+        self.assertEqual(response.status_code, 302)
+        concurso.refresh_from_db()
+        self.assertEqual(concurso.codigo_presupuestario, "CODIGO-HISTORICO")

@@ -144,7 +144,11 @@ class AjustesAspirantesTests(TestCase):
             fields = clase().fields
             self.assertEqual(fields["telefono"].widget.input_type, "tel")
             self.assertEqual(fields["email"].widget.input_type, "email")
-            self.assertNotIn("data-mask", fields["telefono"].widget.attrs)
+            attrs = fields["telefono"].widget.attrs
+            self.assertEqual(attrs["data-mask"], "telefono")
+            self.assertEqual(attrs["maxlength"], 11)
+            self.assertEqual(attrs["placeholder"], "999-9999999")
+            self.assertEqual(attrs["pattern"], r"[0-9]{3}-[0-9]{7}")
         self.assertEqual(AspiranteEdicionForm().fields["email"].widget.input_type, "email")
 
     def test_servicio_compara_dni_normalizado_antes_de_rechazar_cambio_compartido(self):

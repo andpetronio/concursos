@@ -39,11 +39,12 @@ class WorkspacePresentationTests(TestCase):
         self.user.user_permissions.set(Permission.objects.filter(codename__in=permissions))
         self.client.post(reverse("login"), {"username": self.user.username, "password": PASSWORD})
 
-    def test_login_identity_artwork_slot_and_independent_layout(self):
+    def test_login_identity_without_placeholder_and_independent_layout(self):
         response = self.client.get(reverse("login") + "?expired=1&next=/concursos/")
         self.assertContains(response, "SiCon")
-        self.assertContains(response, 'class="artwork-slot"')
-        self.assertContains(response, "ilustración abstracta")
+        self.assertContains(response, "La gestión de concursos")
+        self.assertNotContains(response, 'class="artwork-slot"')
+        self.assertNotContains(response, "Espacio reservado para ilustración abstracta")
         self.assertContains(response, 'name="next" value="/concursos/"')
         self.assertContains(response, "Tu sesión venció por inactividad")
         self.assertNotContains(response, "navigation.js")

@@ -1,26 +1,18 @@
 <section class="section documentary-workspace" id="control-documental" aria-labelledby="documental-heading">
-  {% include "components/form_section_header.html" with heading_id="documental-heading" title="Control documental" description="Consultá los requisitos del expediente y abrí solo el que necesites registrar o corregir." only %}
+  {% include "components/form_section_header.html" with heading_id="documental-heading" title="Control documental" description="Activá cada verificación y completá las fojas cuando corresponda. Los cambios válidos se guardan automáticamente y quedan registrados en el historial." only %}
   <div class="card document-summary">
     <div class="document-summary-top">
       <div>
-        <p class="document-summary-count"><strong>{{ documentacion.completos|length }} de {{ documentacion.total }} requisitos completos</strong></p>
-        <p class="field-help">{{ documentacion.pendientes_exigibles|length }} pendientes exigibles · {{ documentacion.no_registrados_futuros|length }} sin completar en etapas futuras</p>
+        <p class="document-summary-count"><strong><span data-document-complete-count>{{ documentacion.completos|length }}</span> de {{ documentacion.total }} requisitos completos</strong></p>
+        <p class="field-help"><span data-document-pending-count>{{ documentacion.pendientes_exigibles|length }}</span> pendientes exigibles · <span data-document-future-count>{{ documentacion.no_registrados_futuros|length }}</span> sin completar en etapas futuras</p>
       </div>
       <div class="document-current-stage">
         <span class="document-meta-label">Etapa documental</span>
-        <strong>{{ documentacion.seguimiento.get_etapa_display }}</strong>
+        <strong data-document-stage-name>{{ documentacion.seguimiento.get_etapa_display }}</strong>
       </div>
     </div>
-    <div class="document-summary-guidance">
-      {% if documentacion.habilitacion.habilitado %}
-        <p>{% include "components/status.html" with label="Requisitos previos de convocatoria completos" %}</p>
-        <p class="field-help">La documentación previa y los demás datos exigidos están completos para preparar el proyecto. Esto no acredita una resolución emitida ni modifica el estado administrativo.</p>
-      {% else %}
-        <p>{% include "components/status.html" with label="Documentación previa pendiente" %}</p>
-        <details class="document-summary-details"><summary>Ver requisitos que faltan para preparar el proyecto ({{ documentacion.habilitacion.faltantes|length }})</summary>
-          <ul>{% for pendiente in documentacion.habilitacion.faltantes %}<li>{{ pendiente }}</li>{% endfor %}</ul>
-        </details>
-      {% endif %}
+    <div class="document-summary-guidance" data-document-guidance>
+      {% include "expedientes/habilitacion_resumen.html" %}
     </div>
     {% if perms.expedientes.change_controldocumental %}
       <details class="document-stage-editor" {% if form_etapa_documental.errors %}open{% endif %}>
@@ -36,7 +28,7 @@
     {% endif %}
     <div class="document-summary-footer">
       <a href="{% url 'concursos:etapa_historial' concurso.pk %}">Ver historial de etapas</a>
-      <span class="field-help">La etapa es independiente del estado administrativo del concurso. Los requisitos de la etapa y las anteriores son exigibles.</span>
+      <span class="field-help">Al completar los cinco requisitos previos, la etapa pasa automáticamente de Preparación a Convocatoria. Esto no cambia el estado administrativo ni emite una resolución. Un regreso manual a Preparación se respeta.</span>
     </div>
     {% if documentacion.advertencias %}
       <details class="notice" open><summary>Documentación registrada fuera de la secuencia orientativa</summary><ul>{% for aviso in documentacion.advertencias %}<li>{{ aviso }}</li>{% endfor %}</ul><p>El orden es orientativo y no impide registrar los documentos.</p></details>
@@ -51,7 +43,7 @@
     <section class="card section document-section" aria-labelledby="documental-seccion-{{ seccion.codigo }}">
       <div class="document-section-heading">
         <h3 id="documental-seccion-{{ seccion.codigo }}">{{ seccion.nombre }}</h3>
-        <span class="document-section-progress" aria-label="{{ seccion.completos }} de {{ seccion.total }} requisitos completos">{{ seccion.completos }}/{{ seccion.total }} completos</span>
+        <span class="document-section-progress" data-document-section-progress="{{ seccion.codigo }}" aria-label="{{ seccion.completos }} de {{ seccion.total }} requisitos completos">{{ seccion.completos }}/{{ seccion.total }} completos</span>
       </div>
       <div class="document-section-list">
         {% for fila in seccion.filas %}{% include "expedientes/control_fila.html" %}{% endfor %}
