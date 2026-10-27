@@ -59,9 +59,50 @@ class DetailPresentationTests(TestCase):
             self.assertContains(response, label)
         self.assertContains(response, "independiente del control documental")
         for label, value in response.context["datos_concurso"]:
-            self.assertContains(response, str(value))
+            if value is None or value == "":
+                self.assertContains(response, "No registrado")
+            else:
+                self.assertContains(response, str(value))
         self.assertTemplateUsed(response, "expedientes/checklist.html")
         self.assertTemplateUsed(response, "documentos/seccion.html")
+
+    def test_detail_groups_cover_all_fields_and_preserve_administrative_structure(self):
+        from concursos.models import Concurso
+
+        response = self.detail()
+        grupos = response.context["grupos_datos_concurso"]
+        codigos = [campo["codigo"] for grupo in grupos for campo in grupo["campos"]]
+        self.assertCountEqual(codigos, (*Concurso.DATOS_EDITABLES, "tramo"))
+        self.assertEqual(len(codigos), len(set(codigos)))
+        self.assertContains(response, 'class="record-detail-groups"')
+        self.assertContains(response, "Estructura administrativa")
+        for codigo in ("unidad", "articulo_unidad", "dependencia", "articulo_dependencia",
+                       "cadena_jerarquica", "articulo_superior"):
+            self.assertIn(codigo, [campo["codigo"] for campo in grupos[1]["campos"]])
+
+    def test_quick_missing_list_keeps_all_requisites_and_deep_links(self):
+        response = self.detail()
+        self.assertContains(response, 'data-document-quick-list')
+        self.assertContains(response, 'data-document-quick-item=', count=21)
+        self.assertContains(response, "Ver documentos faltantes")
+        for seccion in response.context["secciones_documentales"]:
+            for fila in seccion["filas"]:
+                self.assertContains(response, f'href="#documental-{fila["control"].pk}"')
+        self.assertContains(response, 'data-document-quick-stage')
+
+    def test_edit_form_groups_articles_with_corresponding_administrative_units(self):
+        response = self.client.get(reverse("concursos:editar", args=[self.concurso.pk]))
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        ids = ("estructura-unidad-title", "estructura-dependencia-title", "estructura-superior-title")
+        segmentos = [html.split(f'id="{identifier}"', 1)[1] for identifier in ids]
+        segmentos = [segmentos[0].split(f'id="{ids[1]}"', 1)[0],
+                    segmentos[1].split(f'id="{ids[2]}"', 1)[0], segmentos[2].split('class="form-grid structure-extras"', 1)[0]]
+        for segmento, campos in zip(segmentos, (("unidad", "articulo_unidad"),
+                                               ("dependencia", "articulo_dependencia"),
+                                               ("cadena_jerarquica", "articulo_superior"))):
+            for campo in campos:
+                self.assertIn(f'name="{campo}"', segmento)
 
     def test_index_targets_unique_and_existing_fragment_ids_preserved(self):
         response = self.detail("?page=1&origen=prueba")

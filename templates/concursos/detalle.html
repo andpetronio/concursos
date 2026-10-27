@@ -52,8 +52,28 @@
 
 <div data-detail-panel id="panel-datos-concurso">
 <section id="datos-concurso" class="card section" tabindex="-1" aria-labelledby="datos-heading">
-  <h2 id="datos-heading">Datos generales, cargo y estructura</h2>
-  <dl class="detail-list record-details">{% for label, value in datos_concurso %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}</dl>
+  <div class="record-detail-heading">
+    <h2 id="datos-heading">Datos del concurso</h2>
+    <p class="field-help">Información registrada y organizada según su función administrativa.</p>
+    {% if perms.concursos.change_concurso %}
+      <a class="button button-secondary" href="{% url 'concursos:editar' concurso.pk %}">Editar datos</a>
+    {% endif %}
+  </div>
+  <div class="record-detail-groups">
+    {% for grupo in grupos_datos_concurso %}
+      <section class="record-detail-group" aria-labelledby="datos-grupo-{{ forloop.counter }}">
+        <h3 id="datos-grupo-{{ forloop.counter }}">{{ grupo.titulo }}</h3>
+        <dl class="record-detail-fields">
+          {% for campo in grupo.campos %}
+            <div class="record-detail-field{% if campo.amplio %} record-detail-field--wide{% endif %}">
+              <dt>{{ campo.etiqueta }}</dt>
+              <dd>{% if campo.valor or campo.valor == 0 %}{{ campo.valor }}{% else %}<span class="record-detail-empty">No registrado</span>{% endif %}</dd>
+            </div>
+          {% endfor %}
+        </dl>
+      </section>
+    {% endfor %}
+  </div>
   {% if concurso.modalidad == 'acotado' %}{% include "concursos/referencia_acotado.html" %}{% endif %}
 </section>
 </div>

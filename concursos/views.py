@@ -61,10 +61,35 @@ class ConcursoDetailView(AccesoConcursoMixin, DetailView):
         from participantes.models import Aspirante, Jurado, Veedor
 
         context = super().get_context_data(**kwargs)
-        context["datos_concurso"] = [
-            (self.object._meta.get_field(campo).verbose_name.capitalize(),
-             getattr(self.object, f"get_{campo}_display", lambda: getattr(self.object, campo))())
+        datos_por_campo = {
+            campo: (
+                self.object._meta.get_field(campo).verbose_name.capitalize(),
+                getattr(self.object, f"get_{campo}_display", lambda: getattr(self.object, campo))(),
+            )
             for campo in (*Concurso.DATOS_EDITABLES, "tramo")
+        }
+        # Conservar el contrato histórico de contexto, utilizado por otras pruebas.
+        context["datos_concurso"] = list(datos_por_campo.values())
+        secciones = (
+            ("Identificación y cargo", ("expediente", "modalidad", "denominacion", "agrupamiento",
+                                         "categoria", "tramo", "codigo_presupuestario", "funciones")),
+            ("Estructura administrativa", ("unidad", "articulo_unidad", "dependencia",
+                                           "articulo_dependencia", "cadena_jerarquica", "articulo_superior",
+                                           "jurisdiccion")),
+            ("Jornada y lugar de trabajo", ("turno_trabajo", "domicilio_trabajo")),
+            ("Antecedentes de vacancia", ("causa_vacancia", "ex_titular", "fecha_baja", "motivo_baja",
+                                          "acto_vacancia", "detalle_vacancia", "resolucion_baja")),
+            ("Inicio del expediente", ("iniciador_tratamiento", "articulo_iniciador",
+                                      "iniciador_nombre", "iniciador_cargo")),
+            ("Resolución oficial", ("resolucion_convocatoria",)),
+        )
+        context["grupos_datos_concurso"] = [
+            {"titulo": titulo, "campos": [
+                {"codigo": campo, "etiqueta": datos_por_campo[campo][0], "valor": datos_por_campo[campo][1],
+                 "amplio": campo in ("funciones", "cadena_jerarquica", "detalle_vacancia")}
+                for campo in campos
+            ]}
+            for titulo, campos in secciones
         ]
         context["page_obj"] = Paginator(self.object.historial.select_related("usuario"), 20).get_page(
             self.request.GET.get("page")

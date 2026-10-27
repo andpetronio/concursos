@@ -34,17 +34,28 @@
   </fieldset>
   <fieldset class="card form-section" aria-labelledby="estructura-heading">
     {% include "components/form_section_header.html" with heading_id="estructura-heading" title="Estructura administrativa" description="Registrá la unidad, dependencia y cadena jerárquica aplicables a este concurso." only %}
-    <div class="form-grid">
-      {% include "components/field.html" with field=form.unidad %}
-      {% include "components/field.html" with field=form.dependencia %}
-      {% include "components/field.html" with field=form.cadena_jerarquica extra_class="field--full" %}
+    <p class="field-help">Cada artículo se elige junto al nombre que acompaña. Estos datos se utilizan para redactar correctamente los documentos.</p>
+    <div class="structure-groups">
+      <section class="structure-pair" aria-labelledby="estructura-unidad-title">
+        <h3 id="estructura-unidad-title">Unidad</h3>
+        {% include "components/field.html" with field=form.unidad %}
+        {% include "components/field.html" with field=form.articulo_unidad %}
+      </section>
+      <section class="structure-pair" aria-labelledby="estructura-dependencia-title">
+        <h3 id="estructura-dependencia-title">Dependencia inmediata</h3>
+        {% include "components/field.html" with field=form.dependencia %}
+        {% include "components/field.html" with field=form.articulo_dependencia %}
+      </section>
+      <section class="structure-pair" aria-labelledby="estructura-superior-title">
+        <h3 id="estructura-superior-title">Dependencia superior</h3>
+        {% include "components/field.html" with field=form.cadena_jerarquica %}
+        {% include "components/field.html" with field=form.articulo_superior %}
+      </section>
+    </div>
+    <div class="form-grid structure-extras">
       {% include "components/field.html" with field=form.jurisdiccion %}
-      <p class="field-help">Los artículos se eligen por separado y se usan en el DOCX para formar «en el», «en la», «del» y «de la».</p>
-      {% include "components/field.html" with field=form.articulo_unidad %}
-      {% include "components/field.html" with field=form.articulo_dependencia %}
-      {% include "components/field.html" with field=form.articulo_superior %}
       {% include "components/field.html" with field=form.turno_trabajo %}
-      {% include "components/field.html" with field=form.domicilio_trabajo %}
+      {% include "components/field.html" with field=form.domicilio_trabajo extra_class="field--full" %}
     </div>
   </fieldset>
   <fieldset class="card form-section" aria-labelledby="vacancia-heading">

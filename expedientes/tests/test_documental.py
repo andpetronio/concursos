@@ -431,7 +431,7 @@ class DocumentalTests(TestCase):
         self.assertContains(response, "<span data-document-complete-count>0</span> de 21 requisitos completos")
         self.assertContains(response, 'aria-label="Verificado: Certificación de vacancia del cargo"')
         self.assertContains(response, '/control-documental/etapa/#control-documental')
-        self.assertContains(response, "No registrado", count=16)
+        self.assertContains(response, 'class="document-control-status document-control-status--no-registrado"', count=16)
         self.assertContains(response, "Pendiente exigible", count=5)
         self.assertNotContains(response, "Control documental · No disponible")
         self.guardar("vacancia", observaciones="<script>prueba</script>")

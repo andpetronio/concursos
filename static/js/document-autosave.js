@@ -35,6 +35,32 @@
     });
   }
 
+  function actualizarPendientesRapidos(etapaActual) {
+    const panel = document.querySelector('[data-document-quick-list]');
+    if (!panel) return;
+    const orden = ['preparacion', 'convocatoria', 'inscripciones', 'oposicion', 'finalizacion'];
+    const actual = orden.indexOf(etapaActual || panel.dataset.documentStageCode);
+    let pendientes = 0;
+    panel.querySelectorAll('[data-document-quick-group]').forEach(grupo => {
+      let visibles = 0;
+      grupo.querySelectorAll('[data-document-quick-item]').forEach(item => {
+        const fila = document.getElementById(`documental-${item.dataset.documentQuickItem}`);
+        const estado = fila?.querySelector('[data-document-state]');
+        item.hidden = !estado || estado.classList.contains('document-control-status--completo');
+        if (!item.hidden) { visibles++; pendientes++; }
+      });
+      grupo.hidden = visibles === 0;
+      const etiqueta = grupo.querySelector('[data-document-quick-stage]');
+      if (etiqueta) etiqueta.textContent = orden.indexOf(grupo.dataset.documentQuickGroup) <= actual
+        ? 'Exigible' : 'Etapa futura';
+    });
+    const cuenta = panel.querySelector('[data-document-quick-count]');
+    if (cuenta) cuenta.textContent = String(pendientes);
+    const vacio = panel.querySelector('[data-document-quick-empty]');
+    if (vacio) vacio.hidden = pendientes !== 0;
+    if (etapaActual) panel.dataset.documentStageCode = etapaActual;
+  }
+
   forms.forEach(form => {
     const status = form.querySelector('[data-document-auto-status]');
     const retry = form.querySelector('[data-document-auto-retry]');
@@ -155,6 +181,7 @@
         etiqueta.className = `document-control-status document-control-status--${valor.clase}`;
       });
       actualizarResumen(data.totales);
+      actualizarPendientesRapidos(data.etapa_documental?.codigo);
       const guidance = document.querySelector('[data-document-guidance]');
       if (guidance && typeof data.habilitacion_html === 'string') guidance.innerHTML = data.habilitacion_html;
     };

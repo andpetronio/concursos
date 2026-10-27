@@ -11,6 +11,30 @@
         <strong data-document-stage-name>{{ documentacion.seguimiento.get_etapa_display }}</strong>
       </div>
     </div>
+    <details class="document-quick-missing" data-document-quick-list data-document-stage-code="{{ documentacion.seguimiento.etapa }}">
+      <summary>Ver documentos faltantes <span class="document-quick-count" data-document-quick-count>{{ documentacion.pendientes|length }}</span></summary>
+      <div class="document-quick-content">
+        <p class="field-help">Accedé directamente al requisito pendiente. Los de etapas futuras también se incluyen; no todos son exigibles ahora.</p>
+        <div class="document-quick-scroll">
+          {% for seccion in secciones_documentales %}
+            <div class="document-quick-group" data-document-quick-group="{{ seccion.codigo }}"{% if seccion.completos == seccion.total %} hidden{% endif %}>
+              <h4>{{ seccion.nombre }} <span class="document-quick-stage" data-document-quick-stage>
+                {% if seccion.codigo in documentacion.secciones_exigibles %}Exigible{% else %}Etapa futura{% endif %}
+              </span></h4>
+              <ul>
+                {% for fila in seccion.filas %}
+                  <li data-document-quick-item="{{ fila.control.pk }}"{% if fila.control.completo %} hidden{% endif %}>
+                    <a href="#documental-{{ fila.control.pk }}">{{ fila.numero }}. {{ fila.requisito.nombre }}</a>
+                    {% if fila.control.verificado and not fila.control.completo %}<span class="field-help">Foja o datos pendientes</span>{% endif %}
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endfor %}
+        </div>
+        <p class="field-help document-quick-empty" data-document-quick-empty{% if documentacion.pendientes %} hidden{% endif %}>No hay documentos pendientes.</p>
+      </div>
+    </details>
     <div class="document-summary-guidance" data-document-guidance>
       {% include "expedientes/habilitacion_resumen.html" %}
     </div>
