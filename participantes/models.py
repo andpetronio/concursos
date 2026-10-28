@@ -138,3 +138,49 @@ class Aspirante(Participacion):
         ordering = ["persona__apellido", "persona__nombre", "pk"]
         default_permissions = ()
         constraints = [models.UniqueConstraint(fields=["concurso", "persona"], name="aspirante_persona_unica")]
+
+
+class EvaluacionAspirante(models.Model):
+    """Puntajes acreditados por el jurado; no constituyen un dictamen por sí solos."""
+
+    aspirante = models.OneToOneField(Aspirante, on_delete=models.PROTECT, related_name="evaluacion")
+    antecedentes = models.DecimalField("puntaje de antecedentes", max_digits=5, decimal_places=2)
+    oposicion = models.DecimalField("puntaje de oposición", max_digits=5, decimal_places=2)
+    version = models.PositiveIntegerField(default=1, editable=False)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+    creado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="evaluaciones_creadas")
+    actualizado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="evaluaciones_actualizadas")
+
+    class Meta:
+        default_permissions = ()
+
+    @property
+    def total(self):
+        return self.antecedentes + self.oposicion
+
+    def clean(self):
+        super().clean()
+        from .evaluaciones import MAX_ANTECEDENTES, MAX_OPOSICION
+        for nombre, maximo in (("antecedentes", MAX_ANTECEDENTES), ("oposicion", MAX_OPOSICION)):
+            valor = getattr(self, nombre, None)
+            if valor is not None and not (0 <= valor <= maximo):
+                raise ValidationError({nombre: f"El puntaje debe estar entre 0 y {maximo}."})
+
+
+class CambioEvaluacion(models.Model):
+    """Auditoría de correcciones, sin sobrescribir el antes/después."""
+
+    evaluacion = models.ForeignKey(EvaluacionAspirante, on_delete=models.PROTECT, related_name="cambios")
+    antecedentes_antes = models.DecimalField(max_digits=5, decimal_places=2, null=True)
+    oposicion_antes = models.DecimalField(max_digits=5, decimal_places=2, null=True)
+    antecedentes_despues = models.DecimalField(max_digits=5, decimal_places=2)
+    oposicion_despues = models.DecimalField(max_digits=5, decimal_places=2)
+    motivo = models.TextField(max_length=1000, blank=True)
+    version = models.PositiveIntegerField()
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-fecha", "-pk"]
+        default_permissions = ()

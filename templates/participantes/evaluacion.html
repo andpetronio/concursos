@@ -1,0 +1,37 @@
+{% extends "layouts/private.html" %}
+{% block title %}Evaluación del aspirante · {{ concurso.expediente }}{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'concursos:detalle' concurso.pk %}#aspirantes">Volver a Aspirantes</a>
+{% include "components/page_header.html" with section="Aspirantes" title=title description=concurso.expediente %}
+<section class="card section">
+  <div class="participant-form-identity">
+    <span class="field-help">Aspirante evaluado</span>
+    <strong>{{ identity.apellido }}, {{ identity.nombre }}</strong>
+    <span>DNI {{ identity.dni }}</span>
+  </div>
+  <p class="field-help">Escala de trabajo sin desempeño laboral: antecedentes /{{ max_antecedentes }}, oposición /{{ max_oposicion }}, mínimo {{ minimo_merito }} sobre 85. Cargá los puntajes tal como figuran en el dictamen, sin convertir automáticamente escalas.</p>
+  <form method="post">
+    {% csrf_token %}
+    {% for field in form.hidden_fields %}{{ field }}{{ field.errors }}{% endfor %}
+    {% include "components/form_errors.html" %}
+    <div class="form-grid">
+      {% for field in form.visible_fields %}{% include "components/field.html" with field=field %}{% endfor %}
+    </div>
+    <div class="form-actions"><button class="button" type="submit">Guardar evaluación</button></div>
+  </form>
+</section>
+{% if cambios %}
+<section class="card section">
+  <h2>Historial de evaluación</h2>
+  <div class="table-region"><table class="data-table">
+    <thead><tr><th>Fecha y responsable</th><th>Antecedentes antes → después</th><th>Oposición antes → después</th><th>Motivo</th></tr></thead>
+    <tbody>{% for cambio in cambios %}<tr>
+      <td>{{ cambio.fecha|date:"d/m/Y H:i" }} · {{ cambio.usuario.get_username }}</td>
+      <td>{{ cambio.antecedentes_antes|default_if_none:"Sin registrar" }} → {{ cambio.antecedentes_despues }}</td>
+      <td>{{ cambio.oposicion_antes|default_if_none:"Sin registrar" }} → {{ cambio.oposicion_despues }}</td>
+      <td>{{ cambio.motivo|default:"Registro inicial" }}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endif %}
+{% endblock %}

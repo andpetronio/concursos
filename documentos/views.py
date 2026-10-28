@@ -7,7 +7,7 @@ import hashlib
 from django.shortcuts import get_object_or_404, redirect
 from django.views.generic import FormView, TemplateView, View
 from concursos.models import Concurso
-from concursos.views import AccesoConcursoMixin
+from concursos.views import AccesoConcursoMixin, ConcursoDetailView
 from . import services
 from .forms import DestinatarioForm, DestinatarioPersonalForm, MembreteInstitucionalForm, GeneracionForm, GRUPOS_CONVOCATORIA
 from .models import DestinatarioAPUNSJ, DestinatarioPersonal, MembreteInstitucional, GeneracionDocumento
@@ -179,6 +179,50 @@ class GeneracionView(AccesoConcursoMixin, FormView):
             return self.form_invalid(form)
         messages.success(self.request, "Borrador generado y conservado sin modificar el expediente ni el estado del concurso.")
         return redirect("documentos:descargar", pk=generacion.concurso_id, documento_id=generacion.pk)
+
+
+class GeneracionEnFichaView(ConcursoDetailView):
+    """Genera desde una tarjeta de la ficha. Errores vuelven a la misma ficha.
+
+    La revisión antigua sigue disponible por URL para enlaces históricos, pero
+    ya no forma parte del recorrido normal.
+    """
+    permission_required = services.PERMISOS_GENERACION
+    http_method_names = ["post", "options"]
+
+    def post(self, request, *args, **kwargs):
+        tipo = POR_CODIGO.get(kwargs["tipo"])
+        if tipo is None:
+            raise Http404
+        self.object = self.get_object()
+        form = GeneracionForm(
+            request.POST, prefix=tipo.codigo, tipo=tipo, concurso=self.object,
+            acotado=self.object.modalidad == "acotado" and tipo.codigo != "apunsj",
+        )
+        if form.is_valid():
+            datos = dict(form.cleaned_data)
+            versiones = {k: datos.pop(k) for k in (
+                "version_concurso", "version_destinatario", "revision_administrativa", "huella_esperada"
+            )}
+            complementarios = {
+                campo: request.POST.get(form.add_prefix(campo), "")
+                for campo in form.fields if campo not in versiones
+            }
+            try:
+                generacion = services.generar(
+                    complementarios=complementarios, concurso_id=self.object.pk,
+                    tipo_codigo=tipo.codigo, usuario=request.user, **versiones,
+                )
+            except ValidationError as error:
+                form.add_error(None, error)
+            else:
+                messages.success(request, "Borrador generado y conservado. No se emitió ningún acto administrativo.")
+                return redirect("documentos:descargar", pk=generacion.concurso_id, documento_id=generacion.pk)
+        self.generacion_error_tipo = tipo.codigo
+        self.generacion_error_form = form
+        # Mostrar los errores al lado de los campos originales, sin navegar
+        # a la pantalla de revisión ni descartar lo ingresado.
+        return self.render_to_response(self.get_context_data(), status=400)
 
 
 class DescargaView(AccesoConcursoMixin, View):

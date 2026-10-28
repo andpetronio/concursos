@@ -42,6 +42,13 @@
   {% if disponibilidad.tipo.codigo == 'apunsj' and perms.documentos.configurar_institucion %}<a href="{% url 'documentos:configuracion_apunsj' %}">Administrar destinatario de APUNSJ</a>{% endif %}
 </section>
 
+{% if disponibilidad.tipo.codigo == "desierto_inscriptos" %}
+<section class="card section" aria-label="Alcance del proyecto por falta de aspirantes">
+  <h2>Constancia y nuevo llamado</h2>
+  <p>SiCon utiliza la resolución oficial de convocatoria y el acta de inscriptos verificada con sus fojas. La ausencia de aspirantes cargados, por sí sola, no acredita la falta de inscriptos.</p>
+  <p><strong>Proyecto sujeto a revisión:</strong> declara desierto el concurso y dispone tramitar la siguiente modalidad; no emite ni firma el acto y no crea ni convoca otro concurso.</p>
+</section>
+{% endif %}
 {% if grupos_convocatoria %}
 <section class="card section" aria-labelledby="resumen-convocatoria-heading">
   {% include "components/form_section_header.html" with heading_id="resumen-convocatoria-heading" title="Datos del concurso" description="Se recuperan automáticamente de la ficha; no tenés que volver a cargarlos." only %}

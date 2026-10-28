@@ -180,7 +180,7 @@ class ParticipanteTests(TestCase):
         response = self.client.get(self.concurso.get_absolute_url())
         for titulo in ("Integrantes del jurado", "Veedores de APUNSJ", "Aspirantes"):
             self.assertContains(response, f'<caption class="visually-hidden">{titulo}</caption>')
-        self.assertContains(response, "Apellido Ficticio, Nombre Ficticio", count=3)
+        self.assertContains(response, "<strong>Apellido Ficticio, Nombre Ficticio</strong>", count=3)
 
     def test_seis_plazas_independientes_y_sin_resultados_automaticos(self):
         for numero, representacion in enumerate(Jurado.Representacion.values):

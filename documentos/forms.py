@@ -85,7 +85,19 @@ class GeneracionForm(forms.Form):
                         self.fields[nombre] = forms.CharField(label=etiqueta, required=True, max_length=largo,
                             widget=forms.Textarea(attrs={"rows": 3}) if largo > 300 else forms.TextInput(),
                             help_text="Ingresá el texto completo acreditado para este concurso; no se presume ningún hecho del modelo.")
-            if tipo.codigo in POSTERIORES:
+            if tipo.codigo == "desierto_inscriptos":
+                self.fields["confirmacion_acta_sin_inscriptos"] = forms.BooleanField(
+                    required=True,
+                    label="Confirmo que el acta de cierre de inscripciones acredita que no se presentaron aspirantes",
+                    help_text="Verificá el contenido del acta y las fojas del expediente. No basta con que SiCon tenga cero aspirantes cargados.")
+            if tipo.codigo == "dictamen":
+                # El orden ordinario surge de evaluaciones estructuradas, no de un textarea libre.
+                del self.fields["merito"]
+                self.fields["confirmacion_sin_recursos"] = forms.BooleanField(
+                    label="Confirmo que no hay recursos contra el dictamen pendientes de resolución",
+                    required=True,
+                    help_text="Este modelo corresponde a la aprobación ordinaria. No sustituye la verificación del expediente.")
+            if tipo.codigo == "designacion":
                 opciones = list(concurso.aspirantes.select_related("persona").all())
                 self.fields["merito"].help_text = "Una línea por puesto: puesto | ID de aspirante. IDs: " + "; ".join(
                     f"{a.pk}: {a.persona.apellido}, {a.persona.nombre}" for a in opciones)
@@ -106,7 +118,7 @@ class GeneracionForm(forms.Form):
 
     def clean(self):
         datos = super().clean()
-        if self.tipo and self.tipo.codigo in POSTERIORES and datos.get("merito"):
+        if self.tipo and self.tipo.codigo == "designacion" and datos.get("merito"):
             ids = set(self.concurso.aspirantes.values_list("pk", flat=True))
             posiciones, personas, orden = set(), set(), []
             try:

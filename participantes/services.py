@@ -73,3 +73,36 @@ def editar_persona(*, persona, datos, usuario, version_esperada):
     persona.full_clean()
     persona.save()
     return persona
+
+
+@transaction.atomic
+def guardar_evaluacion(*, aspirante, antecedentes, oposicion, usuario, version_esperada, motivo=""):
+    """Bloquea la inscripción: alta doble y edición simultánea son incompatibles."""
+    from .models import Aspirante, EvaluacionAspirante, CambioEvaluacion
+    if not usuario.has_perms(("concursos.view_concurso", "concursos.change_concurso")):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
+    locked = Aspirante.objects.select_for_update().get(pk=aspirante.pk)
+    actual = EvaluacionAspirante.objects.select_for_update().filter(aspirante=locked).first()
+    version = actual.version if actual else 0
+    if version != version_esperada:
+        raise ValidationError("Otro operador modificó esta evaluación. Volvé a abrir el formulario antes de guardar.")
+    if actual and (actual.antecedentes != antecedentes or actual.oposicion != oposicion) and not motivo.strip():
+        raise ValidationError("Indicá el motivo de la corrección de puntajes para conservar su trazabilidad.")
+    if actual and (actual.antecedentes, actual.oposicion) == (antecedentes, oposicion):
+        return actual
+    antes_a = actual.antecedentes if actual else None
+    antes_o = actual.oposicion if actual else None
+    evaluacion = actual or EvaluacionAspirante(aspirante=locked, creado_por=usuario)
+    evaluacion.antecedentes = antecedentes
+    evaluacion.oposicion = oposicion
+    evaluacion.actualizado_por = usuario
+    evaluacion.version = version + 1
+    evaluacion.full_clean()
+    evaluacion.save()
+    CambioEvaluacion.objects.create(
+        evaluacion=evaluacion, antecedentes_antes=antes_a, oposicion_antes=antes_o,
+        antecedentes_despues=antecedentes, oposicion_despues=oposicion,
+        motivo=motivo.strip(), version=evaluacion.version, usuario=usuario,
+    )
+    return evaluacion

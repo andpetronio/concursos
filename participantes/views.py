@@ -10,7 +10,7 @@ from concursos.views import AccesoConcursoMixin
 
 from . import services
 from .forms import (AspiranteAltaForm, AspiranteEdicionForm, JuradoAltaForm, JuradoEdicionForm,
-                    PersonaEdicionForm, VeedorAltaForm, VeedorEdicionForm)
+                    PersonaEdicionForm, VeedorAltaForm, VeedorEdicionForm, EvaluacionAspiranteForm)
 from .models import Aspirante, Jurado, Persona, Veedor
 
 
@@ -185,4 +185,54 @@ class PersonaEdicionView(ParticipanteFormView):
                            else "El DNI ya está registrado para otra persona.")
             return self.form_invalid(form)
         messages.success(self.request, "Los datos personales se actualizaron correctamente.")
+        return redirect(self.get_success_url())
+
+
+class EvaluacionAspiranteView(ParticipanteFormView):
+    permission_required = ("concursos.view_concurso", "concursos.change_concurso")
+    form_class = EvaluacionAspiranteForm
+    template_name = "participantes/evaluacion.html"
+    titulo = "Evaluación del aspirante"
+    descripcion = "Registrá los puntajes acreditados por el jurado. El total y el mérito se calculan automáticamente."
+    boton = "Guardar evaluación"
+
+    def get_aspirante(self):
+        if not hasattr(self, "aspirante"):
+            self.aspirante = get_object_or_404(
+                Aspirante.objects.select_related("persona"), pk=self.kwargs["participacion_id"],
+                concurso=self.get_concurso())
+        return self.aspirante
+
+    def get_evaluacion(self):
+        from .models import EvaluacionAspirante
+        return EvaluacionAspirante.objects.filter(aspirante=self.get_aspirante()).first()
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["evaluacion"] = self.get_evaluacion()
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        from .evaluaciones import MAX_ANTECEDENTES, MAX_OPOSICION, MINIMO_MERITO
+        return super().get_context_data(
+            identity=self.get_aspirante().persona,
+            max_antecedentes=MAX_ANTECEDENTES, max_oposicion=MAX_OPOSICION,
+            minimo_merito=MINIMO_MERITO, cambios=self.get_evaluacion().cambios.select_related("usuario")[:10]
+                if self.get_evaluacion() else [],
+            **kwargs)
+
+    def get_success_url(self):
+        return f'{reverse("concursos:detalle", args=[self.get_concurso().pk])}#aspirantes'
+
+    def form_valid(self, form):
+        try:
+            services.guardar_evaluacion(
+                aspirante=self.get_aspirante(), antecedentes=form.cleaned_data["antecedentes"],
+                oposicion=form.cleaned_data["oposicion"], usuario=self.request.user,
+                version_esperada=form.cleaned_data["version_esperada"],
+                motivo=form.cleaned_data.get("motivo", ""))
+        except ValidationError as error:
+            form.add_error(None, error)
+            return self.form_invalid(form)
+        messages.success(self.request, "La evaluación se registró. El orden de mérito se actualiza a partir de los puntajes.")
         return redirect(self.get_success_url())

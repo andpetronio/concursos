@@ -97,14 +97,23 @@ class ConcursoDetailView(AccesoConcursoMixin, DetailView):
         context["jurados"] = Jurado.objects.filter(concurso=self.object).select_related("persona")
         context["veedores"] = Veedor.objects.filter(concurso=self.object).select_related("persona")
         context["sugerencia_convocado"] = services.sugerir_estado_convocado(self.object)
-        context["aspirantes"] = Aspirante.objects.filter(concurso=self.object).select_related("persona")
+        context["aspirantes"] = Aspirante.objects.filter(concurso=self.object).select_related("persona", "evaluacion")
+        from participantes.evaluaciones import cuadro_resultados, diagnostico_sin_ganador
+        context["resultados_concurso"] = cuadro_resultados(self.object)
+        context["diagnostico_sin_ganador"] = diagnostico_sin_ganador(
+            self.object, cuadro=context["resultados_concurso"],
+        )
         from expedientes.presentation import contexto_documental
         context["jurados"] = list(context["jurados"])
         context.update(contexto_documental(self.object, jurados=context["jurados"],
                                           error=getattr(self, "documental_error", None),
                                           error_etapa=getattr(self, "documental_error_etapa", None)))
         from documentos.services import contexto_documentos
-        context.update(contexto_documentos(self.object))
+        context.update(contexto_documentos(
+            self.object, usuario=self.request.user,
+            formulario_error_tipo=getattr(self, "generacion_error_tipo", None),
+            formulario_error=getattr(self, "generacion_error_form", None),
+        ))
         return context
 
 

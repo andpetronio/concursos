@@ -118,3 +118,34 @@ class PersonaEdicionForm(FormularioVersionado):
             if len(concursos) > 1:
                 self.add_error("dni", "No se puede cambiar el DNI de una persona vinculada a varios concursos. Solicitá una revisión administrativa.")
         return datos
+
+
+class EvaluacionAspiranteForm(forms.Form):
+    from .evaluaciones import MAX_ANTECEDENTES, MAX_OPOSICION
+    antecedentes = forms.DecimalField(label="Puntaje de antecedentes (sobre 34)", min_value=0,
+        max_value=MAX_ANTECEDENTES, decimal_places=2, max_digits=5,
+        widget=forms.NumberInput(attrs={"step": "0.01", "inputmode": "decimal"}))
+    oposicion = forms.DecimalField(label="Puntaje de oposición (sobre 51)", min_value=0,
+        max_value=MAX_OPOSICION, decimal_places=2, max_digits=5,
+        widget=forms.NumberInput(attrs={"step": "0.01", "inputmode": "decimal"}))
+    version_esperada = forms.IntegerField(min_value=0, widget=forms.HiddenInput)
+    motivo = forms.CharField(label="Motivo de corrección", required=False, max_length=1000,
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Obligatorio si se modifica un puntaje registrado anteriormente.")
+
+    def __init__(self, *args, evaluacion=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.evaluacion = evaluacion
+        self.initial["version_esperada"] = evaluacion.version if evaluacion else 0
+        if evaluacion:
+            self.initial["antecedentes"] = evaluacion.antecedentes
+            self.initial["oposicion"] = evaluacion.oposicion
+
+    def clean(self):
+        datos = super().clean()
+        anterior = self.evaluacion
+        if anterior and all(campo in datos for campo in ("antecedentes", "oposicion")):
+            modificada = (anterior.antecedentes, anterior.oposicion) != (datos["antecedentes"], datos["oposicion"])
+            if modificada and not datos.get("motivo", "").strip():
+                self.add_error("motivo", "Indicá el motivo de la corrección de los puntajes.")
+        return datos

@@ -31,6 +31,18 @@
       <div><dt>Etapa documental</dt><dd>{{ documentacion.seguimiento.get_etapa_display }}</dd></div>
     </dl>
     <p class="field-help">El estado se registra manualmente y es independiente del control documental.</p>
+    {% if diagnostico_sin_ganador %}
+      <div class="notice" role="status">
+        <p><strong>{{ diagnostico_sin_ganador.titulo }}</strong></p>
+        <p>{{ diagnostico_sin_ganador.explicacion }}</p>
+        {% if diagnostico_sin_ganador.siguiente_nombre %}
+          <p><strong>Modalidad sugerida para un nuevo llamado:</strong> {{ diagnostico_sin_ganador.siguiente_nombre }}.</p>
+        {% else %}
+          <p>La modalidad {{ concurso.get_modalidad_display }} no tiene una siguiente instancia definida en esta regla; requiere revisión administrativa.</p>
+        {% endif %}
+        <p class="field-help">{{ diagnostico_sin_ganador.referencia }}. La nueva convocatoria debe tramitarse mediante acto administrativo y dentro del plazo reglamentario de 30 días corridos. SiCon no modifica el estado ni genera un concurso automáticamente.</p>
+      </div>
+    {% endif %}
     {% if sugerencia_convocado %}
       <div class="notice" role="status">
         <p><strong>Revisar estado «Convocado».</strong> En el concurso se registró la Resolución N.º {{ concurso.resolucion_convocatoria }} como resolución oficial de convocatoria. El estado administrativo sigue en «Preparación».</p>
@@ -104,6 +116,7 @@
   {% if aspirantes %}
   {% include "components/table_scroll_help.html" only %}
   {% include "participantes/aspirantes_tabla.html" with table_label="Aspirantes" %}
+  {% include "participantes/resultados.html" %}
   {% else %}{% include "components/empty_state_inline.html" with description="Todavía no hay aspirantes registrados." only %}{% endif %}
 </section>
 </div>

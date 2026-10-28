@@ -400,6 +400,20 @@ body.navigation-open { overflow: hidden; }
 .document-generation-details-content h5 { margin: .7rem 0 .4rem; font-size: var(--text-sm); }
 .document-generation-details-content ul, .document-review-missing ul { padding-left: 1.4rem; margin: .3rem 0 0; }
 .document-generation-details-content li + li, .document-review-missing li + li { margin-top: .35rem; }
+/* SDD-006/4C: generación directa y accesible desde cada tarjeta. */
+.document-generation-missing { margin: .8rem 0; padding: .75rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.document-generation-missing .field-help { margin: 0 0 .4rem; }
+.document-generation-missing ul { padding-left: 1.3rem; margin: .15rem 0; }
+.document-generation-missing li + li { margin-top: .3rem; }
+.document-inline-form { margin-top: .8rem; }
+.document-inline-complements { padding: .2rem .8rem .85rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.document-inline-complements > summary { padding: .65rem 0; cursor: pointer; color: var(--primary-ink); font-weight: 650; }
+.document-inline-complements[open] > summary { margin-bottom: .35rem; }
+.document-inline-complements .document-review-form-grid { margin-bottom: .65rem; }
+.document-inline-complements .document-review-budget { background: var(--background); }
+.document-inline-errors { margin-top: .7rem; }
+.document-inline-form .document-generation-footer { margin-top: .65rem; }
+.document-inline-form button:disabled { cursor: not-allowed; opacity: .58; }
 .document-generation-history { margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--border); }
 .document-generation-history-list { padding: 0; margin: 0; list-style: none; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
 .document-generation-history-row { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: .85rem 1.5rem; padding: 1rem var(--space-2); border-bottom: 1px solid var(--border); }

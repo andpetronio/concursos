@@ -1,12 +1,20 @@
 {% extends "components/table.html" %}
 {% block columns %}
-<th scope="col">Apellido y nombre</th><th scope="col">Expediente de inscripción</th><th scope="col">Correo electrónico</th>{% if perms.concursos.change_concurso %}<th scope="col">Acciones</th>{% endif %}
+<th scope="col">Apellido y nombre</th><th scope="col">Expediente de inscripción</th><th scope="col">Correo electrónico</th><th scope="col">Evaluación</th>{% if perms.concursos.change_concurso %}<th scope="col">Acciones</th>{% endif %}
 {% endblock %}
 {% block rows %}
 {% for aspirante in aspirantes %}<tr>
   <td>{% include "components/person_identity.html" with persona=aspirante.persona only %}</td>
   <td><span class="participation-data">{{ aspirante.expediente_inscripcion|default:"No registrado" }}</span></td>
   <td><span class="participation-data">{{ aspirante.email|default:"Sin correo registrado" }}</span></td>
-  {% if perms.concursos.change_concurso %}<td>{% include "participantes/acciones.html" with return_section="aspirantes" registro=aspirante editar_route="concursos:aspirante_editar" editar_label="Editar inscripción" %}</td>{% endif %}
+  <td>
+    {% if aspirante.evaluacion %}
+      <span class="participation-data">Antecedentes: {{ aspirante.evaluacion.antecedentes }} /34</span>
+      <span class="participation-data">Oposición: {{ aspirante.evaluacion.oposicion }} /51</span>
+      <strong>Total: {{ aspirante.evaluacion.total }} /85</strong>
+    {% else %}<span class="field-help">Evaluación pendiente</span>{% endif %}
+  </td>
+  {% if perms.concursos.change_concurso %}<td>{% include "participantes/acciones.html" with return_section="aspirantes" registro=aspirante editar_route="concursos:aspirante_editar" editar_label="Editar inscripción" %}
+    <a class="button button-secondary" href="{% url 'concursos:aspirante_evaluacion' concurso.pk aspirante.pk %}">{% if aspirante.evaluacion %}Editar evaluación{% else %}Registrar evaluación{% endif %}</a></td>{% endif %}
 </tr>{% endfor %}
 {% endblock %}

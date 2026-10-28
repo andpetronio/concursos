@@ -1,0 +1,34 @@
+<section class="section" aria-labelledby="resultados-heading">
+  <h3 id="resultados-heading">Resultados y orden de mérito</h3>
+  <p class="field-help">Escala aplicada a este borrador: antecedentes hasta 34, oposición hasta 51 y mínimo 42,50 sobre 85. Los puntajes provienen del dictamen del jurado. No se convierten automáticamente escalas.</p>
+  {% if resultados_concurso.evaluaciones_pendientes %}
+  <p class="notice" role="status">Evaluaciones pendientes: {{ resultados_concurso.evaluaciones_pendientes|join:", " }}. El orden no está listo para una resolución.</p>
+  {% endif %}
+  {% if resultados_concurso.empates_pendientes %}
+  <p class="notice" role="status">Hay un empate que requiere aplicar los criterios sucesivos del artículo 41 antes de determinar puestos.</p>
+  {% endif %}
+  {% if resultados_concurso.orden_merito %}
+  <div class="table-region" role="region" aria-label="Orden de mérito calculado" tabindex="0">
+    <table class="data-table">
+      <caption class="visually-hidden">Aspirantes con puntaje mínimo</caption>
+      <thead><tr><th>Orden</th><th>Apellido y nombre</th><th>DNI</th><th>Antecedentes /34</th><th>Oposición /51</th><th>Total /85</th></tr></thead>
+      <tbody>
+        {% for fila in resultados_concurso.orden_merito %}
+        <tr><td>{{ fila.puesto|default:"Por resolver" }}</td><td>{{ fila.apellido }}, {{ fila.nombre }}</td><td>{{ fila.dni }}</td>
+          <td>{{ fila.antecedentes }}</td><td>{{ fila.oposicion }}</td><td><strong>{{ fila.total }}</strong></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  {% if resultados_concurso.puntaje_insuficiente %}
+  <h4>Aspirantes que no alcanzan el puntaje mínimo</h4>
+  <div class="table-region" role="region" aria-label="Puntaje insuficiente" tabindex="0">
+    <table class="data-table"><thead><tr><th>Apellido y nombre</th><th>DNI</th><th>Antecedentes</th><th>Oposición</th><th>Total</th></tr></thead>
+      <tbody>{% for fila in resultados_concurso.puntaje_insuficiente %}<tr>
+        <td>{{ fila.apellido }}, {{ fila.nombre }}</td><td>{{ fila.dni }}</td><td>{{ fila.antecedentes }}</td><td>{{ fila.oposicion }}</td><td>{{ fila.total }}</td>
+      </tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  {% endif %}
+</section>

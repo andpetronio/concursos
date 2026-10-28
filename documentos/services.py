@@ -6,6 +6,7 @@ from io import BytesIO
 from zipfile import ZipFile, ZIP_DEFLATED
 from django.conf import settings
 from participantes.models import Jurado, Aspirante, Persona
+from participantes.evaluaciones import cuadro_resultados, faltantes_resultados
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -78,6 +79,32 @@ def faltantes_destinatario(destinatario):
     return []
 
 
+def faltantes_desierto_inscriptos(concurso, *, instantanea=None):
+    """Actuación formal independiente del dictamen; fuente auténtica: acta verificada."""
+    if instantanea is None:
+        control = concurso.controles_documentales.filter(requisito="acta_inscriptos").first()
+        acta_ok = bool(control and control.completo)
+        sin_aspirantes = not concurso.aspirantes.exists()
+    else:
+        acta_ok = any(a["requisito"] == "acta_inscriptos" and a["fojas"]
+                      for a in instantanea["actuaciones_verificadas"])
+        sin_aspirantes = not instantanea["aspirantes"]
+    faltantes = []
+    if not acta_ok:
+        faltantes.append("Verificar el acta de cierre de inscripciones e indicar sus fojas en Control documental.")
+    if not sin_aspirantes:
+        faltantes.append("Hay aspirantes registrados: este modelo corresponde exclusivamente a concursos sin inscriptos.")
+    if not concurso.resolucion_convocatoria:
+        faltantes.append("Registrar la resolución oficial de convocatoria en Datos del concurso.")
+    # La parte dispositiva usa la jurisdicción; bloquear antes de renderizar
+    # evita un KeyError y, sobre todo, evita inventar un destino institucional.
+    if not concurso.jurisdiccion:
+        faltantes.append("Seleccionar jurisdicción en Datos del concurso antes de generar la resolución.")
+    if concurso.modalidad not in ("cerrado_interno", "cerrado_general"):
+        faltantes.append("No se definió un nuevo llamado automático para esta modalidad; requiere revisión específica.")
+    return faltantes
+
+
 def disponibilidad(concurso, tipo, destinatario=None):
     faltantes = []
     if tipo.fuente and not fuente_original(tipo).is_file():
@@ -92,6 +119,10 @@ def disponibilidad(concurso, tipo, destinatario=None):
     if tipo.codigo in ("jurados", "dictamen", "designacion"):
         faltantes.extend(expediente_services.habilitacion_convocatoria(concurso).pendientes_jurado)
     faltantes.extend(faltantes_antecedentes(concurso, tipo))
+    if tipo.codigo == "dictamen":
+        faltantes.extend(faltantes_resultados(cuadro_resultados(concurso)))
+    if tipo.codigo == "desierto_inscriptos":
+        faltantes.extend(faltantes_desierto_inscriptos(concurso))
     if tipo.codigo == "apunsj":
         faltantes.extend(faltantes_destinatario(destinatario))
         if not concurso.resolucion_convocatoria:
@@ -140,11 +171,11 @@ GRUPOS_PRESENTACION = (
     ("convocatoria", "Convocatoria y comunicaciones", "Proyecto de convocatoria y comunicaciones vinculadas.",
      ("convocatoria", "jurados", "apunsj")),
     ("posteriores", "Actuaciones posteriores", "Proyectos sujetos a antecedentes y validación administrativa.",
-     ("dictamen", "designacion")),
+     ("dictamen", "designacion", "desierto_inscriptos")),
 )
 
 
-def contexto_documentos(concurso):
+def contexto_documentos(concurso, *, usuario=None, formulario_error_tipo=None, formulario_error=None):
     destinatario = DestinatarioAPUNSJ.objects.filter(pk=1).first()
     documentos = [disponibilidad(concurso, tipo, destinatario) for tipo in TIPOS]
     por_codigo = {documento["tipo"].codigo: documento for documento in documentos}
@@ -152,6 +183,34 @@ def contexto_documentos(concurso):
                "documentos": [por_codigo[tipo] for tipo in codigos],
                "listos": sum(por_codigo[tipo]["disponible"] for tipo in codigos)}
               for codigo, titulo, descripcion, codigos in GRUPOS_PRESENTACION]
+    if usuario is not None and usuario.has_perms(PERMISOS_GENERACION):
+        # Un solo preparador de formularios sirve tanto para la ficha completa
+        # como para el fragmento de disponibilidad consultado en vivo.
+        from .forms import GeneracionForm
+        for documento in documentos:
+            tipo = documento["tipo"]
+            if not documento["disponible"] and tipo.codigo != formulario_error_tipo:
+                continue
+            snapshot, _, _, destinatario_actual = fuentes_actuales(concurso, tipo)
+            inicial = {
+                "huella_esperada": huella_fuentes(snapshot),
+                "version_concurso": concurso.version,
+                "version_destinatario": destinatario_actual.version if destinatario_actual else 0,
+            }
+            formulario = formulario_error if tipo.codigo == formulario_error_tipo else None
+            if formulario is None:
+                formulario = GeneracionForm(
+                    initial=inicial, prefix=tipo.codigo, tipo=tipo, concurso=concurso,
+                    acotado=concurso.modalidad == "acotado" and tipo.codigo != "apunsj",
+                )
+            campos = list(formulario.visible_fields())
+            documento["formulario"] = formulario
+            documento["campos_complementarios"] = [c for c in campos
+                if c.name != "revision_administrativa" and not c.name.startswith("presupuesto_")]
+            documento["campos_presupuesto"] = [c for c in campos if c.name.startswith("presupuesto_")]
+            documento["campo_revision"] = next((c for c in campos if c.name == "revision_administrativa"), None)
+            documento["tiene_complementos"] = bool(campos)
+            documento["formulario_con_errores"] = bool(formulario.errors)
     return {"tipos_documentos": documentos, "grupos_tipos_documentos": grupos,
             "documentos_listos": sum(documento["disponible"] for documento in documentos),
             "generaciones": concurso.documentos_generados.select_related("generado_por")[:20]}
@@ -276,7 +335,7 @@ def fuentes_actuales(concurso, tipo, *, bloquear=False):
     controles = concurso.controles_documentales.order_by("pk")
     controles = list(controles.select_for_update() if bloquear else controles)
     jurados = _participantes(concurso, Jurado, bloquear) if tipo.codigo in ("convocatoria", "jurados", "dictamen", "designacion") else []
-    aspirantes = _participantes(concurso, Aspirante, bloquear) if tipo.codigo in ("dictamen", "designacion") else []
+    aspirantes = _participantes(concurso, Aspirante, bloquear) if tipo.codigo in ("dictamen", "designacion", "desierto_inscriptos") else []
     def persona(registro):
         return {campo: getattr(registro.persona, campo) for campo in ("id", "nombre", "apellido", "dni", "version")}
     def participacion(registro, campos):
@@ -295,6 +354,7 @@ def fuentes_actuales(concurso, tipo, *, bloquear=False):
         "concurso": instantanea_concurso(concurso),
         "jurados": [participacion(j, ("titulo", "unidad", "representacion", "calidad", "version")) for j in jurados],
         "aspirantes": [participacion(a, ("email", "expediente_inscripcion", "version")) for a in aspirantes],
+        "resultados": cuadro_resultados(concurso, bloquear=bloquear) if tipo.codigo == "dictamen" else {},
         "controles_versiones": [{"id": c.pk, "version": c.version, "verificado": c.verificado,
                                    "fojas": c.fojas, "partida_principal": c.partida_principal,
                                    "actividad_presupuestaria": c.actividad_presupuestaria} for c in controles],
@@ -346,6 +406,10 @@ def preparar_revision(*, concurso_id, tipo_codigo, usuario, datos, huella_espera
     if tipo.codigo in ("jurados", "dictamen", "designacion"):
         faltantes.extend(habilitacion.pendientes_jurado)
     faltantes.extend(faltantes_antecedentes(concurso, tipo, controles=controles, aspirantes=snapshot["aspirantes"]))
+    if tipo.codigo == "dictamen":
+        faltantes.extend(faltantes_resultados(snapshot["resultados"]))
+    if tipo.codigo == "desierto_inscriptos":
+        faltantes.extend(faltantes_desierto_inscriptos(concurso, instantanea=snapshot))
     if tipo.codigo == "apunsj":
         faltantes.extend(faltantes_destinatario(destinatario))
         if not concurso.resolucion_convocatoria:
@@ -379,6 +443,18 @@ def preparar_revision(*, concurso_id, tipo_codigo, usuario, datos, huella_espera
     if concurso.version != limpios["version_concurso"] or (tipo.codigo == "apunsj" and
             destinatario.version != limpios["version_destinatario"]):
         raise ValidationError("Los datos cambiaron desde la revisión. Volvé a abrir el documento antes de generar.")
+    if tipo.codigo == "desierto_inscriptos":
+        from participantes.evaluaciones import diagnostico_sin_ganador
+        # Reusar la regla de progresión, solo para un llamado nuevo. No se altera la modalidad actual.
+        diagnostico = diagnostico_sin_ganador(
+            concurso, cuadro={"cantidad_aspirantes": 0}, acta_inscriptos_completa=True)
+        if not diagnostico or not diagnostico["siguiente_codigo"]:
+            raise ValidationError("No es posible determinar una modalidad para el nuevo llamado.")
+        snapshot["nuevo_llamado"] = {
+            "modalidad": diagnostico["siguiente_codigo"],
+            "nombre": diagnostico["siguiente_nombre"],
+            "fundamento": "Artículos 4 y 45 del Anexo de la Ordenanza 33/10-CS (texto actualizado)",
+        }
     snapshot["complementarios"] = {k: (v.isoformat() if isinstance(v, date) else v)
         for k, v in limpios.items() if not k.startswith("version_") and k != "huella_esperada"}
     snapshot["pendientes"] = []

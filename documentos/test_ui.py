@@ -29,7 +29,11 @@ class DocumentosPresentacionTests(TestCase):
         self.assertEqual({d["tipo"].codigo for g in grupos for d in g["documentos"]}, {t.codigo for t in TIPOS})
         self.assertEqual(respuesta.context["documentos_listos"], sum(d["disponible"] for d in respuesta.context["tipos_documentos"]))
         for tipo in TIPOS:
-            self.assertContains(respuesta, reverse("documentos:revisar", args=[self.concurso.pk, tipo.codigo]))
+            # Se muestran todos los tipos, pero los faltantes bloquean su botón.
+            self.assertContains(respuesta, tipo.nombre)
+        self.assertNotContains(respuesta, ">Revisar documento</a>")
+        self.assertContains(respuesta, "Generar borrador DOCX")
+        self.assertContains(respuesta, "Para habilitar la generación, falta:")
         self.assertContains(respuesta, "no significa que el modelo esté aprobado")
         self.assertContains(respuesta, "Todavía no hay borradores generados.")
 
@@ -40,7 +44,7 @@ class DocumentosPresentacionTests(TestCase):
         self.assertEqual(respuesta.status_code, 200)
         self.assertContains(respuesta, "Oficios preparatorios")
         self.assertContains(respuesta, "Generación reservada a usuarios autorizados")
-        self.assertNotContains(respuesta, 'class="button button-secondary">Revisar documento</a>')
+        self.assertNotContains(respuesta, 'data-document-inline-form')
 
     def test_revision_preserva_complementarios_una_vez_y_errores_visibles(self):
         for codigo in ("apunsj", "convocatoria", "jurados", "dictamen", "designacion"):

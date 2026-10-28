@@ -282,8 +282,8 @@ class DocumentosTests(TestCase):
 
     @patch("pathlib.Path.is_file", return_value=False)
     def test_fuentes_ausentes_bloquean_cinco_tipos_y_convocatoria_consulta_servicio(self, fuente_ausente):
-        self.assertEqual(len(TIPOS), 6)
-        for tipo in TIPOS:
+        self.assertEqual(len(TIPOS), 7)
+        for tipo in (t for t in TIPOS if t.fuente):
             with self.subTest(tipo=tipo.codigo):
                 with patch.object(expediente_services, "habilitacion_convocatoria", wraps=expediente_services.habilitacion_convocatoria) as habilitar:
                     estado = services.disponibilidad(self.concurso, tipo, self.destinatario)
@@ -448,7 +448,9 @@ class ContinuacionDocumentosTests(TestCase):
         if tipo == "designacion":
             from .forms import PRESUPUESTO
             datos.update({f"presupuesto_{nombre}": "01" for nombre, _ in PRESUPUESTO})
-        if tipo in ("dictamen", "designacion"):
+        if tipo == "dictamen":
+            datos["confirmacion_sin_recursos"] = True
+        if tipo == "designacion":
             aspirantes = list(self.concurso.aspirantes.order_by("pk"))
             datos["merito"] = "\n".join(f"{i} | {a.pk}" for i, a in enumerate(reversed(aspirantes), 1))
         if tipo == "designacion":
@@ -481,8 +483,12 @@ class ContinuacionDocumentosTests(TestCase):
         for i in range(cantidad):
             persona = Persona.objects.create(nombre=f"Aspirante ficticio {i}", apellido=f"Apellido A{i}",
                 dni=f"2000000{i}", creado_por=self.operador, actualizado_por=self.operador)
-            Aspirante.objects.create(concurso=self.concurso, persona=persona, creado_por=self.operador,
+            aspirante = Aspirante.objects.create(concurso=self.concurso, persona=persona, creado_por=self.operador,
                                      actualizado_por=self.operador)
+            from participantes.services import guardar_evaluacion
+            from decimal import Decimal
+            guardar_evaluacion(aspirante=aspirante, antecedentes=Decimal(20 + i),
+                               oposicion=Decimal(30 + i), usuario=self.operador, version_esperada=0)
         for control in self.concurso.controles_documentales.all():
             control.verificado, control.responsable, control.verificado_en = True, self.operador, timezone.now()
             control.fojas = "5/8" if POR_CODIGO[control.requisito].requiere_foja else ""
@@ -527,7 +533,12 @@ class ContinuacionDocumentosTests(TestCase):
                     self.assertEqual(len(registro.instantanea["aspirantes"]), 7)
                     for i in range(7):
                         self.assertIn(f"Aspirante ficticio {i}", texto)
-                    orden = registro.instantanea["complementarios"]["orden_merito"]
+                    if tipo == "dictamen":
+                        orden = registro.instantanea["resultados"]["orden_merito"]
+                        self.assertEqual(registro.instantanea["resultados"]["escala"]["minimo"], "42.50")
+                        self.assertEqual(len(doc.tables[0].columns), 6)
+                    else:
+                        orden = registro.instantanea["complementarios"]["orden_merito"]
                     self.assertEqual(orden[0]["aspirante_id"], self.concurso.aspirantes.order_by("pk").last().pk)
                 if tipo in ("convocatoria", "designacion"):
                     self.assertEqual(len(doc.tables[-2].columns), 13)
@@ -832,10 +843,71 @@ class ContinuacionDocumentosTests(TestCase):
         self.assertTrue(any("PPAL" in falta for falta in estado["faltantes"]))
         self.assertTrue(any("actividad" in falta for falta in estado["faltantes"]))
 
+    def test_dictamen_ordinario_usa_puntajes_y_tabla_no_merito_manual(self):
+        self.completar_fuentes(cantidad=3)
+        from .forms import GeneracionForm
+        formulario = GeneracionForm(tipo=POR_CODIGO["dictamen"], concurso=self.concurso)
+        self.assertNotIn("merito", formulario.fields)
+        self.assertIn("confirmacion_sin_recursos", formulario.fields)
+        datos = self.complementos("dictamen")
+        with self.assertRaises(ValidationError):
+            self.generar_tipo("dictamen", {k: v for k, v in datos.items() if k != "confirmacion_sin_recursos"})
+        registro = self.generar_tipo("dictamen", datos)
+        cuadro = registro.instantanea["resultados"]
+        self.assertEqual(cuadro["escala"]["minimo"], "42.50")
+        self.assertEqual(cuadro["orden_merito"][0]["total"], "54.00")
+        self.assertEqual(cuadro["orden_merito"][0]["oposicion"], "32.00")
+        self.assertNotIn("merito", registro.instantanea["complementarios"])
+        self.assertEqual(len(Document(BytesIO(bytes(registro.contenido))).tables[0].columns), 6)
+        self.assertIn("ANT. /34", self.texto(registro))
+        self.assertEqual(registro.plantilla_version, "dictamen-4")
+
+    def test_rectificacion_de_puntajes_no_cambia_documento_historico(self):
+        from participantes.services import guardar_evaluacion
+        from decimal import Decimal
+        self.completar_fuentes(cantidad=2)
+        original = self.generar_tipo("dictamen")
+        bytes_originales = bytes(original.contenido)
+        huella_original = original.sha256
+        self.assertEqual(original.instantanea["resultados"]["orden_merito"][0]["total"], "52.00")
+        aspirante = self.concurso.aspirantes.order_by("pk").last()
+        guardar_evaluacion(aspirante=aspirante, antecedentes=Decimal("30"),
+            oposicion=Decimal("32"), usuario=self.operador, version_esperada=1,
+            motivo="Acta de rectificación acreditada, fs. 91")
+        nueva = self.generar_tipo("dictamen")
+        original.refresh_from_db()
+        self.assertEqual(bytes(original.contenido), bytes_originales)
+        self.assertEqual(original.sha256, huella_original)
+        self.assertNotEqual(nueva.instantanea["resultados"], original.instantanea["resultados"])
+        self.assertEqual(nueva.instantanea["resultados"]["orden_merito"][0]["total"], "62.00")
+
+    def test_dictamen_pendientes_empate_y_correccion_invalidan_revision(self):
+        from participantes.models import Aspirante, Persona
+        from participantes.services import guardar_evaluacion
+        from decimal import Decimal
+        self.completar_fuentes(cantidad=2)
+        actual = self.huella("dictamen")
+        evaluaciones = list(self.concurso.aspirantes.order_by("pk"))
+        guardar_evaluacion(aspirante=evaluaciones[1], antecedentes=Decimal("20"),
+            oposicion=Decimal("30"), usuario=self.operador, version_esperada=1, motivo="Rectificación, fs. 41")
+        cuadro = services.fuentes_actuales(self.concurso, POR_CODIGO["dictamen"])[0]["resultados"]
+        self.assertTrue(cuadro["empates_pendientes"])
+        estado = services.disponibilidad(self.concurso, POR_CODIGO["dictamen"])
+        self.assertFalse(estado["disponible"])
+        self.assertTrue(any("Empate" in falta for falta in estado["faltantes"]))
+        with self.assertRaisesMessage(ValidationError, "Los datos cambiaron"):
+            self.generar_tipo("dictamen", huella_esperada=actual)
+        persona = Persona.objects.create(nombre="Pendiente", apellido="Evaluación",
+            dni="29999999", creado_por=self.operador, actualizado_por=self.operador)
+        Aspirante.objects.create(concurso=self.concurso, persona=persona,
+            creado_por=self.operador, actualizado_por=self.operador)
+        estado = services.disponibilidad(self.concurso, POR_CODIGO["dictamen"])
+        self.assertTrue(any("Registrar evaluación" in falta for falta in estado["faltantes"]))
+
     def test_merito_ajeno_duplicado_o_vacio_y_designacion_sin_eleccion_se_rechazan(self):
         self.completar_fuentes()
         a, b = self.concurso.aspirantes.order_by("pk")[:2]
-        for tipo in ("dictamen", "designacion"):
+        for tipo in ("designacion",):
             for merito in ("", f"1 | {a.pk}\n1 | {b.pk}", f"1 | {a.pk}\n2 | {a.pk}", "1 | 999999", f"2 | {a.pk}"):
                 with self.subTest(tipo=tipo, merito=merito), self.assertRaises(ValidationError):
                     self.generar_tipo(tipo, {**self.complementos(tipo), "merito": merito})

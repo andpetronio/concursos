@@ -114,3 +114,11 @@ Migración atómica con preflight de todos los registros. Acepta códigos o deno
 - Requisitos particulares y temarios quedan como encabezados a completar en el archivo Word. Los requisitos generales del modelo solo se aplican por defecto a **Cerrado Interno**; otras modalidades requieren revisión en el Word y el circuito especial de Acotado mantiene su advertencia.
 - De la tabla presupuestaria, el código PPAL y la actividad son variables registrados en la afectación (dos dígitos). **El código PPAL no es la partida de gasto 1.1**, que permanece fija en el modelo. Los demás códigos de la tabla son los del modelo de convocatoria y deben revisarse si cambiara su codificación institucional.
 - Los datos de designación y de los demás documentos no se alteran.
+
+
+## SDD-007 — Concurso sin aspirantes elegibles o sin inscriptos (27/10/2026)
+- Regla operativa comunicada: cero inscriptos = **desierto por falta de aspirantes**; todos los aspirantes evaluados debajo de 42,50/85 = **fracasado por insuficiencia de méritos**.
+- **Precisión jurídica:** el art. 45 del Anexo de Ordenanza 33/10-CS, modificado por Ordenanza 21/13-CS, emplea el término **desierto** para ambos motivos. «Fracasado» es clasificación operativa interna; antes de producir actos definitivos corresponde validar la denominación oficial.
+- Las dos causas permiten sugerir **Cerrado Interno → Cerrado General → Abierto**. Abierto y Acotado no tienen una conversión inferida.
+- No se deduce «sin inscriptos» de la tabla vacía: debe existir acta de inscriptos verificada y con foja. Tampoco se afirma insuficiencia hasta que todas las evaluaciones estén cargadas.
+- Solo advertencia de resultado y modalidad recomendada, sin mutar Concurso ni generar una segunda convocatoria. El art. 45 prescribe acto resolutivo y nuevo llamado en no más de 30 días corridos; registrar acto/fecha y relación entre llamados queda pendiente de un circuito propio.

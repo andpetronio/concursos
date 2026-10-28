@@ -270,7 +270,7 @@ def antecedente_vacancia(datos):
     return "Antecedentes registrados de vacancia: " + "; ".join(partes) + "." if partes else ""
 
 
-def apertura_resolucion(documento, datos, titulo):
+def apertura_resolucion(documento, datos, titulo, *, marco_normativo=None):
     x, c = datos["complementarios"], datos["concurso"]
     parrafo(documento, "PROYECTO DE RESOLUCIÓN", estilo="Encabezado institucional")
     parrafo(documento, titulo, estilo="Encabezado institucional")
@@ -290,7 +290,7 @@ def apertura_resolucion(documento, datos, titulo):
     parrafo(documento, f'El Expediente N° {c["expediente"]}{detalle_inicio}, '
              f'relativo al concurso {modalidad(datos)} para cubrir el cargo de {cargo(datos)}; y')
     parrafo(documento, "CONSIDERANDO:", estilo="Sección anexo")
-    parrafo(documento, x.get("marco_normativo") or ctext.MARCO_NORMATIVO)
+    parrafo(documento, x.get("marco_normativo") or marco_normativo or ctext.MARCO_NORMATIVO)
 
 
 def resuelve(documento, datos):
@@ -662,9 +662,34 @@ def antecedentes_posteriores(documento, datos):
 
 
 def merito(documento, datos):
+    """Dictamen ordinario: tabla de puntajes calculados; designación sigue provisional."""
+    ancho = Emu(documento.sections[0].page_width - documento.sections[0].left_margin - documento.sections[0].right_margin).twips
+    if datos.get("resultados"):
+        resultados = datos["resultados"]
+        escala = resultados["escala"]
+        def fila_puntajes(registro, orden=""):
+            p = registro
+            dni = p["dni"]
+            if dni.isdigit() and len(dni) == 8:
+                dni = f"{dni[:2]}.{dni[2:5]}.{dni[5:]}"
+            return (str(orden), f'{p["apellido"]}, {p["nombre"]}', dni,
+                    p["antecedentes"].replace(".", ","),
+                    p["oposicion"].replace(".", ","), p["total"].replace(".", ","))
+        cabecera = ("ORDEN", "APELLIDO Y NOMBRE", "DNI", "ANT. /34", "OPOS. /51", "TOTAL /85")
+        weights = (9, 28, 20, 14, 14, 15)
+        widths = [ancho * w // sum(weights) for w in weights]
+        widths[-1] = ancho - sum(widths[:-1])
+        parrafo(documento, "ORDEN DE MÉRITO (mínimo 42,50 puntos)", estilo="Sección anexo")
+        tabla_fija(documento, [cabecera] + [fila_puntajes(fila, fila["puesto"])
+            for fila in resultados["orden_merito"]], widths)
+        if resultados["puntaje_insuficiente"]:
+            parrafo(documento, "ASPIRANTES QUE NO ALCANZARON EL PUNTAJE MÍNIMO", estilo="Sección anexo")
+            tabla_fija(documento, [cabecera] + [fila_puntajes(fila, "—")
+                for fila in resultados["puntaje_insuficiente"]], widths)
+        parrafo(documento, "Escala de evaluación aplicada: antecedentes hasta 34 puntos, oposición hasta 51 puntos; máximo 85; mínimo 42,50. El rubro desempeño laboral no se considera (artículo 52 del Anexo de la Ordenanza 33/10-CS).")
+        return
     aspirantes = {a["id"]: a["persona"] for a in datos["aspirantes"]}
     parrafo(documento, "ORDEN DE MÉRITO ACREDITADO", estilo="Sección anexo")
-    ancho = Emu(documento.sections[0].page_width - documento.sections[0].left_margin - documento.sections[0].right_margin).twips
     tabla_fija(documento, [("PUESTO", "PERSONA / DNI")] + [(fila["puesto"], persona_texto(aspirantes[fila["aspirante_id"]]))
         for fila in datos["complementarios"]["orden_merito"]], [ancho // 6, ancho - ancho // 6])
 
@@ -677,6 +702,46 @@ def dictamen(documento, datos):
               f'convocado por resolución {datos["complementarios"]["res_convocatoria"]}, conforme al resultado y orden de mérito acreditados.')
     merito(documento, datos)
     cierre_resolucion(documento, datos, 2)
+
+
+def desierto_inscriptos(documento, datos):
+    """Borrador provisional por falta de inscriptos; no efectúa la nueva convocatoria."""
+    c = datos["concurso"]
+    siguiente = datos["nuevo_llamado"]["nombre"]
+    apertura_resolucion(documento, datos, "DECLARACIÓN DE CONCURSO DESIERTO POR FALTA DE ASPIRANTES",
+        marco_normativo="Que las actuaciones se sustanciaron conforme al Reglamento de Concursos "
+        "del Personal Nodocente de la Universidad Nacional de San Juan, aprobado por "
+        "Ordenanza N.º 33/10-CS y sus modificatorias.")
+    parrafo(documento, f'Que mediante Resolución N.º {c["resolucion_convocatoria"]} se convocó '
+        f'a Concurso {modalidad(datos)} de antecedentes y oposición para cubrir el cargo referido.')
+    parrafo(documento, f'Que según el acta de cierre de inscripciones incorporada a fojas '
+        f'{foja(datos, "acta_inscriptos")} del expediente de referencia, no se registraron aspirantes.')
+    parrafo(documento, 'Que el artículo 45 del Anexo de la Ordenanza N.º 33/10-CS, '
+        'texto actualizado por la Ordenanza N.º 21/13-CS, contempla la declaración de concurso '
+        'desierto por falta de aspirantes y la realización de un nuevo llamado.')
+    parrafo(documento, f'Que, de acuerdo con las modalidades previstas en el artículo 4 del mismo '
+        f'Reglamento, corresponde tramitar el próximo llamado como Concurso {siguiente}.')
+    # Separa los considerandos de la parte dispositiva del borrador.
+    documento.add_page_break()
+    resuelve(documento, datos)
+    # Evitar dejar aislado «RESUELVE:» al pie de una página.
+    for encabezado in documento.paragraphs[-3:]:
+        encabezado.paragraph_format.keep_with_next = True
+    articulo(documento, 1, f'Declarar DESIERTO, por falta de aspirantes, el Concurso {modalidad(datos)} '
+        f'de antecedentes y oposición convocado mediante Resolución N.º {c["resolucion_convocatoria"]}, '
+        f'para cubrir, con carácter efectivo, un cargo de Planta Permanente del Personal Nodocente '
+        f'con funciones de “{c["denominacion"]}”, Categoría {c["categoria"]}, Tramo {c["tramo"]}, '
+        f'Agrupamiento {agrupamiento_formateado(datos)}, Código Presupuestario '
+        f'{c["codigo_presupuestario"]}, {estructura(datos)}, tramitado por Expediente '
+        f'N.º {c["expediente"]}, conforme al acta de cierre de inscripciones obrante a '
+        f'fojas {foja(datos, "acta_inscriptos")}.')
+    articulo(documento, 2, f'Disponer la tramitación de un nuevo llamado a Concurso {siguiente}, '
+        'de acuerdo con el Reglamento de Concursos del Personal Nodocente de la UNSJ, '
+        'observando el plazo previsto en el artículo 45 de su Anexo. '
+        'La presente disposición no sustituye el acto de convocatoria correspondiente.')
+    articulo(documento, 3, 'Comuníquese a las dependencias intervinientes y déjese constancia '
+        'en las actuaciones administrativas.')
+    cierre_resolucion(documento, datos, 4)
 
 
 def designacion(documento, datos):
@@ -906,4 +971,5 @@ def notificacion_jurado(documento, datos, *, membrete=None):
 
 
 RENDERERS.update(convocatoria=convocatoria, jurados=notificacion_jurado, dictamen=dictamen,
+                 desierto_inscriptos=desierto_inscriptos,
                  designacion=designacion, elecciones=elecciones)
