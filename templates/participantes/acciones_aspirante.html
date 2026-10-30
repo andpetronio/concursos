@@ -1,0 +1,21 @@
+{# Acciones compactas: rótulo accesible + ayuda visible con mouse, teclado o toque. #}
+<div class="aspirant-actions" role="group" aria-label="Acciones de {{ aspirante.persona.apellido }}, {{ aspirante.persona.nombre }}">
+  <a class="aspirant-action" href="{% url 'concursos:aspirante_editar' concurso.pk aspirante.pk %}"
+     aria-label="Editar inscripción" title="Editar inscripción" data-tooltip="Editar inscripción">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L9 17l-4 1 1-4Z"/></svg>
+  </a>
+  {% url 'concursos:persona_editar' concurso.pk aspirante.persona.pk as persona_url %}
+  {% with correction_url=persona_url|add:"?seccion=aspirantes" %}
+  <a class="aspirant-action" href="{{ correction_url }}" aria-label="Corregir datos personales"
+     title="Corregir datos personales" data-tooltip="Corregir datos personales">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.25"/><path d="M3.5 20v-1.5a6.5 6.5 0 0 1 10.5-5.1"/><path d="m15.5 18.5 4-4 2 2-4 4-3 .5Z"/></svg>
+  </a>
+  {% endwith %}
+  <a class="aspirant-action aspirant-action--evaluation"
+     href="{% url 'concursos:aspirante_evaluacion' concurso.pk aspirante.pk %}"
+     aria-label="{% if aspirante.evaluacion %}Editar evaluación{% else %}Registrar evaluación{% endif %}"
+     title="{% if aspirante.evaluacion %}Editar evaluación{% else %}Registrar evaluación{% endif %}"
+     data-tooltip="{% if aspirante.evaluacion %}Editar evaluación{% else %}Registrar evaluación{% endif %}">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M9 10h6M9 14h3"/><path d="m14.5 16 1.5 1.5 3.2-3.2"/></svg>
+  </a>
+</div>

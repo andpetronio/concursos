@@ -68,6 +68,12 @@ class ConcursoDetailView(AccesoConcursoMixin, DetailView):
             )
             for campo in (*Concurso.DATOS_EDITABLES, "tramo")
         }
+        # Etiquetas consistentes con el formulario, sin renombrar ni perder campos persistidos.
+        for codigo, etiqueta in (
+            ("motivo_baja", "Detalle histórico de la baja"),
+            ("acto_vacancia", "Acto administrativo de respaldo"),
+        ):
+            datos_por_campo[codigo] = (etiqueta, datos_por_campo[codigo][1])
         # Conservar el contrato histórico de contexto, utilizado por otras pruebas.
         context["datos_concurso"] = list(datos_por_campo.values())
         secciones = (

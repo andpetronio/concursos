@@ -421,3 +421,18 @@ class ParticipanteTests(TestCase):
         self.assertIn("telefono", response.context["form"].errors)
         jurado.refresh_from_db()
         self.assertEqual(jurado.telefono, "2")
+
+
+    def test_aspirantes_acciones_compactas_con_etiquetas_accesibles(self):
+        from participantes.models import Aspirante
+        aspirante = Aspirante.objects.create(
+            concurso=self.concurso,
+            persona=Persona.objects.create(apellido="Prueba", nombre="Aspirante", dni="44999111",
+                                          creado_por=self.operador, actualizado_por=self.operador),
+            creado_por=self.operador, actualizado_por=self.operador,
+        )
+        respuesta = self.client.get(self.concurso.get_absolute_url())
+        self.assertContains(respuesta, 'class="aspirant-actions"')
+        for etiqueta in ("Editar inscripción", "Corregir datos personales", "Registrar evaluación"):
+            self.assertContains(respuesta, f'aria-label="{etiqueta}"')
+        self.assertContains(respuesta, self.url("aspirante_evaluacion", None, aspirante.pk))

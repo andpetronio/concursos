@@ -29,12 +29,11 @@ class ConcursoForm(forms.ModelForm):
             "dependencia": "Nombre sin artículo. Ej.: Dirección de Contabilidad.",
             "iniciador_nombre": "Nombre y apellido, sin artículos ni cargo.",
             "iniciador_cargo": "Cargo del iniciador, sin artículos.",
-            "fecha_baja": "Fecha desde la cual se encuentra vacante el cargo, cuando conste.",
-            "resolucion_baja": "Resolución del Rectorado. Ejemplo: 3278/26-R.",
-            "fecha_baja": "Opcional. Fecha que consta en el acto o antecedente de baja.",
-            "motivo_baja": "Antecedente textual histórico, opcional. Para convocatorias nuevas seleccioná la causa de vacancia.",
-            "causa_vacancia": "Seleccioná el antecedente acreditado. No se presume la jubilación.",
-            "acto_vacancia": "Consigná el acto acreditado de creación o traslado, cuando corresponda.",
+            "fecha_baja": "Fecha desde la cual se encuentra vacante o disponible el cargo, si consta en el expediente.",
+            "resolucion_baja": "Si existe una resolución del Rectorado, indicá el número (ej.: 3278/26-R).",
+            "motivo_baja": "Campo histórico opcional. No reemplaza la causa seleccionada arriba; conservá el antecedente si ya está registrado.",
+            "causa_vacancia": "Seleccioná la causa acreditada en el expediente; no se presupone una jubilación.",
+            "acto_vacancia": "Indicá el acto de creación o traslado del cargo, o el acto que acredite la vacancia cuando no se trate de una resolución de baja del Rectorado.",
             "detalle_vacancia": "Solo para Otra causa: redacción fundamentada para revisión en Word.",
             "turno_trabajo": "Determina automáticamente el horario del anexo: mañana 7 a 14 hs, tarde 14 a 21 hs.",
             "domicilio_trabajo": "Opcional. Dirección donde se desempeñarán las funciones; se reutiliza en el anexo.",
@@ -51,6 +50,8 @@ class ConcursoForm(forms.ModelForm):
         # Cada POST se valida con las categorías del agrupamiento enviado.
         self.fields["modalidad"].choices = [("", "Seleccioná un tipo de concurso"), *ModalidadConcurso.choices]
         self.fields["codigo_presupuestario"].widget.attrs["maxlength"] = 5
+        self.fields["motivo_baja"].label = "Detalle histórico de la baja"
+        self.fields["acto_vacancia"].label = "Acto administrativo de respaldo"
         self.fields["categoria"].widget.attrs["data-dependent-category"] = ""
         self.catalogo_cargos = opciones_dependientes()
         if self.instance.pk:

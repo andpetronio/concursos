@@ -809,14 +809,30 @@ class ContinuacionDocumentosTests(TestCase):
         self.completar_fuentes()
         base = services.instantanea_concurso(self.concurso)
         for causa, esperado in (("nuevo", "nueva creación"), ("fallecimiento", "fallecimiento"),
-                                ("concurso", "otro cargo por concurso"), ("efectivizacion", "efectivización")):
+                                ("concurso", "otro cargo por concurso"), ("efectivizacion", "efectivización"),
+                                ("traslado", "traslado")):
             with self.subTest(causa=causa):
                 dato = {**base, "causa_vacancia": causa, "ex_titular": "Persona ficticia",
-                        "resolucion_baja": "1234/26-R"}
+                        "resolucion_baja": "1234/26-R", "acto_vacancia": "Resolución 112/26-R"}
                 texto = causa_de_vacancia({"concurso": dato})
                 self.assertIn(esperado, texto)
                 if causa != "nuevo":
                     self.assertNotIn("beneficio jubilatorio", texto)
+
+    def test_traslado_requiere_acto_y_no_inventa_antecedente(self):
+        from .registry import POR_CODIGO
+        from .renderers import causa_de_vacancia
+        self.completar_fuentes()
+        self.concurso.causa_vacancia = "traslado"
+        self.concurso.acto_vacancia = ""
+        estado = services.disponibilidad(self.concurso, POR_CODIGO["convocatoria"])
+        self.assertTrue(any("traslado" in falta for falta in estado["faltantes"]))
+        from django.core.exceptions import ValidationError
+        with self.assertRaises(ValidationError):
+            causa_de_vacancia({"concurso": services.instantanea_concurso(self.concurso)})
+        self.concurso.acto_vacancia = "Resolución 112/26-R"
+        texto = causa_de_vacancia({"concurso": services.instantanea_concurso(self.concurso)})
+        self.assertIn("Resolución 112/26-R", texto)
 
     def test_convocatoria_requiere_datos_estructurales_sin_pedirlos_en_revision(self):
         from .registry import POR_CODIGO

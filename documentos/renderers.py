@@ -481,6 +481,11 @@ def causa_de_vacancia(datos):
     if causa == "nuevo":
         return ("Que el cargo objeto del presente concurso es de nueva creación" +
                 (f", conforme al acto {acto}" if acto else "") + ", encontrándose disponible para su cobertura.")
+    if causa == "traslado":
+        if not c.get("acto_vacancia"):
+            raise ValidationError("Indicá el acto que acredita el traslado del cargo antes de generar la convocatoria.")
+        return (f"Que el cargo objeto del presente concurso se encuentra disponible para su cobertura{fecha} "
+                f"como consecuencia de su traslado, conforme al acto {c['acto_vacancia']}.")
     if causa == "jubilacion":
         return f"Que el cargo se encuentra vacante{fecha}, en virtud de que su ex titular, {ex}, obtuvo el beneficio jubilatorio, constando su baja{res}."
     if causa == "renuncia":

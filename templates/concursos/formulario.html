@@ -58,17 +58,36 @@
       {% include "components/field.html" with field=form.domicilio_trabajo extra_class="field--full" %}
     </div>
   </fieldset>
-  <fieldset class="card form-section" aria-labelledby="vacancia-heading">
-    {% include "components/form_section_header.html" with heading_id="vacancia-heading" title="Antecedentes de vacancia" description="Registrá los antecedentes que constan en el expediente. No se presume que el motivo sea jubilación." only %}
-    <div class="form-grid">
+  <fieldset class="card form-section" aria-labelledby="vacancia-heading" data-vacancy-fields>
+    {% include "components/form_section_header.html" with heading_id="vacancia-heading" title="Antecedentes de vacancia" description="Primero indicá la causa acreditada. Después completá los datos que correspondan; no se presume una jubilación ni se borran antecedentes anteriores." only %}
+    <div class="form-grid vacancy-base">
       {% include "components/field.html" with field=form.causa_vacancia %}
-      {% include "components/field.html" with field=form.ex_titular %}
       {% include "components/field.html" with field=form.fecha_baja %}
-      {% include "components/field.html" with field=form.motivo_baja %}
-      {% include "components/field.html" with field=form.acto_vacancia %}
-      {% include "components/field.html" with field=form.detalle_vacancia extra_class="field--full" %}
-      {% include "components/field.html" with field=form.resolucion_baja %}
     </div>
+    <section class="vacancy-group" data-vacancy-cessation aria-labelledby="vacancia-cese-title">
+      <h3 id="vacancia-cese-title">Baja o cambio de cargo del anterior titular</h3>
+      <p class="field-help">Completá los datos del anterior titular y el acto de baja si corresponden a la causa seleccionada.</p>
+      <p class="field-help vacancy-stale-note" data-vacancy-stale hidden>Estos campos contienen datos anteriores. Revisalos si cambiaste la causa, para no conservar información que ya no corresponda.</p>
+      <div class="form-grid">
+        {% include "components/field.html" with field=form.ex_titular %}
+        {% include "components/field.html" with field=form.resolucion_baja %}
+      </div>
+    </section>
+    <section class="vacancy-group" data-vacancy-act aria-labelledby="vacancia-acto-title">
+      <h3 id="vacancia-acto-title" data-vacancy-act-title>Acto administrativo de respaldo</h3>
+      <p class="field-help" data-vacancy-act-note>Consigná el acto que acredita la vacancia, creación o traslado, cuando corresponda.</p>
+      {% include "components/field.html" with field=form.acto_vacancia %}
+    </section>
+    <section class="vacancy-group" data-vacancy-other aria-labelledby="vacancia-otra-title">
+      <h3 id="vacancia-otra-title">Descripción de otra causa</h3>
+      {% include "components/field.html" with field=form.detalle_vacancia extra_class="field--full" %}
+    </section>
+    <details class="vacancy-legacy" {% if form.motivo_baja.value or form.motivo_baja.errors %}open{% endif %}>
+      <summary>Detalle histórico de baja (opcional)</summary>
+      <p class="field-help">Solo para conservar información de registros anteriores. La causa actual se selecciona arriba.</p>
+      {% include "components/field.html" with field=form.motivo_baja %}
+    </details>
+    <noscript><p class="field-help">Sin JavaScript todos los datos se muestran; completá solamente los aplicables.</p></noscript>
   </fieldset>
   <fieldset class="card form-section" aria-labelledby="iniciador-heading">
     {% include "components/form_section_header.html" with heading_id="iniciador-heading" title="Inicio del expediente" description="Identificá a la persona que solicitó iniciar el trámite, según la actuación inicial." only %}

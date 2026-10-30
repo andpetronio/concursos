@@ -64,6 +64,7 @@ class Concurso(models.Model):
     jurisdiccion = models.CharField("jurisdicción", max_length=20, choices=JURISDICCIONES, blank=True)
     CAUSAS_VACANCIA = (
         ("", "Seleccioná una causa"), ("nuevo", "Cargo nuevo"),
+        ("traslado", "Cargo trasladado"),
         ("jubilacion", "Jubilación"), ("renuncia", "Renuncia"),
         ("fallecimiento", "Fallecimiento"),
         ("concurso", "Designación por concurso en otro cargo"),

@@ -125,7 +125,10 @@ class DetailPresentationTests(TestCase):
         for value in ("90000001", "90000002", "Título de prueba", "Unidad histórica", "Cargo registrado anteriormente: Cargo histórico", "Cargo veedor", "jurado@example.invalid", "veedor@example.invalid", "264 000 0000", "264 000 0001", "01-300-2026", "01-301-2026", "aspirante0@example.invalid", "aspirante1@example.invalid", "Rectorado", "Titular"):
             self.assertContains(response, value)
         self.assertContains(response, '<th scope="col">Unidad</th>', html=True)
-        self.assertContains(response, 'class="actions participation-actions"', count=4)
+        # Jurados y veedores conservan las acciones tradicionales; los aspirantes
+        # usan el grupo compacto de tres íconos incorporado en SDD-006 F4C.
+        self.assertContains(response, 'class="actions participation-actions"', count=2)
+        self.assertContains(response, 'class="aspirant-actions"', count=2)
         self.assertContains(response, "Desplazá la tabla horizontalmente", count=3)
         for kind, record in (("jurado", self.jurado), ("veedor", self.veedor), ("aspirante", self.aspirantes[0])):
             self.assertContains(response, reverse(f"concursos:{kind}_editar", args=[self.concurso.pk, record.pk]))

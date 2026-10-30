@@ -49,6 +49,8 @@ def faltantes_convocatoria(concurso, controles=None):
         faltantes.append("Completar ex titular para la causa de vacancia seleccionada.")
     if concurso.causa_vacancia in {"jubilacion", "renuncia", "concurso", "efectivizacion"} and not (concurso.resolucion_baja or concurso.acto_vacancia):
         faltantes.append("Completar resolución o acto acreditado de la vacancia.")
+    if concurso.causa_vacancia == "traslado" and not concurso.acto_vacancia:
+        faltantes.append("Completar el acto administrativo que acredita el traslado del cargo.")
     if concurso.causa_vacancia == "otra" and not concurso.detalle_vacancia:
         faltantes.append("Completar descripción acreditada para Otra causa de vacancia.")
     if controles is None:
@@ -134,6 +136,8 @@ def disponibilidad(concurso, tipo, destinatario=None):
             faltantes.append("Configurar la jefatura del Departamento de Personal antes de generar el oficio.")
         if not concurso.causa_vacancia or (concurso.causa_vacancia != "nuevo" and not concurso.fecha_baja):
             faltantes.append("Completar causa y fecha de vacancia en Datos del concurso.")
+        if concurso.causa_vacancia == "traslado" and not concurso.acto_vacancia:
+            faltantes.append("Completar el acto administrativo que acredita el traslado del cargo.")
         if concurso.causa_vacancia == "otra" and not concurso.detalle_vacancia:
             faltantes.append("Completar el antecedente acreditado de vacancia (otra causa).")
         if concurso.causa_vacancia in ("concurso", "efectivizacion", "jubilacion", "renuncia", "fallecimiento") and not concurso.ex_titular:
@@ -422,6 +426,8 @@ def preparar_revision(*, concurso_id, tipo_codigo, usuario, datos, huella_espera
             faltantes.append("Configurar la jefatura del Departamento de Personal antes de generar el oficio.")
         if not concurso.causa_vacancia or (concurso.causa_vacancia != "nuevo" and not concurso.fecha_baja):
             faltantes.append("Completar causa y fecha de vacancia en Datos del concurso.")
+        if concurso.causa_vacancia == "traslado" and not concurso.acto_vacancia:
+            faltantes.append("Completar el acto administrativo que acredita el traslado del cargo.")
         if concurso.causa_vacancia == "otra" and not concurso.detalle_vacancia:
             faltantes.append("Completar el antecedente acreditado de vacancia (otra causa).")
         if concurso.causa_vacancia in ("concurso", "efectivizacion", "jubilacion", "renuncia", "fallecimiento") and not concurso.ex_titular:

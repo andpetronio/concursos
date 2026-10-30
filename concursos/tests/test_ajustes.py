@@ -63,3 +63,31 @@ class AjustesConcursoTests(TestCase):
         with self.assertRaises(ValidationError):
             crear_concurso(datos={**DATOS, "expediente": "incorrecto"}, usuario=self.usuario)
         self.assertFalse(Concurso.objects.exists())
+
+
+    def test_antecedentes_vacancia_distinguen_causa_campos_y_legacy(self):
+        respuesta = self.client.get(reverse("concursos:crear"))
+        self.assertContains(respuesta, 'data-vacancy-fields')
+        self.assertContains(respuesta, 'data-vacancy-cessation')
+        self.assertContains(respuesta, 'data-vacancy-act')
+        self.assertContains(respuesta, 'data-vacancy-other')
+        self.assertContains(respuesta, 'name="motivo_baja"')
+        self.assertContains(respuesta, "Detalle histórico de la baja")
+        self.assertContains(respuesta, "Acto administrativo de respaldo")
+        self.assertIn(("traslado", "Cargo trasladado"), list(ConcursoForm().fields["causa_vacancia"].choices))
+
+    def test_antecedentes_historicos_siguen_editables_y_no_se_borran(self):
+        concurso = crear_concurso(datos={**DATOS, "motivo_baja": "Cese acreditado antiguo",
+                                          "acto_vacancia": "Acto histórico 123"}, usuario=self.usuario)
+        respuesta = self.client.get(reverse("concursos:editar", args=[concurso.pk]))
+        self.assertContains(respuesta, "Cese acreditado antiguo")
+        self.assertContains(respuesta, "Acto histórico 123")
+        self.assertContains(respuesta, 'class="vacancy-legacy" open')
+        respuesta = self.client.post(reverse("concursos:editar", args=[concurso.pk]), {
+            **DATOS, "motivo_baja": "Cese acreditado antiguo", "acto_vacancia": "Acto histórico 123",
+            "version_esperada": concurso.version,
+        })
+        self.assertEqual(respuesta.status_code, 302)
+        concurso.refresh_from_db()
+        self.assertEqual(concurso.motivo_baja, "Cese acreditado antiguo")
+        self.assertEqual(concurso.acto_vacancia, "Acto histórico 123")
