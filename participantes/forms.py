@@ -2,7 +2,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from core.fields import IdentificadorField, TelefonoField
 
-from .models import Aspirante, Jurado, Persona, Veedor
+from .models import Aspirante, CambioSituacionAspirante, Jurado, Persona, Veedor
 
 
 class PersonaDatosForm(forms.Form):
@@ -148,4 +148,63 @@ class EvaluacionAspiranteForm(forms.Form):
             modificada = (anterior.antecedentes, anterior.oposicion) != (datos["antecedentes"], datos["oposicion"])
             if modificada and not datos.get("motivo", "").strip():
                 self.add_error("motivo", "Indicá el motivo de la corrección de los puntajes.")
+        return datos
+
+
+class ActuacionAspiranteForm(forms.Form):
+
+    tipo = forms.ChoiceField(label="Actuación acreditada", choices=[("", "Seleccioná una actuación")] +
+                             list(CambioSituacionAspirante.Tipo.choices))
+    fecha_decision = forms.DateField(label="Fecha de la actuación", widget=forms.DateInput(
+        attrs={"type": "date"}, format="%Y-%m-%d"), input_formats=["%Y-%m-%d"])
+    clase_documento = forms.ChoiceField(label="Tipo de respaldo", choices=[("", "Seleccioná")]+
+        list(CambioSituacionAspirante.Documento.choices),
+        help_text="No habilitación (art. 34): acta del Jurado. Exclusión por impugnación aceptada: resolución de la autoridad.")
+    documento = forms.CharField(label="Identificación del documento respaldatorio", max_length=250)
+    fojas = forms.CharField(label="Fojas del expediente", max_length=50,
+        help_text="Indicá la foja o rango donde consta la actuación. Ejemplo: 125/127.")
+    fundamento = forms.CharField(label="Fundamento consignado en la actuación", max_length=1500,
+        widget=forms.Textarea(attrs={"rows": 4}))
+    constancia_comunicacion = forms.CharField(label="Constancia de notificación o publicación", required=False,
+        max_length=300, help_text="Opcional; registrá únicamente lo que consta efectivamente.")
+    version_esperada = forms.IntegerField(min_value=1, widget=forms.HiddenInput)
+
+    def __init__(self, *args, aspirante, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.aspirante = aspirante
+        if not aspirante.puede_rendir:
+            # La situación restrictiva no se levanta mediante otra actuación
+            # que, por accidente, devuelva a la persona al circuito.
+            self.fields["tipo"].choices = [
+                ("", "Seleccioná una actuación"),
+                (CambioSituacionAspirante.Tipo.RECTIFICACION, "Rectificar o dejar sin efecto la decisión"),
+            ]
+            self.initial["tipo"] = CambioSituacionAspirante.Tipo.RECTIFICACION
+            self.fields["clase_documento"].help_text = (
+                "Seleccioná la actuación formal que respalda la rectificación."
+            )
+        else:
+            self.fields["tipo"].choices = [
+                ("", "Seleccioná una actuación"),
+                *((codigo, etiqueta) for codigo, etiqueta in CambioSituacionAspirante.Tipo.choices
+                  if codigo != CambioSituacionAspirante.Tipo.RECTIFICACION),
+            ]
+        self.initial["version_esperada"] = aspirante.version
+
+    def clean(self):
+        from .situaciones import DESTINOS
+        datos = super().clean()
+        if datos.get("tipo") in DESTINOS:
+            if DESTINOS[datos["tipo"]] == self.aspirante.situacion:
+                self.add_error("tipo", "Esta actuación no modifica la situación vigente.")
+        if datos.get("tipo") == CambioSituacionAspirante.Tipo.NO_HABILITACION and datos.get("clase_documento") not in (None, "acta"):
+            self.add_error("clase_documento", "La no habilitación requiere el acta del Jurado.")
+        if datos.get("tipo") == CambioSituacionAspirante.Tipo.EXCLUSION and datos.get("clase_documento") not in (None, "resolucion"):
+            self.add_error("clase_documento", "La exclusión por impugnación aceptada requiere la resolución de la autoridad.")
+        if datos.get("fojas"):
+            from expedientes.validators import normalizar_fojas
+            try:
+                datos["fojas"] = normalizar_fojas(datos["fojas"])
+            except ValidationError as error:
+                self.add_error("fojas", error)
         return datos

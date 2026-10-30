@@ -74,6 +74,19 @@ class ControlDocumentalUpdateView(ConcursoDetailView):
                         },
                         "habilitacion_html": render_to_string("expedientes/habilitacion_resumen.html",
                                                            {"documentacion": documentacion}, request=request),
+                        "sugerencia_html": render_to_string("expedientes/sugerencia_estado.html", {
+                            "documentacion": documentacion, "concurso": self.object,
+                        }, request=request),
+                        "sugerencia": (
+                            {
+                                "requisito": documentacion.detalle_sugerencia.requisito,
+                                "estado": documentacion.detalle_sugerencia.nombre_estado,
+                                "url": (reverse("concursos:estado", args=[self.object.pk]) +
+                                        "?sugerencia=" + documentacion.detalle_sugerencia.requisito)
+                                       if request.user.has_perm("concursos.cambiar_estado_concurso") else None,
+                            }
+                            if documentacion.detalle_sugerencia else None
+                        ),
                         "totales": {
                             "completos": len(documentacion.completos), "total": documentacion.total,
                             "pendientes": len(documentacion.pendientes_exigibles),

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% block scripts %}<script src="{% static 'js/navigation.js' %}" defer></script><script src="{% static 'js/session.js' %}" defer></script><script src="{% static 'js/forms.js' %}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/navigation.js' %}" defer></script><script src="{% static 'js/session.js' %}" defer></script><script src="{% static 'js/forms.js' %}" defer></script><script src="{% static 'js/document-temario-editor.js' %}" defer></script>{% endblock %}
 {% block layout %}
 <div class="app-shell" data-session-activity="{% url 'session_activity' %}" data-session-status="{% url 'session_status' %}" data-login="{% url 'login' %}">
   {% include "components/navigation.html" %}

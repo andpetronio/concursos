@@ -57,7 +57,8 @@ class DetailPresentationTests(TestCase):
         self.assertContains(response, f'<h1 id="cargo-title">{self.concurso.denominacion}</h1>', html=True)
         for label in ("Expediente", "Modalidad", "Categoría", "Tramo", "Agrupamiento", "Estado administrativo", "Situación administrativa", "Etapa documental"):
             self.assertContains(response, label)
-        self.assertContains(response, "independiente del control documental")
+        self.assertContains(response, "El estado solo cambia con tu confirmación")
+        self.assertContains(response, "los documentos verificados pueden sugerir un avance")
         for label, value in response.context["datos_concurso"]:
             if value is None or value == "":
                 self.assertContains(response, "No registrado")

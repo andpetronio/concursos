@@ -23,7 +23,12 @@ def cuadro_resultados(concurso, *, bloquear=False):
         consulta = consulta.select_for_update(of=("self",))
     postulantes = list(consulta)
     pendientes, elegibles, insuficientes = [], [], []
+    excluidos = []
     for aspirante in postulantes:
+        if not aspirante.puede_rendir:
+            excluidos.append({"aspirante_id": aspirante.pk, "nombre": str(aspirante.persona),
+                              "situacion": aspirante.get_situacion_display()})
+            continue
         try:
             evaluacion = aspirante.evaluacion
         except EvaluacionAspirante.DoesNotExist:
@@ -54,6 +59,8 @@ def cuadro_resultados(concurso, *, bloquear=False):
                    "oposicion": str(MAX_OPOSICION), "total": str(MAX_TOTAL), "minimo": str(MINIMO_MERITO),
                    "desempeno": "No aplicable (artículo 52, Ordenanza 33/10-CS)"},
         "cantidad_aspirantes": len(postulantes),
+        "cantidad_habilitados": len(postulantes) - len(excluidos),
+        "sin_continuidad": excluidos,
         "orden_merito": elegibles,
         "puntaje_insuficiente": insuficientes,
         "evaluaciones_pendientes": pendientes,
@@ -65,7 +72,9 @@ def faltantes_resultados(cuadro):
     faltantes = [f"Registrar evaluación de antecedentes y oposición: {nombre}."
                 for nombre in cuadro["evaluaciones_pendientes"]]
     if not cuadro["orden_merito"]:
-        if not cuadro["cantidad_aspirantes"]:
+        if cuadro["cantidad_aspirantes"] and cuadro.get("cantidad_habilitados", 1) == 0:
+            faltantes.append("No hay aspirantes habilitados para continuar; revisar las actuaciones individuales antes de emitir una resolución ordinaria.")
+        elif not cuadro["cantidad_aspirantes"]:
             faltantes.append("No hay aspirantes registrados: verificar el acta de inscriptos y tramitar, si corresponde, la declaración de concurso desierto (artículo 45).")
         elif not cuadro["evaluaciones_pendientes"]:
             faltantes.append("Todos los aspirantes evaluados quedaron debajo de 42,50/85: no corresponde generar una aprobación ordinaria con orden de mérito; revisar la declaración por insuficiencia de méritos (artículo 45).")
@@ -103,7 +112,8 @@ def diagnostico_sin_ganador(concurso, *, cuadro=None, acta_inscriptos_completa=N
         codigo = "desierto_sin_inscriptos"
         titulo = "Sin inscriptos: posible concurso desierto"
         explicacion = "El acta de inscriptos está verificada y no hay aspirantes registrados. Corresponde revisar el trámite de declaración por falta de aspirantes."
-    elif not cuadro["evaluaciones_pendientes"] and not cuadro["orden_merito"]:
+    elif (not cuadro["evaluaciones_pendientes"] and not cuadro["orden_merito"]
+          and cuadro.get("cantidad_habilitados", cantidad) > 0):
         codigo = "fracasado_por_merito"
         titulo = "Sin orden de mérito: insuficiencia de méritos"
         explicacion = "Ningún aspirante evaluado alcanza 42,50 puntos sobre 85. Operativamente se identifica como fracasado; el artículo 45 contempla la declaración de concurso desierto por insuficiencia de méritos."

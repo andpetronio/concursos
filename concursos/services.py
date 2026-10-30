@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from .choices import EstadoConcurso
+from .choices import EstadoConcurso, SituacionAdministrativa
 from .models import CambioEstado, Concurso
 
 
@@ -12,6 +12,7 @@ def sugerir_estado_convocado(concurso):
     acto fuera de SiCon. La decisión corresponde al usuario autorizado.
     """
     return (concurso.estado == EstadoConcurso.PREPARACION
+            and concurso.situacion == SituacionAdministrativa.NORMAL
             and bool(concurso.resolucion_convocatoria.strip()))
 
 

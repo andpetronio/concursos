@@ -1,17 +1,20 @@
 {% extends "components/table.html" %}
 {% block columns %}
-<th scope="col">Apellido y nombre</th><th scope="col">Expediente de inscripción</th><th scope="col">Correo electrónico</th><th scope="col">Evaluación</th>{% if perms.concursos.change_concurso %}<th scope="col">Acciones</th>{% endif %}
+<th scope="col">Apellido y nombre</th><th scope="col">Situación</th><th scope="col">Expediente de inscripción</th><th scope="col">Correo electrónico</th><th scope="col">Evaluación</th>{% if perms.concursos.change_concurso %}<th scope="col">Acciones</th>{% endif %}
 {% endblock %}
 {% block rows %}
 {% for aspirante in aspirantes %}<tr>
   <td>{% include "components/person_identity.html" with persona=aspirante.persona only %}</td>
+  <td><a class="aspirant-situation aspirant-situation--{{ aspirante.situacion }}" href="{% url 'concursos:aspirante_situacion' concurso.pk aspirante.pk %}">{{ aspirante.get_situacion_display }}</a></td>
   <td><span class="participation-data">{{ aspirante.expediente_inscripcion|default:"No registrado" }}</span></td>
   <td><span class="participation-data">{{ aspirante.email|default:"Sin correo registrado" }}</span></td>
   <td>
     {% if aspirante.evaluacion %}
+      {% if not aspirante.puede_rendir %}<span class="field-help">Puntajes históricos. No computan en mérito.</span>{% endif %}
       <span class="participation-data">Ant.: {{ aspirante.evaluacion.antecedentes }}/34 ·</span>
       <span class="participation-data">Op.: {{ aspirante.evaluacion.oposicion }}/51 ·</span>
       <strong>Total: {{ aspirante.evaluacion.total }}/85</strong>
+    {% elif not aspirante.puede_rendir %}<span class="field-help">No corresponde evaluar</span>
     {% else %}<span class="field-help">Evaluación pendiente</span>{% endif %}
   </td>
   {% if perms.concursos.change_concurso %}<td>

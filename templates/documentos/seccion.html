@@ -25,7 +25,7 @@
             <h4>{{ documento.tipo.nombre }}</h4>
             <p>{{ documento.tipo.descripcion }}</p>
             {% if documento.tipo.codigo == "dictamen" or documento.tipo.codigo == "designacion" %}
-              <span class="document-generation-note">Proyecto pendiente de revisión y consolidación administrativa</span>
+              <span class="document-generation-note">Texto tomado del modelo institucional DOCX; verificar los hechos acreditados antes de utilizarlo.</span>
             {% endif %}
           </div>
           <span class="document-generation-state{% if documento.disponible and not documento.tiene_complementos %} is-ready{% else %} is-pending{% endif %}">
@@ -54,15 +54,20 @@
                 <details class="document-inline-complements" {% if documento.formulario_con_errores %}open{% endif %}>
                   <summary>Completar datos y confirmaciones para generar</summary>
                   <p class="field-help">Estos datos pertenecen únicamente al borrador. No modifican la ficha ni acreditan actuaciones.</p>
+                  {% if documento.tipo.codigo == "sorteo_acta" %}
+                    {% include "documentos/sorteo_campos.html" with form=documento.formulario %}
+                  {% else %}
                   <div class="document-review-form-grid">
                     {% for campo in documento.campos_complementarios %}
-                      {% if campo.field.widget.input_type == "checkbox" %}
+                      {% if campo.field.widget.allow_multiple_selected %}{% include "components/multiple_checkboxes_field.html" with field=campo %}
+                      {% elif campo.field.widget.input_type == "checkbox" %}
                         {% include "components/checkbox_field.html" with field=campo %}
                       {% else %}
                         {% include "components/field.html" with field=campo %}
                       {% endif %}
                     {% endfor %}
                   </div>
+                  {% endif %}
                   {% if documento.campos_presupuesto %}
                     <details class="document-review-budget" {% if documento.formulario_con_errores %}open{% endif %}>
                       <summary>Datos presupuestarios de la designación ({{ documento.campos_presupuesto|length }} campos)</summary>

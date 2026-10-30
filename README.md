@@ -202,3 +202,7 @@ Para reproducir la verificación sin usar el código antiguo de la imagen ni mig
 docker compose run --rm --no-deps -v "$PWD:/app:ro" web sh -c 'python -m pip check && python manage.py check && python manage.py makemigrations --check --dry-run && python manage.py test -v 1'
 ```
 Si la imagen todavía no incluye `python-docx`, instalar `python-docx==1.2.0` únicamente en ese contenedor desechable antes de los checks. Django crea y destruye su base `test_...`; no ejecutar `migrate` contra la base operativa durante la verificación. No se da por validada la maquetación Word sin render o apertura y aceptación humana.
+
+
+### Fase 4F: situación individual de aspirantes
+En la ficha del concurso, pestaña **Aspirantes**, la columna **Situación** abre el historial. Para registrar una actuación, usar el menú **Más acciones** o el enlace a la situación; se requieren permisos de modificación, fecha, tipo de respaldo, documento, fojas y fundamento. Las actuaciones se registran sin borrar antecedentes y pueden rectificarse mediante una nueva actuación. La migración `0005_situacion_aspirante` se aplica con `python manage.py migrate`. Para las pruebas específicas: `python manage.py test participantes.tests.test_situaciones -v 2`.

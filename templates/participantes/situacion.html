@@ -1,0 +1,99 @@
+{% extends "layouts/private.html" %}
+{% block title %}Situación del aspirante · {{ concurso.expediente }}{% endblock %}
+{% block content %}
+<div class="aspirant-situation-view">
+  <a class="back-link" href="{% url 'concursos:detalle' concurso.pk %}#aspirantes">Volver a Aspirantes</a>
+  {% include "components/page_header.html" with section="Aspirantes" title="Situación del aspirante" description=concurso.expediente %}
+
+  <section class="card aspirant-situation-overview" aria-labelledby="situacion-persona">
+    <div class="aspirant-situation-person">
+      <span class="eyebrow">Inscripción en el concurso</span>
+      <h2 id="situacion-persona">{{ identity.apellido }}, {{ identity.nombre }}</h2>
+      <p>DNI {{ identity.dni }}{% if aspirante.expediente_inscripcion %} · Expediente de inscripción {{ aspirante.expediente_inscripcion }}{% endif %}</p>
+    </div>
+    <div class="aspirant-situation-current">
+      <span class="aspirant-situation-meta">Situación vigente</span>
+      <span class="aspirant-situation-badge{% if not aspirante.puede_rendir %} aspirant-situation-badge--restricted{% elif aspirante.situacion == 'impugnacion_pendiente' %} aspirant-situation-badge--pending{% endif %}">{{ aspirante.get_situacion_display }}</span>
+      <p>{% if not aspirante.puede_rendir %}No está habilitado para continuar en la oposición ni integrar el orden de mérito mientras esta decisión esté vigente.{% elif aspirante.situacion == 'impugnacion_pendiente' %}Existe una impugnación en trámite. Esto no constituye, por sí solo, una exclusión.{% else %}Inscripción registrada, sin una restricción vigente para continuar.{% endif %}</p>
+    </div>
+  </section>
+
+  <div class="aspirant-situation-workspace{% if not puede_gestionar %} aspirant-situation-workspace--readonly{% endif %}">
+    <section class="card aspirant-situation-history section" aria-labelledby="situacion-historial">
+      <div class="aspirant-situation-section-header">
+        <h2 id="situacion-historial">Historial de situación</h2>
+        <p>Actuaciones documentadas, de la más reciente a la primera.</p>
+      </div>
+      {% if cambios %}
+      <ol class="aspirant-situation-timeline">
+        {% for cambio in cambios %}
+        <li class="aspirant-situation-event">
+          <div class="aspirant-situation-event-heading">
+            <strong>{{ cambio.get_tipo_display }}</strong>
+            <time datetime="{{ cambio.fecha_decision|date:'Y-m-d' }}">{{ cambio.fecha_decision|date:"d/m/Y" }}</time>
+          </div>
+          <p class="aspirant-situation-transition"><span>{{ cambio.get_anterior_display }}</span><span aria-hidden="true">→</span><strong>{{ cambio.get_nueva_display }}</strong></p>
+          <dl class="aspirant-situation-evidence">
+            <div><dt>Documento respaldatorio</dt><dd>{{ cambio.get_clase_documento_display }} · {{ cambio.documento }}</dd></div>
+            <div><dt>Fojas</dt><dd>{{ cambio.fojas }}</dd></div>
+            <div><dt>Fundamento</dt><dd>{{ cambio.fundamento }}</dd></div>
+            {% if cambio.constancia_comunicacion %}<div><dt>Notificación o publicación</dt><dd>{{ cambio.constancia_comunicacion }}</dd></div>{% endif %}
+          </dl>
+          <p class="aspirant-situation-event-audit">Registrado en SiCon el {{ cambio.registrado_en|date:"d/m/Y" }} a las {{ cambio.registrado_en|date:"H:i" }} por {{ cambio.usuario.get_username }}.</p>
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <div class="aspirant-situation-empty">
+        <strong>Sin actuaciones adicionales</strong>
+        <p>El aspirante figura como inscripto. Todavía no hay cambios documentados en su situación.</p>
+      </div>
+      {% endif %}
+    </section>
+
+    {% if puede_gestionar %}
+    <section class="card aspirant-situation-editor section" aria-labelledby="situacion-registrar">
+      <div class="aspirant-situation-section-header">
+        <h2 id="situacion-registrar">{% if not aspirante.puede_rendir %}Registrar una rectificación{% else %}Registrar una actuación{% endif %}</h2>
+        <p>{% if not aspirante.puede_rendir %}Para restablecer la participación, registrá la actuación que rectifica o deja sin efecto la decisión vigente.{% else %}Cargá únicamente una decisión que ya conste en el expediente.{% endif %}</p>
+      </div>
+      <form method="post" class="aspirant-situation-form">
+        {% csrf_token %}
+        {% for hidden in form.hidden_fields %}{{ hidden }}{{ hidden.errors }}{% endfor %}
+        {% include "components/form_errors.html" %}
+        <div class="aspirant-situation-form-group">
+          <h3>Decisión acreditada</h3>
+          <div class="aspirant-situation-fields">
+            {% include "components/field.html" with field=form.tipo only %}
+            {% include "components/field.html" with field=form.fecha_decision only %}
+          </div>
+        </div>
+        <div class="aspirant-situation-form-group">
+          <h3>Respaldo en el expediente</h3>
+          <div class="aspirant-situation-fields">
+            {% include "components/field.html" with field=form.clase_documento only %}
+            {% include "components/field.html" with field=form.documento only %}
+            {% include "components/field.html" with field=form.fojas only %}
+            <div class="aspirant-situation-full">
+              {% include "components/field.html" with field=form.fundamento only %}
+            </div>
+            <div class="aspirant-situation-full">
+              {% include "components/field.html" with field=form.constancia_comunicacion only %}
+            </div>
+          </div>
+        </div>
+        <div class="aspirant-situation-consequences" role="note">
+          <strong>Antes de registrar</strong>
+          <p>{% if not aspirante.puede_rendir %}La rectificación permitirá continuar con la oposición y el orden de mérito. La decisión anterior permanecerá en el historial.{% else %}Una no habilitación, exclusión o desistimiento impide continuar con la oposición y el orden de mérito. Una impugnación en trámite no supone exclusión. Los puntajes históricos se conservan.{% endif %}</p>
+        </div>
+        <div class="form-actions aspirant-situation-actions">
+          <button type="submit" class="button">Registrar actuación documentada</button>
+          <a href="{% url 'concursos:detalle' concurso.pk %}#aspirantes">Cancelar</a>
+        </div>
+      </form>
+      <p class="aspirant-situation-disclaimer">SiCon registra actuaciones que constan en el expediente; no sustituye la decisión del Jurado ni de la autoridad competente.</p>
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

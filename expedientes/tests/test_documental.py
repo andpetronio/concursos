@@ -9,10 +9,10 @@ from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from concursos import services as concursos_services
-from concursos.choices import EstadoConcurso
+from concursos.choices import EstadoConcurso, SituacionAdministrativa
 from concursos.tests.test_concursos import DATOS, PASSWORD, START
 from core.models import SessionActivity
-from participantes.models import Jurado, Persona
+from participantes.models import Aspirante, Jurado, Persona
 
 from expedientes.catalogo import REQUISITOS
 from expedientes.models import CambioControlDocumental, CambioEtapaDocumental, ControlDocumental, SeguimientoDocumental
@@ -336,9 +336,9 @@ class DocumentalTests(TestCase):
 
     def test_sugerencia_solo_dictamen_valido_sin_cambio_automatico_y_permiso_independiente(self):
         self.guardar("publicacion_convocatoria")
-        self.assertIsNone(consultar_documentacion(self.concurso).sugerencia)
+        self.assertEqual(consultar_documentacion(self.concurso).sugerencia, EstadoConcurso.CONVOCADO)
         self.guardar("dictamen")
-        self.assertIsNone(consultar_documentacion(self.concurso).sugerencia)
+        self.assertEqual(consultar_documentacion(self.concurso).sugerencia, EstadoConcurso.CONVOCADO)
         self.guardar("dictamen", fojas="20/22")
         self.assertEqual(consultar_documentacion(self.concurso).sugerencia, EstadoConcurso.CON_DICTAMEN)
         self.concurso.refresh_from_db()
@@ -358,6 +358,123 @@ class DocumentalTests(TestCase):
         self.concurso.refresh_from_db()
         self.assertEqual(self.concurso.estado, EstadoConcurso.CON_DICTAMEN)
         self.assertEqual(self.concurso.historial.first().usuario, self.estadista)
+        self.assertIsNone(consultar_documentacion(self.concurso).sugerencia)
+
+    def crear_aspirante_sintetico(self):
+        persona = Persona.objects.create(
+            apellido="Prueba", nombre="Inscriptor", dni="30123456",
+            creado_por=self.editor, actualizado_por=self.editor,
+        )
+        return Aspirante.objects.create(
+            concurso=self.concurso, persona=persona,
+            creado_por=self.editor, actualizado_por=self.editor,
+        )
+
+    def test_cuatro_actuaciones_sugieren_estados_sin_guardarlos(self):
+        self.crear_aspirante_sintetico()
+        for codigo, fojas, esperado in (
+            ("publicacion_convocatoria", "", EstadoConcurso.CONVOCADO),
+            ("acta_inscriptos", "12/14", EstadoConcurso.EN_CURSO),
+            ("dictamen", "20", EstadoConcurso.CON_DICTAMEN),
+            ("designacion", "40/42", EstadoConcurso.FINALIZADO),
+        ):
+            with self.subTest(codigo=codigo):
+                respuesta = self.guardar(codigo, fojas=fojas)
+                self.assertEqual(respuesta.status_code, 302)
+                documentacion = consultar_documentacion(self.concurso)
+                self.assertEqual(documentacion.sugerencia, esperado)
+                self.assertEqual(documentacion.detalle_sugerencia.requisito, codigo)
+                self.concurso.refresh_from_db()
+                self.assertEqual(self.concurso.estado, EstadoConcurso.PREPARACION)
+                self.assertEqual(self.concurso.historial.count(), 1)
+                self.login(self.estadista)
+                form = self.client.get(reverse("concursos:estado", args=[self.concurso.pk]),
+                                       {"sugerencia": codigo}).context["form"]
+                self.assertEqual(form.initial["estado"], esperado)
+                self.assertIn(fojas or documentacion.detalle_sugerencia.nombre_documento,
+                              form.initial["justificacion"])
+                self.login(self.editor)
+
+    def test_sin_inscriptos_no_infiere_desierto_ni_sugiere_en_curso(self):
+        self.guardar("acta_inscriptos", fojas="4/5")
+        documentacion = consultar_documentacion(self.concurso)
+        self.assertIsNone(documentacion.sugerencia)
+        response = self.client.get(self.concurso.get_absolute_url())
+        self.assertContains(response, "Acta de inscriptos verificada, sin aspirantes cargados")
+        self.assertContains(response, "tramitá la declaración de concurso desierto")
+        self.crear_aspirante_sintetico()
+        self.assertEqual(consultar_documentacion(self.concurso).sugerencia, EstadoConcurso.EN_CURSO)
+
+    def test_foja_incompleta_no_habilita_sugerencia_y_estado_manual_se_respeta(self):
+        self.crear_aspirante_sintetico()
+        self.guardar("dictamen")
+        self.assertIsNone(consultar_documentacion(self.concurso).sugerencia)
+        self.guardar("dictamen", fojas="5")
+        self.assertEqual(consultar_documentacion(self.concurso).sugerencia, EstadoConcurso.CON_DICTAMEN)
+        concursos_services.cambiar_estado(
+            pk=self.concurso.pk, estado=EstadoConcurso.FINALIZADO,
+            situacion=SituacionAdministrativa.NORMAL,
+            justificacion="Finalización manual", usuario=self.estadista, version_esperada=1,
+        )
+        self.concurso.refresh_from_db()
+        self.assertIsNone(consultar_documentacion(self.concurso).sugerencia)
+        self.login(self.estadista)
+        estado = self.client.get(reverse("concursos:estado", args=[self.concurso.pk]),
+                                {"sugerencia": "dictamen"})
+        self.assertEqual(estado.context["form"].initial["estado"], EstadoConcurso.FINALIZADO)
+        self.assertNotIn("justificacion", estado.context["form"].initial)
+
+    def test_impugnado_o_suspendido_no_recibe_sugerencia_y_conserva_cambios_manuales(self):
+        self.guardar("publicacion_convocatoria")
+        for situacion in (SituacionAdministrativa.IMPUGNADO, SituacionAdministrativa.SUSPENDIDO):
+            self.concurso.refresh_from_db()
+            concursos_services.cambiar_estado(
+                pk=self.concurso.pk, estado=self.concurso.estado,
+                situacion=situacion, justificacion="Revisión manual",
+                usuario=self.estadista, version_esperada=self.concurso.version,
+            )
+            self.concurso.refresh_from_db()
+            self.assertIsNone(consultar_documentacion(self.concurso).sugerencia)
+        concursos_services.cambiar_estado(
+            pk=self.concurso.pk, estado=EstadoConcurso.PREPARACION,
+            situacion=SituacionAdministrativa.NORMAL, justificacion="Se levantó la suspensión",
+            usuario=self.estadista, version_esperada=self.concurso.version,
+        )
+        self.concurso.refresh_from_db()
+        self.assertEqual(consultar_documentacion(self.concurso).sugerencia, EstadoConcurso.CONVOCADO)
+
+    def test_ajax_muestra_sugerencia_tras_guardar_y_respeta_permiso(self):
+        control = self.control("publicacion_convocatoria")
+        prefijo = f"control-{control.pk}-"
+        respuesta = self.client.post(self.url(control), {
+            prefijo + "version_esperada": control.version,
+            prefijo + "verificado": "on",
+        }, HTTP_X_REQUESTED_WITH="XMLHttpRequest", HTTP_ACCEPT="application/json")
+        self.assertEqual(respuesta.status_code, 200)
+        html = respuesta.json()["sugerencia_html"]
+        self.assertEqual(respuesta.json()["sugerencia"]["requisito"], "publicacion_convocatoria")
+        self.assertIsNone(respuesta.json()["sugerencia"]["url"])
+        self.assertIn("Convocado", html)
+        self.assertNotIn("Revisar y confirmar sugerencia de estado", html)
+        self.concurso.refresh_from_db()
+        self.assertEqual(self.concurso.estado, EstadoConcurso.PREPARACION)
+        self.login(self.estadista)
+        detalle = self.client.get(self.concurso.get_absolute_url())
+        self.assertContains(detalle, "?sugerencia=publicacion_convocatoria")
+        self.assertContains(detalle, "Revisar y confirmar sugerencia de estado")
+        estado = self.client.get(reverse("concursos:estado", args=[self.concurso.pk]),
+                                {"sugerencia": "publicacion_convocatoria"})
+        self.assertEqual(estado.context["form"].initial["estado"], EstadoConcurso.CONVOCADO)
+        self.assertIn("Constancia de publicación", estado.context["form"].initial["justificacion"])
+        confirmado = self.client.post(reverse("concursos:estado", args=[self.concurso.pk]), {
+            "estado": EstadoConcurso.CONVOCADO, "situacion": SituacionAdministrativa.NORMAL,
+            "version_esperada": self.concurso.version,
+            "justificacion": estado.context["form"].initial["justificacion"],
+        })
+        self.assertEqual(confirmado.status_code, 302)
+        self.concurso.refresh_from_db()
+        self.assertEqual(self.concurso.estado, EstadoConcurso.CONVOCADO)
+        self.assertIn("Constancia de publicación", self.concurso.historial.first().justificacion)
         self.assertIsNone(consultar_documentacion(self.concurso).sugerencia)
 
     def test_permisos_consulta_escritura_y_estado_son_independientes(self):

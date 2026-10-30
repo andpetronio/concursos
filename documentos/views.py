@@ -1,3 +1,4 @@
+from django import forms
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse, Http404
@@ -171,7 +172,9 @@ class GeneracionView(AccesoConcursoMixin, FormView):
         try:
             datos = dict(form.cleaned_data)
             versiones = {k: datos.pop(k) for k in ("version_concurso", "version_destinatario", "revision_administrativa", "huella_esperada")}
-            datos = {campo: self.request.POST.get(campo, "") for campo in form.fields if campo not in versiones}
+            datos = {campo: (self.request.POST.getlist(campo) if isinstance(form.fields[campo], forms.MultipleChoiceField)
+                             else self.request.POST.get(campo, ""))
+                     for campo in form.fields if campo not in versiones}
             generacion = services.generar(complementarios=datos, concurso_id=self.get_concurso().pk, tipo_codigo=self.get_tipo().codigo,
                                           usuario=self.request.user, **versiones)
         except ValidationError as error:
@@ -205,7 +208,8 @@ class GeneracionEnFichaView(ConcursoDetailView):
                 "version_concurso", "version_destinatario", "revision_administrativa", "huella_esperada"
             )}
             complementarios = {
-                campo: request.POST.get(form.add_prefix(campo), "")
+                campo: (request.POST.getlist(form.add_prefix(campo)) if isinstance(form.fields[campo], forms.MultipleChoiceField)
+                        else request.POST.get(form.add_prefix(campo), ""))
                 for campo in form.fields if campo not in versiones
             }
             try:

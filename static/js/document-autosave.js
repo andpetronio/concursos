@@ -184,6 +184,8 @@
       actualizarPendientesRapidos(data.etapa_documental?.codigo);
       const guidance = document.querySelector('[data-document-guidance]');
       if (guidance && typeof data.habilitacion_html === 'string') guidance.innerHTML = data.habilitacion_html;
+      const suggestion = document.querySelector('[data-document-state-suggestion]');
+      if (suggestion && typeof data.sugerencia_html === 'string') suggestion.innerHTML = data.sugerencia_html;
     };
     let inFlightValues = null;
 
@@ -218,7 +220,16 @@
           return;
         }
         syncSave(data);
-        feedback('Guardado');
+        const propuesta = data.sugerencia;
+        if (propuesta && propuesta.requisito === form.dataset.documentRequirement) {
+          feedback(`Guardado. Se sugiere el estado «${propuesta.estado}». `);
+          if (propuesta.url) {
+            const link = document.createElement('a');
+            link.href = propuesta.url;
+            link.textContent = 'Revisar y confirmar';
+            status.append(link);
+          }
+        } else feedback('Guardado');
       } catch (e) {
         shouldRetry = true;
         feedback('No se pudo guardar. Comprobá la conexión y reintentá.', {failure: true});

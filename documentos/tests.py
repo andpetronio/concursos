@@ -282,7 +282,7 @@ class DocumentosTests(TestCase):
 
     @patch("pathlib.Path.is_file", return_value=False)
     def test_fuentes_ausentes_bloquean_cinco_tipos_y_convocatoria_consulta_servicio(self, fuente_ausente):
-        self.assertEqual(len(TIPOS), 7)
+        self.assertEqual(len(TIPOS), 8)
         for tipo in (t for t in TIPOS if t.fuente):
             with self.subTest(tipo=tipo.codigo):
                 with patch.object(expediente_services, "habilitacion_convocatoria", wraps=expediente_services.habilitacion_convocatoria) as habilitar:
@@ -448,6 +448,17 @@ class ContinuacionDocumentosTests(TestCase):
         if tipo == "designacion":
             from .forms import PRESUPUESTO
             datos.update({f"presupuesto_{nombre}": "01" for nombre, _ in PRESUPUESTO})
+        if tipo in ("dictamen", "designacion", "sorteo_acta"):
+            datos.update(
+                fecha_sorteo_tema="2026-11-02", hora_sorteo_tema="09:00",
+                fecha_oposicion="2026-11-06", hora_oposicion="09:00",
+                autoridad_tratamiento="Sr.", autoridad_cargo="Director de prueba",
+                autoridad_nombre="Autoridad fiscalizadora ficticia",
+            )
+        if tipo in ("dictamen", "designacion"):
+            datos.update(confirmar_suscriptores=True, confirmar_unanimidad=True,
+                         confirmar_sin_impugnaciones=True, confirmar_notificacion=True,
+                         confirmar_notificacion_sorteo=True)
         if tipo == "dictamen":
             datos["confirmacion_sin_recursos"] = True
         if tipo == "designacion":
@@ -500,11 +511,15 @@ class ContinuacionDocumentosTests(TestCase):
         self.concurso.domicilio_trabajo = "Calle Ficticia 123, San Juan"
         self.concurso.jurisdiccion = "rectorado"
         self.concurso.iniciador_nombre = "Persona iniciadora ficticia"
+        self.concurso.iniciador_tratamiento = "Sr."
         self.concurso.iniciador_cargo = "Secretario de prueba"
-        self.concurso.causa_vacancia = "nuevo"
+        self.concurso.causa_vacancia = "jubilacion"
+        self.concurso.ex_titular = "Titular ficticio"
+        self.concurso.fecha_baja = timezone.localdate()
+        self.concurso.resolucion_baja = "1234/26-R"
         self.concurso.resolucion_convocatoria = "3278/26-R"
         self.concurso.save(update_fields=["turno_trabajo", "domicilio_trabajo", "jurisdiccion",
-            "iniciador_nombre", "iniciador_cargo", "causa_vacancia", "resolucion_convocatoria"])
+            "iniciador_nombre", "iniciador_tratamiento", "iniciador_cargo", "causa_vacancia", "ex_titular", "fecha_baja", "resolucion_baja", "resolucion_convocatoria"])
 
     def generar_tipo(self, tipo, datos=None, **kwargs):
         return services.generar(concurso_id=self.concurso.pk, tipo_codigo=tipo, usuario=self.operador,
@@ -521,7 +536,7 @@ class ContinuacionDocumentosTests(TestCase):
                 self.assertEqual(registro.instantanea["pendientes"], [])
                 self.assertEqual(len(registro.instantanea["fuente"]["sha256"]), 64)
                 self.assertEqual(registro.sha256, hashlib.sha256(bytes(registro.contenido)).hexdigest())
-                for prohibido in ("{{", "3164/23", "11991", "unanimidad", "no se interpusieron", "soldadura", "PENDIENTE"):
+                for prohibido in ("{{", "3164/23", "11991", "soldadura", "PENDIENTE"):
                     self.assertNotIn(prohibido, texto)
                 doc = Document(BytesIO(bytes(registro.contenido)))
                 self.assertAlmostEqual(doc.sections[0].page_height.cm,
@@ -536,12 +551,14 @@ class ContinuacionDocumentosTests(TestCase):
                     if tipo == "dictamen":
                         orden = registro.instantanea["resultados"]["orden_merito"]
                         self.assertEqual(registro.instantanea["resultados"]["escala"]["minimo"], "42.50")
-                        self.assertEqual(len(doc.tables[0].columns), 6)
+                        self.assertIn("orden de mérito es el siguiente", texto)
                     else:
                         orden = registro.instantanea["complementarios"]["orden_merito"]
                     self.assertEqual(orden[0]["aspirante_id"], self.concurso.aspirantes.order_by("pk").last().pk)
-                if tipo in ("convocatoria", "designacion"):
+                if tipo == "convocatoria":
                     self.assertEqual(len(doc.tables[-2].columns), 13)
+                if tipo == "designacion":
+                    self.assertEqual(len(doc.tables[-1].columns), 14)
                 if tipo == "convocatoria":
                     self.assertEqual(len(doc.element.body.findall('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}numPr')), 12)
                     self.assertIn("ANEXO", texto)
@@ -620,11 +637,13 @@ class ContinuacionDocumentosTests(TestCase):
         for apartado in apartados:
             self.assertEqual(apartado.paragraph_format.space_before, Pt(9))
 
-    def test_otras_resoluciones_conservan_pie_y_sangria(self):
+    def test_dictamen_conserva_pie_y_sangria_del_modelo_original(self):
         self.completar_fuentes()
         registro = self.generar_tipo("dictamen")
         documento = Document(BytesIO(bytes(registro.contenido)))
-        self.assertIn("BORRADOR NO EMITIDO", documento.sections[0].footer.paragraphs[0].text)
+        original = Document(Path(__file__).parent / "modelos" / "PROYECTO RES. APROBANDO DICTAMEN.docx")
+        self.assertEqual(documento.sections[0].footer.paragraphs[0].text,
+                         original.sections[0].footer.paragraphs[0].text)
         articulo_dictamen = next(p for p in documento.paragraphs if p.text.startswith("ARTÍCULO "))
         self.assertIsNone(articulo_dictamen.paragraph_format.first_line_indent)
 
@@ -734,10 +753,21 @@ class ContinuacionDocumentosTests(TestCase):
                 self.generar_tipo("convocatoria", {**self.complementos("convocatoria"), campo: ""})
         for tipo in ("dictamen", "designacion"):
             datos = self.complementos(tipo)
-            obligatorios = ("marco_normativo", "firmante", "lugar_fecha")
-            for campo in obligatorios:
+            for campo in ("fecha_sorteo_tema", "autoridad_nombre", "confirmar_unanimidad"):
                 with self.subTest(tipo=tipo, campo=campo), self.assertRaises(ValidationError):
                     self.generar_tipo(tipo, {**datos, campo: "   "})
+        self.assertFalse(GeneracionDocumento.objects.exists())
+
+    def test_confirmaciones_exigen_marca_explicita_no_cualquier_texto(self):
+        self.completar_fuentes()
+        for tipo in ("dictamen", "designacion"):
+            datos = self.complementos(tipo)
+            for campo in ("confirmar_suscriptores", "confirmar_unanimidad",
+                          "confirmar_sin_impugnaciones", "confirmar_notificacion",
+                          "confirmar_notificacion_sorteo"):
+                with self.subTest(tipo=tipo, campo=campo), self.assertRaisesMessage(
+                        ValidationError, campo):
+                    self.generar_tipo(tipo, {**datos, campo: "texto arbitrario"})
         self.assertFalse(GeneracionDocumento.objects.exists())
 
     def test_convocatoria_solo_fecha_y_tabla_presupuestaria_fiel(self):
@@ -874,9 +904,9 @@ class ContinuacionDocumentosTests(TestCase):
         self.assertEqual(cuadro["orden_merito"][0]["total"], "54.00")
         self.assertEqual(cuadro["orden_merito"][0]["oposicion"], "32.00")
         self.assertNotIn("merito", registro.instantanea["complementarios"])
-        self.assertEqual(len(Document(BytesIO(bytes(registro.contenido))).tables[0].columns), 6)
-        self.assertIn("ANT. /34", self.texto(registro))
-        self.assertEqual(registro.plantilla_version, "dictamen-4")
+        self.assertIn("cuyo orden de mérito es el siguiente", self.texto(registro))
+        self.assertIn("Que por Resolución N°", self.texto(registro))
+        self.assertEqual(registro.plantilla_version, "dictamen-fuente-1")
 
     def test_rectificacion_de_puntajes_no_cambia_documento_historico(self):
         from participantes.services import guardar_evaluacion
@@ -932,9 +962,19 @@ class ContinuacionDocumentosTests(TestCase):
             with self.assertRaises(ValidationError):
                 self.generar_tipo("designacion", {**datos, "aspirante_id": elegido})
         with self.assertRaises(ValidationError):
-            self.generar_tipo("designacion", {**datos, "aplica_limitacion": "si", "limitacion": ""})
-        registro = self.generar_tipo("designacion", {**datos, "aplica_limitacion": "si", "limitacion": "Limitar designación anterior acreditada de prueba."})
-        self.assertIn("ARTÍCULO 5°", self.texto(registro))
+            self.generar_tipo("designacion", {**datos, "aplica_limitacion": "si"})
+        registro = self.generar_tipo("designacion", {
+            **datos, "aplica_limitacion": "si", "limitacion": "Limitación acreditada en expediente.",
+            "resolucion_anterior": "2000/26-R", "categoria_anterior": "6",
+            "tramo_anterior": "Inicial", "agrupamiento_anterior": "Administrativo 01",
+            "cp_anterior": "11111", "funciones_anteriores": "Unidad ficticia",
+            "unidad_anterior": "Dirección ficticia de origen",
+        })
+        texto = self.texto(registro)
+        # Con limitación del cargo anterior se conserva el artículo 2º
+        # y el cierre es el artículo 5º, tal como figura en el DOCX original.
+        self.assertIn("ARTÍCULO 2º.- Limitar", texto)
+        self.assertIn("ARTÍCULO 5º.- Regístrese, comuníquese y oportunamente archívese", texto)
 
     def test_cambios_persona_jurado_aspirantes_controles_y_plantilla_invalidan_revision(self):
         self.completar_fuentes()
@@ -985,7 +1025,7 @@ class ContinuacionDocumentosTests(TestCase):
                 elif tipo == "convocatoria":
                     self.assertContains(respuesta, 'name="fecha_apertura"')
                 elif tipo in ("dictamen", "designacion"):
-                    self.assertContains(respuesta, 'name="marco_normativo"')
+                    self.assertContains(respuesta, 'name="autoridad_nombre"')
                 else:
                     self.assertNotContains(respuesta, 'name="marco_normativo"')
                 datos = {**self.complementos(tipo), "version_concurso": self.concurso.version,
@@ -1234,3 +1274,99 @@ class ContinuacionDocumentosTests(TestCase):
         self.assertFalse(services.disponibilidad(self.concurso, POR_CODIGO["jurados"])["disponible"])
         with self.assertRaisesMessage(ValidationError, "Cargar el membrete vigente"):
             self.generar_tipo("jurados", self.complementos("jurados"), huella_esperada=self.huella("jurados"))
+
+@override_settings(PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"])
+class ActaSorteoFuenteTests(TestCase):
+    """Regresión del nuevo modelo: acta fiel, asistentes explícitos y bytes históricos."""
+    setUpTestData = classmethod(DocumentosTests.setUpTestData.__func__)
+    setUp = ContinuacionDocumentosTests.setUp
+    login = DocumentosTests.login
+    texto = DocumentosTests.texto
+    huella = DocumentosTests.huella
+    complementos = ContinuacionDocumentosTests.complementos
+    completar_fuentes = ContinuacionDocumentosTests.completar_fuentes
+    generar_tipo = ContinuacionDocumentosTests.generar_tipo
+
+    def test_acta_selecciona_jurados_aspirantes_y_veedor_sin_inventar_asistencias(self):
+        self.completar_fuentes(cantidad=6)
+        jurados = list(self.concurso.jurados.order_by('pk'))
+        aspirantes = list(self.concurso.aspirantes.order_by('pk'))
+        datos = self.complementos('sorteo_acta')
+        datos.update(jurados_presentes=[str(jurados[0].pk), str(jurados[2].pk)],
+                     aspirantes_presentes=[str(aspirantes[1].pk), str(aspirantes[4].pk)],
+                     veedor_presencia='sin_designacion', oficio_veedor='01-123-2026',
+                     jurado_autor_tema=str(jurados[2].pk),
+                     tema_teoria='Pregunta teórica acreditada', tema_practica='Práctica acreditada',
+                     sede_oposicion='Dirección de Concursos', caracter_oposicion='teórico-práctica',
+                     hora_cierre='11:40')
+        documento = self.generar_tipo('sorteo_acta', datos)
+        texto = self.texto(documento)
+        self.assertIn('ACTA DE SORTEO DEL TEMARIO', texto)
+        self.assertIn('01-123-2026', texto)
+        self.assertIn('Pregunta teórica acreditada', texto)
+        self.assertIn('Práctica acreditada', texto)
+        self.assertIn('Autoridad fiscalizadora ficticia', texto)
+        self.assertIn(aspirantes[1].persona.nombre, texto)
+        self.assertNotIn(aspirantes[0].persona.nombre, texto)
+        self.assertNotIn('Marcelo Javier PINOS', texto)
+        self.assertNotIn('{{', texto)
+        self.assertEqual(len(Document(BytesIO(bytes(documento.contenido))).tables[0].rows), 3)
+        self.assertEqual(documento.plantilla_version, 'sorteo-acta-fuente-2')
+
+    def test_acta_fecha_inicial_y_listas_con_formato_word(self):
+        self.completar_fuentes(cantidad=2)
+        jurado = self.concurso.jurados.order_by('pk').first()
+        datos = self.complementos('sorteo_acta')
+        datos.update(jurados_presentes=[str(jurado.pk)], aspirantes_presentes=[],
+                     veedor_presencia='sin_designacion', oficio_veedor='01-123-2026',
+                     jurado_autor_tema=str(jurado.pk),
+                     tema_teoria='<ul><li><strong>Primer tema</strong></li><li>Segundo tema</li></ul>',
+                     tema_practica='<ol><li><em>Armar el equipo</em></li><li>Verificar funcionamiento</li></ol>',
+                     sede_oposicion='Rectorado', caracter_oposicion='práctica', hora_cierre='11:00')
+        registro = self.generar_tipo('sorteo_acta', datos)
+        doc = Document(BytesIO(bytes(registro.contenido)))
+        texto = self.texto(registro)
+        self.assertIn('En San Juan, a los 2 días del mes de noviembre de 2026', texto)
+        self.assertIn('01-123-2026', texto)
+        p = next(p for p in doc.paragraphs if 'Primer tema' in p.text)
+        self.assertTrue(next(r for r in p.runs if 'Primer tema' in r.text).bold)
+        self.assertEqual(p._p.pPr.numPr.numId.val, 1)
+        n = next(p for p in doc.paragraphs if 'Armar el equipo' in p.text)
+        self.assertTrue(next(r for r in n.runs if 'Armar el equipo' in r.text).italic)
+        numid = n._p.pPr.numPr.numId.val
+        self.assertGreater(numid, 2)
+        lista = doc.part.numbering_part.element
+        from docx.oxml.ns import qn
+        num = next(el for el in lista.findall(qn('w:num')) if int(el.get(qn('w:numId'))) == numid)
+        abstractid = num.find(qn('w:abstractNumId')).get(qn('w:val'))
+        abstract = next(el for el in lista.findall(qn('w:abstractNum')) if el.get(qn('w:abstractNumId')) == abstractid)
+        self.assertEqual(abstract.find(qn('w:lvl')).find(qn('w:numFmt')).get(qn('w:val')), 'decimal')
+
+    def test_acta_rechaza_formato_inseguro_y_oficio_invalido(self):
+        self.completar_fuentes(cantidad=2)
+        jurado = self.concurso.jurados.order_by('pk').first()
+        datos = self.complementos('sorteo_acta')
+        datos.update(jurados_presentes=[str(jurado.pk)], aspirantes_presentes=[],
+                     veedor_presencia='sin_designacion', oficio_veedor='01-123-2026',
+                     jurado_autor_tema=str(jurado.pk), tema_teoria='Tema válido', tema_practica='Prueba válida',
+                     sede_oposicion='Rectorado', caracter_oposicion='práctica', hora_cierre='11:00')
+        for cambio in ({'tema_teoria': '<script>alert(1)</script>'},
+                       {'tema_teoria': '<p onclick="alert(1)">Tema</p>'},
+                       {'tema_practica': '<ul><li>Sin cerrar'},
+                       {'oficio_veedor': '123/26'}):
+            with self.subTest(cambio=cambio), self.assertRaises(ValidationError):
+                self.generar_tipo('sorteo_acta', {**datos, **cambio})
+
+    def test_acta_rechaza_fiscalizacion_vacia_o_representacion_de_veedor_inconsistente(self):
+        self.completar_fuentes(cantidad=2)
+        jurado = self.concurso.jurados.order_by('pk').first()
+        datos = self.complementos('sorteo_acta')
+        datos.update(jurados_presentes=[str(jurado.pk)], aspirantes_presentes=[],
+                     veedor_presencia='sin_designacion', oficio_veedor='01-33-2026',
+                     jurado_autor_tema=str(jurado.pk), tema_teoria='Teoría', tema_practica='Práctica',
+                     sede_oposicion='Rectorado', caracter_oposicion='práctica', hora_cierre='11:00')
+        self.assertIsNotNone(self.generar_tipo('sorteo_acta', datos))
+        for cambios in ({'jurados_presentes': []}, {'veedor_presencia': 'presente'},
+                        {'fecha_oposicion': '2026-11-02'}):
+            with self.subTest(cambios=cambios), self.assertRaises(ValidationError):
+                self.generar_tipo('sorteo_acta', {**datos, **cambios})

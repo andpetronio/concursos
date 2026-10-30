@@ -28,8 +28,12 @@ TIPOS = (
                   "solicitar veedor.docx", "Concurso, resolución oficial, destinatario APUNSJ y membrete vigente",
                   "Sin datos complementarios: fecha automática y resolución desde la ficha", "Requiere resolución oficial de convocatoria registrada", "apunsj-3"),
     TipoDocumento("dictamen", "Proyecto de resolución de aprobación del dictamen", "Sin presunción de resultados ni hechos administrativos.",
-                  "PROYECTO RES. APROBANDO DICTAMEN.pdf", "Concurso, jurados, aspirantes y actuaciones verificadas",
-                  "Puntajes estructurados /34 y /51, comunicaciones y antecedentes acreditados", "La evaluación de todos los aspirantes y el orden sin empates pendientes son obligatorios", "dictamen-4"),
+                  "PROYECTO RES. APROBANDO DICTAMEN.docx", "Concurso, jurados, aspirantes y actuaciones verificadas",
+                  "Puntajes estructurados /34 y /51, fechas y autoridad del sorteo, confirmaciones expresas", "La evaluación de todos los aspirantes y el orden sin empates pendientes son obligatorios", "dictamen-fuente-1"),
+    TipoDocumento("sorteo_acta", "Acta de sorteo de temas", "Acta editable con autoridad fiscalizadora, jurados, aspirantes y veeduría presentes.",
+                  "Acta de sorteo de temas.docx", "Concurso, jurados, aspirantes y resolución oficial de convocatoria",
+                  "Fecha y hora, autoridad fiscalizadora, asistentes, resultado del sorteo y prueba de oposición",
+                  "Requiere convocatoria oficial, jurado y acta de valoración de antecedentes acreditada", "sorteo-acta-fuente-2"),
     TipoDocumento("desierto_inscriptos", "Proyecto de resolución declarando desierto el concurso por falta de aspirantes",
                   "Declaración por ausencia de inscriptos y trámite del próximo llamado; no constituye una nueva convocatoria.",
                   "", "Identificación y cargo del concurso, resolución oficial, acta de inscripción verificada y fojas",
@@ -37,8 +41,8 @@ TIPOS = (
                   "Requiere acta verificada, ausencia de aspirantes registrados y modalidad que permita nuevo llamado",
                   "desierto-inscriptos-1"),
     TipoDocumento("designacion", "Proyecto de resolución de designación", "Sin selección automática de aspirante ni efectos administrativos.",
-                  "PROYECTO RES. DESIGNACION.pdf", "Concurso y antecedentes documentales verificados",
-                  "Persona propuesta, mérito, efectos y condiciones acreditados", "Los antecedentes y complementos críticos son obligatorios", "designacion-3"),
+                  "PROYECTO RES. DESIGNACION.docx", "Concurso y antecedentes documentales verificados",
+                  "Persona propuesta, mérito, antecedentes, limitación opcional y presupuesto acreditados", "Los antecedentes y complementos críticos son obligatorios", "designacion-fuente-1"),
 
 )
 POR_CODIGO = {tipo.codigo: tipo for tipo in TIPOS}

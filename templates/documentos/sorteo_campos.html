@@ -1,0 +1,54 @@
+{# Mismo componente para ficha y revisión clásica; el formulario conserva nombres y validación. #}
+<div class="document-sorteo" data-sorteo-form>
+  <section class="document-sorteo-section" aria-label="Datos del acto">
+    <div class="document-sorteo-heading"><h4>1. Datos del acto</h4><p class="field-help">Fechas y horarios del sorteo y de la prueba de oposición.</p></div>
+    <div class="document-sorteo-grid">
+      {% include "components/field.html" with field=form.fecha_sorteo_tema %}
+      {% include "components/field.html" with field=form.hora_sorteo_tema %}
+      {% include "components/field.html" with field=form.fecha_oposicion %}
+      {% include "components/field.html" with field=form.hora_oposicion %}
+    </div>
+  </section>
+
+  <section class="document-sorteo-section" aria-label="Autoridad fiscalizadora">
+    <div class="document-sorteo-heading"><h4>2. Autoridad fiscalizadora</h4><p class="field-help">Datos de la autoridad que asiste en representación del Rector.</p></div>
+    <div class="document-sorteo-grid">
+      {% include "components/field.html" with field=form.autoridad_tratamiento %}
+      {% include "components/field.html" with field=form.autoridad_cargo %}
+      <div class="document-sorteo-wide">{% include "components/field.html" with field=form.autoridad_nombre %}</div>
+    </div>
+  </section>
+
+  <section class="document-sorteo-section" aria-label="Asistencias al sorteo">
+    <div class="document-sorteo-heading">
+      <h4>3. Asistencias al sorteo</h4>
+      <p class="field-help">Marcá a quienes estuvieron presentes. Las personas no seleccionadas no figurarán como asistentes en el borrador.</p>
+    </div>
+    <div class="document-sorteo-attendees">
+      {% include "components/multiple_checkboxes_field.html" with field=form.jurados_presentes %}
+      {% include "components/multiple_checkboxes_field.html" with field=form.aspirantes_presentes %}
+    </div>
+    <fieldset class="field document-sorteo-veedor" data-veedor-group>
+      <legend>{{ form.veedor_presencia.label }}</legend>
+      <div class="document-sorteo-radio-options">{{ form.veedor_presencia }}</div>
+      {% if form.veedor_presencia.errors %}<div class="field-errors" role="alert">{{ form.veedor_presencia.errors }}</div>{% endif %}
+    </fieldset>
+    <div class="document-sorteo-grid">
+      <div data-veedor-detail="presente">{% include "components/field.html" with field=form.veedor_id %}</div>
+      <div data-veedor-detail="sin_designacion">{% include "components/field.html" with field=form.oficio_veedor %}</div>
+    </div>
+    <p class="document-sorteo-summary" aria-live="polite" data-sorteo-summary>Seleccioná los asistentes y la participación gremial para preparar el acta.</p>
+  </section>
+
+  <section class="document-sorteo-section" aria-label="Temario y examen de oposición">
+    <div class="document-sorteo-heading"><h4>4. Temario y oposición</h4><p class="field-help">Completá únicamente el temario efectivamente sorteado y las condiciones comunicadas.</p></div>
+    <div class="document-sorteo-grid">
+      <div class="document-sorteo-wide">{% include "components/field.html" with field=form.jurado_autor_tema %}</div>
+      <div class="document-sorteo-wide">{% include "components/field.html" with field=form.tema_teoria %}</div>
+      <div class="document-sorteo-wide">{% include "components/field.html" with field=form.tema_practica %}</div>
+      {% include "components/field.html" with field=form.sede_oposicion %}
+      {% include "components/field.html" with field=form.caracter_oposicion %}
+      {% include "components/field.html" with field=form.hora_cierre %}
+    </div>
+  </section>
+</div>

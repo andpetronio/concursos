@@ -1,11 +1,11 @@
 import hashlib
-from datetime import date
+from datetime import date, time
 import json
 from pathlib import Path
 from io import BytesIO
 from zipfile import ZipFile, ZIP_DEFLATED
 from django.conf import settings
-from participantes.models import Jurado, Aspirante, Persona
+from participantes.models import Jurado, Aspirante, Veedor, Persona
 from participantes.evaluaciones import cuadro_resultados, faltantes_resultados
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
@@ -118,11 +118,16 @@ def disponibilidad(concurso, tipo, destinatario=None):
     if tipo.codigo != "convocatoria":
         faltantes.extend(faltantes_generales(concurso))
     faltantes.extend(faltantes_jurisdiccion_oficios(concurso, tipo))
-    if tipo.codigo in ("jurados", "dictamen", "designacion"):
+    faltantes.extend(faltantes_modelos_fieles(concurso, tipo))
+    if tipo.codigo in ("jurados", "dictamen", "designacion", "sorteo_acta"):
         faltantes.extend(expediente_services.habilitacion_convocatoria(concurso).pendientes_jurado)
     faltantes.extend(faltantes_antecedentes(concurso, tipo))
     if tipo.codigo == "dictamen":
         faltantes.extend(faltantes_resultados(cuadro_resultados(concurso)))
+    if tipo.codigo == "sorteo_acta":
+        faltantes.extend(faltantes_sorteo(concurso))
+    if tipo.codigo == "designacion" and concurso.causa_vacancia != "jubilacion":
+        faltantes.append("El modelo recibido presupone jubilación del titular; se requiere modelo específico para esta causa de vacancia.")
     if tipo.codigo == "desierto_inscriptos":
         faltantes.extend(faltantes_desierto_inscriptos(concurso))
     if tipo.codigo == "apunsj":
@@ -151,6 +156,49 @@ def disponibilidad(concurso, tipo, destinatario=None):
     return {"tipo": tipo, "faltantes": faltantes, "disponible": not faltantes}
 
 
+def faltantes_modelos_fieles(concurso, tipo):
+    """Evita que las plantillas con hechos concretos emitan datos en blanco o falsos."""
+    if tipo.codigo not in ("dictamen", "designacion", "sorteo_acta"):
+        return []
+    faltantes = []
+    if not concurso.resolucion_convocatoria:
+        faltantes.append("Registrar la resolución oficial de convocatoria.")
+    if not concurso.jurisdiccion:
+        faltantes.append("Registrar la jurisdicción del concurso.")
+    if tipo.codigo in ("dictamen", "designacion"):
+        if concurso.aspirantes.filter(situacion="impugnacion_pendiente").exists():
+            faltantes.append("Existe una impugnación individual en trámite: verificar su resolución antes del proyecto ordinario.")
+        if concurso.aspirantes.exclude(situacion="inscripto").exclude(situacion="impugnacion_pendiente").exists():
+            faltantes.append("Hay aspirantes con actuaciones que impiden continuar. El modelo institucional ordinario no contempla expresamente esas incidencias: revisar una variante aprobada antes de emitir el proyecto.")
+        if not concurso.iniciador_nombre:
+            faltantes.append("Completar los datos del iniciador del expediente.")
+        if not concurso.iniciador_tratamiento:
+            faltantes.append("Completar tratamiento del iniciador del expediente para este modelo.")
+    if tipo.codigo == "designacion" and concurso.causa_vacancia == "jubilacion":
+        for valor, etiqueta in ((concurso.ex_titular, "ex titular"), (concurso.fecha_baja, "fecha de vacancia"),
+                                (concurso.resolucion_baja, "resolución de aceptación de renuncia")):
+            if not valor:
+                faltantes.append("Completar " + etiqueta + " de la vacancia por jubilación.")
+    return faltantes
+
+
+def faltantes_sorteo(concurso, *, controles=None, jurados=None, aspirantes=None):
+    controles = list(concurso.controles_documentales.all()) if controles is None else controles
+    completos = {c.requisito for c in expediente_services.consultar_documentacion(concurso, controles=controles).completos}
+    faltantes = []
+    if not concurso.resolucion_convocatoria:
+        faltantes.append("Registrar la resolución oficial de convocatoria antes de generar el acta de sorteo.")
+    if "valoracion_antecedentes" not in completos:
+        faltantes.append("Verificar el acta de valoración de antecedentes antes del sorteo.")
+    if not (list(concurso.jurados.all()) if jurados is None else jurados):
+        faltantes.append("Registrar al menos un miembro del jurado.")
+    if not (list(concurso.aspirantes.filter(situacion__in=("inscripto", "impugnacion_pendiente")))
+            if aspirantes is None else [a for a in aspirantes if (a.get("situacion", "inscripto") if isinstance(a, dict) else a.situacion)
+                                          in ("inscripto", "impugnacion_pendiente")]):
+        faltantes.append("No hay aspirantes habilitados para participar del sorteo.")
+    return faltantes
+
+
 REQUISITOS_POSTERIORES = ("acta_inscriptos", "valoracion_antecedentes", "sorteo_temas", "acta_oposicion", "dictamen", "comunicacion_dictamen")
 
 
@@ -175,7 +223,7 @@ GRUPOS_PRESENTACION = (
     ("convocatoria", "Convocatoria y comunicaciones", "Proyecto de convocatoria y comunicaciones vinculadas.",
      ("convocatoria", "jurados", "apunsj")),
     ("posteriores", "Actuaciones posteriores", "Proyectos sujetos a antecedentes y validación administrativa.",
-     ("dictamen", "designacion", "desierto_inscriptos")),
+     ("sorteo_acta", "dictamen", "designacion", "desierto_inscriptos")),
 )
 
 
@@ -338,8 +386,9 @@ def _participantes(concurso, modelo, bloquear):
 def fuentes_actuales(concurso, tipo, *, bloquear=False):
     controles = concurso.controles_documentales.order_by("pk")
     controles = list(controles.select_for_update() if bloquear else controles)
-    jurados = _participantes(concurso, Jurado, bloquear) if tipo.codigo in ("convocatoria", "jurados", "dictamen", "designacion") else []
-    aspirantes = _participantes(concurso, Aspirante, bloquear) if tipo.codigo in ("dictamen", "designacion", "desierto_inscriptos") else []
+    jurados = _participantes(concurso, Jurado, bloquear) if tipo.codigo in ("convocatoria", "jurados", "dictamen", "designacion", "sorteo_acta") else []
+    aspirantes = _participantes(concurso, Aspirante, bloquear) if tipo.codigo in ("dictamen", "designacion", "desierto_inscriptos", "sorteo_acta") else []
+    veedores = _participantes(concurso, Veedor, bloquear) if tipo.codigo == "sorteo_acta" else []
     def persona(registro):
         return {campo: getattr(registro.persona, campo) for campo in ("id", "nombre", "apellido", "dni", "version")}
     def participacion(registro, campos):
@@ -357,7 +406,8 @@ def fuentes_actuales(concurso, tipo, *, bloquear=False):
     snapshot = {
         "concurso": instantanea_concurso(concurso),
         "jurados": [participacion(j, ("titulo", "unidad", "representacion", "calidad", "version")) for j in jurados],
-        "aspirantes": [participacion(a, ("email", "expediente_inscripcion", "version")) for a in aspirantes],
+        "aspirantes": [participacion(a, ("email", "expediente_inscripcion", "situacion", "version")) for a in aspirantes],
+        "veedores": [participacion(v, ("cargo", "version")) for v in veedores],
         "resultados": cuadro_resultados(concurso, bloquear=bloquear) if tipo.codigo == "dictamen" else {},
         "controles_versiones": [{"id": c.pk, "version": c.version, "verificado": c.verificado,
                                    "fojas": c.fojas, "partida_principal": c.partida_principal,
@@ -407,11 +457,16 @@ def preparar_revision(*, concurso_id, tipo_codigo, usuario, datos, huella_espera
     else:
         faltantes.extend(faltantes_generales(concurso))
     faltantes.extend(faltantes_jurisdiccion_oficios(concurso, tipo))
-    if tipo.codigo in ("jurados", "dictamen", "designacion"):
+    faltantes.extend(faltantes_modelos_fieles(concurso, tipo))
+    if tipo.codigo in ("jurados", "dictamen", "designacion", "sorteo_acta"):
         faltantes.extend(habilitacion.pendientes_jurado)
     faltantes.extend(faltantes_antecedentes(concurso, tipo, controles=controles, aspirantes=snapshot["aspirantes"]))
     if tipo.codigo == "dictamen":
         faltantes.extend(faltantes_resultados(snapshot["resultados"]))
+    if tipo.codigo == "sorteo_acta":
+        faltantes.extend(faltantes_sorteo(concurso, controles=controles, jurados=jurados, aspirantes=snapshot["aspirantes"]))
+    if tipo.codigo == "designacion" and concurso.causa_vacancia != "jubilacion":
+        faltantes.append("El modelo institucional recibido fundamenta la vacancia por jubilación; no corresponde aplicarlo a esta causa sin un texto aprobado.")
     if tipo.codigo == "desierto_inscriptos":
         faltantes.extend(faltantes_desierto_inscriptos(concurso, instantanea=snapshot))
     if tipo.codigo == "apunsj":
@@ -461,7 +516,7 @@ def preparar_revision(*, concurso_id, tipo_codigo, usuario, datos, huella_espera
             "nombre": diagnostico["siguiente_nombre"],
             "fundamento": "Artículos 4 y 45 del Anexo de la Ordenanza 33/10-CS (texto actualizado)",
         }
-    snapshot["complementarios"] = {k: (v.isoformat() if isinstance(v, date) else v)
+    snapshot["complementarios"] = {k: (v.isoformat() if isinstance(v, (date, time)) else v)
         for k, v in limpios.items() if not k.startswith("version_") and k != "huella_esperada"}
     snapshot["pendientes"] = []
     if tipo.codigo in ("jurados", "elecciones", "apunsj"):

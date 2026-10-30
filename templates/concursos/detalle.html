@@ -1,6 +1,6 @@
 {% extends "layouts/private.html" %}
 {% load static %}
-{% block scripts %}{{ block.super }}<script src="{% static 'js/detail-tabs.js' %}" defer></script><script src="{% static 'js/document-autosave.js' %}" defer></script>{% endblock %}
+{% block scripts %}{{ block.super }}<script src="{% static 'js/detail-tabs.js' %}" defer></script><script src="{% static 'js/aspirant-actions.js' %}" defer></script><script src="{% static 'js/document-autosave.js' %}" defer></script>{% endblock %}
 {% block title %}Concurso {{ concurso.expediente }} · UNSJ{% endblock %}
 {% block content %}
 <a class="back-link" href="{% url 'concursos:lista' %}">Volver al listado</a>
@@ -30,7 +30,7 @@
       <div><dt>Situación administrativa</dt><dd>{% include "components/status.html" with label=concurso.get_situacion_display %}</dd></div>
       <div><dt>Etapa documental</dt><dd>{{ documentacion.seguimiento.get_etapa_display }}</dd></div>
     </dl>
-    <p class="field-help">El estado se registra manualmente y es independiente del control documental.</p>
+    <p class="field-help">El estado solo cambia con tu confirmación; los documentos verificados pueden sugerir un avance.</p>
     {% if diagnostico_sin_ganador %}
       <div class="notice" role="status">
         <p><strong>{{ diagnostico_sin_ganador.titulo }}</strong></p>
@@ -43,7 +43,7 @@
         <p class="field-help">{{ diagnostico_sin_ganador.referencia }}. La nueva convocatoria debe tramitarse mediante acto administrativo y dentro del plazo reglamentario de 30 días corridos. SiCon no modifica el estado ni genera un concurso automáticamente.</p>
       </div>
     {% endif %}
-    {% if sugerencia_convocado %}
+    {% if sugerencia_convocado and not documentacion.detalle_sugerencia %}
       <div class="notice" role="status">
         <p><strong>Revisar estado «Convocado».</strong> En el concurso se registró la Resolución N.º {{ concurso.resolucion_convocatoria }} como resolución oficial de convocatoria. El estado administrativo sigue en «Preparación».</p>
         {% if perms.concursos.cambiar_estado_concurso %}

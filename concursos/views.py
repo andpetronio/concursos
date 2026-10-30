@@ -179,11 +179,11 @@ class CambioEstadoView(AccesoConcursoMixin, FormView):
                     f"N.º {concurso.resolucion_convocatoria} de convocatoria."
                 ),
             )
-        if self.request.GET.get("sugerencia") == "dictamen":
-            from expedientes.services import sugerencia_estado
-            propuesta = sugerencia_estado(concurso, concurso.controles_documentales.all())
-            if propuesta:
-                inicial.update(estado=propuesta, justificacion="Confirmación de sugerencia por dictamen documental verificado.")
+        from expedientes.services import detalle_sugerencia_estado
+        sugerencia = detalle_sugerencia_estado(concurso, concurso.controles_documentales.all())
+        solicitado = self.request.GET.get("sugerencia")
+        if sugerencia and solicitado == sugerencia.requisito:
+            inicial.update(estado=sugerencia.estado, justificacion=sugerencia.justificacion)
         return inicial
 
     def get_context_data(self, **kwargs):

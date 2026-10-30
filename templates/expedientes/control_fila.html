@@ -1,6 +1,6 @@
 <article id="documental-{{ fila.control.pk }}" class="document-control" aria-labelledby="documental-titulo-{{ fila.control.pk }}">
   {% if perms.expedientes.change_controldocumental %}
-    <form method="post" action="{% url 'concursos:control_documental' concurso.pk fila.control.pk %}#documental-{{ fila.control.pk }}" class="document-toggle-form{% if fila.form.errors %} document-toggle-form--errors{% endif %}" data-document-fojas-required="{{ fila.requisito.requiere_foja|yesno:'true,false' }}" data-document-budget-required="{% if fila.control.requisito == 'afectacion_presupuestaria' %}true{% else %}false{% endif %}" aria-labelledby="documental-titulo-{{ fila.control.pk }}">
+    <form method="post" action="{% url 'concursos:control_documental' concurso.pk fila.control.pk %}#documental-{{ fila.control.pk }}" class="document-toggle-form{% if fila.form.errors %} document-toggle-form--errors{% endif %}" data-document-requirement="{{ fila.requisito.codigo }}" data-document-fojas-required="{{ fila.requisito.requiere_foja|yesno:'true,false' }}" data-document-budget-required="{% if fila.control.requisito == 'afectacion_presupuestaria' %}true{% else %}false{% endif %}" aria-labelledby="documental-titulo-{{ fila.control.pk }}">
       {% csrf_token %}
       {% for hidden in fila.form.hidden_fields %}{{ hidden }}{{ hidden.errors }}{% endfor %}
       <div class="document-control-overview">

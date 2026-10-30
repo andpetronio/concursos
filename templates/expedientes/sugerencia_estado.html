@@ -1,0 +1,21 @@
+{% if documentacion.detalle_sugerencia %}
+  <div class="notice" role="status">
+    <p><strong>Actualización de estado sugerida: {{ documentacion.detalle_sugerencia.nombre_estado }}.</strong>
+      Se verificó «{{ documentacion.detalle_sugerencia.nombre_documento }}».
+      El estado administrativo no se modificó.</p>
+    {% if perms.concursos.cambiar_estado_concurso %}
+      <a href="{% url 'concursos:estado' concurso.pk %}?sugerencia={{ documentacion.detalle_sugerencia.requisito }}">Revisar y confirmar sugerencia de estado</a>
+    {% else %}
+      <p class="field-help">La confirmación requiere permiso para cambiar el estado del concurso.</p>
+    {% endif %}
+  </div>
+{% endif %}
+{% if not concurso.aspirantes.exists and concurso.estado != 'finalizado' %}
+  {% for control in documentacion.controles %}
+    {% if control.requisito == 'acta_inscriptos' and control.completo %}
+      <div class="notice" role="status"><p><strong>Acta de inscriptos verificada, sin aspirantes cargados.</strong>
+        Revisá si acredita ausencia de inscriptos o si falta cargar las inscripciones.
+        Si corresponde, tramitá la declaración de concurso desierto. SiCon no presume el resultado ni cambia el estado.</p></div>
+    {% endif %}
+  {% endfor %}
+{% endif %}

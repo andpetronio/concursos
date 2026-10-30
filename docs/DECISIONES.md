@@ -122,3 +122,20 @@ Migración atómica con preflight de todos los registros. Acepta códigos o deno
 - Las dos causas permiten sugerir **Cerrado Interno → Cerrado General → Abierto**. Abierto y Acotado no tienen una conversión inferida.
 - No se deduce «sin inscriptos» de la tabla vacía: debe existir acta de inscriptos verificada y con foja. Tampoco se afirma insuficiencia hasta que todas las evaluaciones estén cargadas.
 - Solo advertencia de resultado y modalidad recomendada, sin mutar Concurso ni generar una segunda convocatoria. El art. 45 prescribe acto resolutivo y nuevo llamado en no más de 30 días corridos; registrar acto/fecha y relación entre llamados queda pendiente de un circuito propio.
+
+## Fase 4D — Sugerencias de estado por actuaciones verificadas (30/10/2026)
+- El control documental **no** cambia el estado administrativo. Únicamente ofrece al operador autorizado abrir el formulario vigente y confirmar el cambio (con permiso, versión e historial).
+- Sugerencias, cuando la actuación esté completa: constancia de publicación de convocatoria → **Convocado**; acta de inscriptos → **En curso** (requiere al menos un aspirante cargado para no confundir ausencia de registro con ausencia de inscriptos); dictamen del jurado → **Con dictamen**; resolución de designación → **Finalizado**. Las fojas exigibles deben estar verificadas y válidas.
+- Entre varias actuaciones completas se muestra la sugerencia correspondiente al estado más avanzado. No se sugieren retrocesos, ni avances mientras la situación sea **Suspendido** o **Impugnado**. La verificación fuera de secuencia sigue admitida, con sus advertencias propias.
+- Si el acta de inscriptos está verificada y no hay aspirantes cargados, se muestra una advertencia para revisar si corresponde un concurso desierto. Nunca se declara automáticamente desierto/fracasado ni se infiere una resolución oficial.
+- Cambios manuales existentes conservan plena libertad y trazabilidad. No se agregan estados ni resultados extraordinarios, migraciones o nuevos campos.
+- El guardado documental AJAX devuelve la sugerencia actualizada para mostrarla inmediatamente; el guardado clásico la muestra al regresar a la ficha.
+
+
+## Fase 4F · Situaciones individuales de aspirantes (30/10/2026)
+- Cada inscripción conserva su identidad y antecedentes. La situación vigente empieza en `Inscripto`, sin presumir una habilitación formal.
+- Actuaciones históricas: impugnación en trámite, no habilitación para oposición (acta del Jurado), exclusión por impugnación aceptada (resolución de autoridad), desistimiento y rectificación. Cada asiento exige fecha, respaldo, foja y fundamento; conserva usuario y fecha real de registro.
+- Las rectificaciones son nuevas actuaciones, nunca eliminaciones. Se aplican con bloqueo y control de versión para evitar perder decisiones concurrentes. Las impugnaciones en trámite no excluyen por sí solas: se muestran y requieren revisión administrativa.
+- La tabla de aspirantes muestra la situación; conserva Evaluación como acción rápida y agrupa las restantes acciones en un menú nativo, accesible sin JavaScript. Consultar historial requiere permiso de lectura; registrar actuaciones requiere escritura.
+- No habilitados, excluidos y desistidos no se ofrecen para el sorteo ni computan como evaluaciones pendientes u orden de mérito. Los puntajes históricos no se borran. Ante situaciones que las plantillas ordinarias no contemplan, SiCon bloquea su emisión hasta disponer de una variante institucional revisada.
+- Se implementa la migración `participantes.0005_situacion_aspirante`; no modifica estados globales del concurso ni da por emitidas actuaciones oficiales.

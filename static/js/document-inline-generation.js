@@ -13,7 +13,9 @@
       if (!button || !complements) return;
       const update = () => {
         // No pretendemos evaluar las reglas administrativas en el navegador.
-        const ready = form.checkValidity();
+        const jurados = [...form.querySelectorAll('[name="jurados_presentes"]')];
+        const juradoElegido = jurados.length === 0 || jurados.some(input => input.checked);
+        const ready = form.checkValidity() && juradoElegido;
         button.disabled = !ready;
         if (state) {
           state.classList.toggle('is-ready', ready);
@@ -27,10 +29,16 @@
       form.addEventListener('input', update);
       form.addEventListener('change', update);
       form.addEventListener('submit', event => {
-        if (!form.checkValidity()) {
+        const jurados = [...form.querySelectorAll('[name="jurados_presentes"]')];
+        if (!form.checkValidity() || (jurados.length > 0 && !jurados.some(input => input.checked))) {
           event.preventDefault();
           complements.open = true;
-          form.reportValidity();
+          if (jurados.length > 0 && !jurados.some(input => input.checked)) {
+            jurados[0].focus();
+            if (help) help.textContent = 'Marcá al menos un jurado presente.';
+          } else {
+            form.reportValidity();
+          }
           return;
         }
         button.disabled = true;
@@ -39,10 +47,49 @@
       update();
     });
   };
+  // La lista es nativa: JavaScript solo mejora el resumen y la visibilidad de los
+  // campos condicionales. Sin JavaScript todo el formulario sigue siendo usable.
+  const attachSorteo = root => {
+    root.querySelectorAll('[data-sorteo-form]').forEach(group => {
+      if (group.dataset.initialized === 'true') return;
+      group.dataset.initialized = 'true';
+      const form = group.closest('form');
+      const jurados = group.querySelector('[name="jurados_presentes"]');
+      const aspirantes = group.querySelector('[name="aspirantes_presentes"]');
+      const radio = group.querySelector('[data-veedor-group]');
+      const summary = group.querySelector('[data-sorteo-summary]');
+      if (!form || !jurados || !aspirantes || !radio || !summary) return;
+      const count = name => group.querySelectorAll(`[name="${name}"]:checked`).length;
+      const update = () => {
+        group.querySelectorAll('[data-attendees-group]').forEach(fieldset => {
+          const name = fieldset.querySelector('input[type="checkbox"]')?.name;
+          const badge = fieldset.querySelector('[data-attendees-count]');
+          if (!badge || !name) return;
+          const amount = count(name);
+          badge.hidden = false;
+          badge.textContent = `${amount} ${amount === 1 ? 'persona seleccionada' : 'personas seleccionadas'}`;
+        });
+        const presence = radio.querySelector('input[type="radio"]:checked')?.value || '';
+        group.querySelectorAll('[data-veedor-detail]').forEach(detail => {
+          detail.hidden = detail.dataset.veedorDetail !== presence;
+        });
+        const veedorLabel = {
+          presente: 'presente',
+          ausente: 'designado, ausente',
+          sin_designacion: 'sin designación informada'
+        }[presence] || 'sin especificar';
+        summary.textContent = `Para el borrador: ${count('jurados_presentes')} jurado(s), ` +
+          `${count('aspirantes_presentes')} aspirante(s). Veedor gremial: ${veedorLabel}.`;
+      };
+      form.addEventListener('change', update);
+      update();
+    });
+  };
   attach(document);
+  attachSorteo(document);
   // La disponibilidad se puede reemplazar por HTML recibido del servidor.
   const panel = document.getElementById('panel-documentos');
   if (panel && typeof MutationObserver === 'function') {
-    new MutationObserver(() => attach(panel)).observe(panel, {childList: true, subtree: true});
+    new MutationObserver(() => { attach(panel); attachSorteo(panel); }).observe(panel, {childList: true, subtree: true});
   }
 })();

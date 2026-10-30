@@ -105,8 +105,8 @@ class DesiertoSinInscriptosTests(TestCase):
         self.assertEqual(respuesta.status_code, 403)
         self.assertFalse(GeneracionDocumento.objects.exists())
 
-    def test_catalogo_siete_documentos_pero_sin_nueva_migracion(self):
-        self.assertEqual(len(TIPOS), 7)
+    def test_catalogo_ocho_documentos_pero_sin_nueva_migracion(self):
+        self.assertEqual(len(TIPOS), 8)
         self.assertEqual(self.tipo.version, "desierto-inscriptos-1")
         self.assertEqual(self.tipo.fuente, "")
 

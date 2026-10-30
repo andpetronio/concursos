@@ -10,6 +10,12 @@
     <span>DNI {{ identity.dni }}</span>
   </div>
   <p class="field-help">Escala de trabajo sin desempeño laboral: antecedentes /{{ max_antecedentes }}, oposición /{{ max_oposicion }}, mínimo {{ minimo_merito }} sobre 85. Cargá los puntajes tal como figuran en el dictamen, sin convertir automáticamente escalas.</p>
+  {% if not puede_rendir %}
+  <p class="notice notice-warning" role="status">
+    No es posible registrar ni modificar la evaluación: la situación vigente es {{ view.get_aspirante.get_situacion_display }}.
+    <a href="{% url 'concursos:aspirante_situacion' concurso.pk view.get_aspirante.pk %}">Consultar situación e historial</a>.
+  </p>
+  {% else %}
   <form method="post">
     {% csrf_token %}
     {% for field in form.hidden_fields %}{{ field }}{{ field.errors }}{% endfor %}
@@ -19,6 +25,7 @@
     </div>
     <div class="form-actions"><button class="button" type="submit">Guardar evaluación</button></div>
   </form>
+  {% endif %}
 </section>
 {% if cambios %}
 <section class="card section">

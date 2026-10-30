@@ -122,6 +122,19 @@ class Veedor(Participacion):
 
 
 class Aspirante(Participacion):
+    class Situacion(models.TextChoices):
+        INSCRIPTO = "inscripto", "Inscripto"
+        IMPUGNACION_PENDIENTE = "impugnacion_pendiente", "Impugnación en trámite"
+        NO_HABILITADO = "no_habilitado", "No habilitado para oposición"
+        EXCLUIDO = "excluido", "Excluido por decisión de la autoridad"
+        DESISTIO = "desistio", "Desistió"
+
+    situacion = models.CharField(max_length=30, choices=Situacion, default=Situacion.INSCRIPTO)
+
+    @property
+    def puede_rendir(self):
+        return self.situacion in (self.Situacion.INSCRIPTO, self.Situacion.IMPUGNACION_PENDIENTE)
+
     email = models.EmailField("correo electrónico", blank=True)
     expediente_inscripcion = models.CharField("expediente de inscripción", max_length=100, blank=True)
     version = models.PositiveIntegerField(default=1, editable=False)
@@ -138,6 +151,43 @@ class Aspirante(Participacion):
         ordering = ["persona__apellido", "persona__nombre", "pk"]
         default_permissions = ()
         constraints = [models.UniqueConstraint(fields=["concurso", "persona"], name="aspirante_persona_unica")]
+
+
+class CambioSituacionAspirante(models.Model):
+    """Historial inmutable de actuaciones acreditadas sobre cada inscripción."""
+
+    class Tipo(models.TextChoices):
+        IMPUGNACION = "impugnacion", "Registrar impugnación en trámite"
+        NO_HABILITACION = "no_habilitacion", "No habilitar para la oposición (Jurado, art. 34)"
+        EXCLUSION = "exclusion", "Registrar exclusión por impugnación resuelta"
+        DESISTIMIENTO = "desistimiento", "Registrar desistimiento"
+        RECTIFICACION = "rectificacion", "Rectificar o dejar sin efecto la decisión"
+
+    aspirante = models.ForeignKey(Aspirante, on_delete=models.PROTECT, related_name="historial_situacion")
+    tipo = models.CharField(max_length=20, choices=Tipo)
+    anterior = models.CharField(max_length=30, choices=Aspirante.Situacion)
+    nueva = models.CharField(max_length=30, choices=Aspirante.Situacion)
+    fecha_decision = models.DateField("fecha de la actuación")
+    class Documento(models.TextChoices):
+        ACTA = "acta", "Acta del Jurado"
+        RESOLUCION = "resolucion", "Resolución de la autoridad"
+        NOTA = "nota", "Nota o presentación"
+        OTRO = "otro", "Otra actuación formal"
+
+    clase_documento = models.CharField(max_length=20, choices=Documento)
+    documento = models.CharField("actuación respaldatoria", max_length=250)
+    fojas = models.CharField("fojas del expediente", max_length=50)
+    fundamento = models.TextField(max_length=1500)
+    constancia_comunicacion = models.CharField(max_length=300, blank=True)
+    version = models.PositiveIntegerField()
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    registrado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-registrado_en", "-pk"]
+        default_permissions = ()
+        constraints = [models.UniqueConstraint(fields=["aspirante", "version"],
+                                               name="aspirante_situacion_historial_version_unica")]
 
 
 class EvaluacionAspirante(models.Model):

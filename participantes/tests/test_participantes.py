@@ -433,6 +433,13 @@ class ParticipanteTests(TestCase):
         )
         respuesta = self.client.get(self.concurso.get_absolute_url())
         self.assertContains(respuesta, 'class="aspirant-actions"')
-        for etiqueta in ("Editar inscripción", "Corregir datos personales", "Registrar evaluación"):
-            self.assertContains(respuesta, f'aria-label="{etiqueta}"')
+        self.assertContains(respuesta, 'aria-label="Registrar evaluación"')
+        self.assertContains(respuesta, 'aria-label="Más acciones de Prueba, Aspirante"')
+        self.assertContains(respuesta, 'popovertarget="aspirant-menu-%s"' % aspirante.pk)
+        self.assertContains(respuesta, 'id="aspirant-menu-%s"' % aspirante.pk)
+        self.assertContains(respuesta, 'popover="auto"')
+        self.assertNotContains(respuesta, 'class="aspirant-menu"')
+        for etiqueta in ("Editar inscripción", "Corregir datos personales", "Gestionar situación e historial"):
+            self.assertContains(respuesta, etiqueta)
         self.assertContains(respuesta, self.url("aspirante_evaluacion", None, aspirante.pk))
+        self.assertContains(respuesta, self.url("aspirante_situacion", None, aspirante.pk))

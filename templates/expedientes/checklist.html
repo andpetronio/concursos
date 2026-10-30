@@ -57,11 +57,9 @@
     {% if documentacion.advertencias %}
       <details class="notice" open><summary>Documentación registrada fuera de la secuencia orientativa</summary><ul>{% for aviso in documentacion.advertencias %}<li>{{ aviso }}</li>{% endfor %}</ul><p>El orden es orientativo y no impide registrar los documentos.</p></details>
     {% endif %}
-    {% if documentacion.sugerencia %}
-      <div class="notice"><p>El dictamen está verificado con fojas. Se sugiere cambiar el estado a «Con dictamen». El estado actual no cambió.</p>
-        {% if perms.concursos.cambiar_estado_concurso %}<a href="{% url 'concursos:estado' concurso.pk %}?sugerencia=dictamen">Revisar y confirmar sugerencia de estado</a>{% else %}<p class="field-help">Un usuario con permiso de cambio de estado puede revisar esta sugerencia.</p>{% endif %}
-      </div>
-    {% endif %}
+    <div data-document-state-suggestion aria-live="polite" aria-atomic="true">
+      {% include "expedientes/sugerencia_estado.html" %}
+    </div>
   </div>
   {% for seccion in secciones_documentales %}
     <section class="card section document-section" aria-labelledby="documental-seccion-{{ seccion.codigo }}">

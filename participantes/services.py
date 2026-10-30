@@ -83,6 +83,8 @@ def guardar_evaluacion(*, aspirante, antecedentes, oposicion, usuario, version_e
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied
     locked = Aspirante.objects.select_for_update().get(pk=aspirante.pk)
+    if not locked.puede_rendir:
+        raise ValidationError("Este aspirante no está habilitado para la oposición según la situación vigente. Consultá su historial.")
     actual = EvaluacionAspirante.objects.select_for_update().filter(aspirante=locked).first()
     version = actual.version if actual else 0
     if version != version_esperada:

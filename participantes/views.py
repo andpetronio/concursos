@@ -10,7 +10,7 @@ from concursos.views import AccesoConcursoMixin
 
 from . import services
 from .forms import (AspiranteAltaForm, AspiranteEdicionForm, JuradoAltaForm, JuradoEdicionForm,
-                    PersonaEdicionForm, VeedorAltaForm, VeedorEdicionForm, EvaluacionAspiranteForm)
+                    PersonaEdicionForm, VeedorAltaForm, VeedorEdicionForm, EvaluacionAspiranteForm, ActuacionAspiranteForm)
 from .models import Aspirante, Jurado, Persona, Veedor
 
 
@@ -188,6 +188,53 @@ class PersonaEdicionView(ParticipanteFormView):
         return redirect(self.get_success_url())
 
 
+class SituacionAspiranteView(ParticipanteFormView):
+    permission_required = ("concursos.view_concurso",)
+    template_name = "participantes/situacion.html"
+    form_class = ActuacionAspiranteForm
+    titulo = "Situación del aspirante"
+
+    def get_aspirante(self):
+        if not hasattr(self, "aspirante"):
+            self.aspirante = get_object_or_404(
+                Aspirante.objects.select_related("persona"), pk=self.kwargs["participacion_id"],
+                concurso=self.get_concurso())
+        return self.aspirante
+
+    def post(self, request, *args, **kwargs):
+        if not request.user.has_perm("concursos.change_concurso"):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        return super().post(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["aspirante"] = self.get_aspirante()
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        a = self.get_aspirante()
+        return super().get_context_data(
+            aspirante=a, identity=a.persona,
+            cambios=a.historial_situacion.select_related("usuario").all(),
+            puede_gestionar=self.request.user.has_perm("concursos.change_concurso"),
+            **kwargs)
+
+    def form_valid(self, form):
+        if not self.request.user.has_perm("concursos.change_concurso"):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        from .situaciones import registrar_actuacion
+        try:
+            registrar_actuacion(
+                aspirante=self.get_aspirante(), usuario=self.request.user, **form.cleaned_data)
+        except ValidationError as error:
+            form.add_error(None, error)
+            return self.form_invalid(form)
+        messages.success(self.request, "La actuación quedó registrada en el historial del aspirante.")
+        return redirect(self.request.path)
+
+
 class EvaluacionAspiranteView(ParticipanteFormView):
     permission_required = ("concursos.view_concurso", "concursos.change_concurso")
     form_class = EvaluacionAspiranteForm
@@ -217,7 +264,8 @@ class EvaluacionAspiranteView(ParticipanteFormView):
         return super().get_context_data(
             identity=self.get_aspirante().persona,
             max_antecedentes=MAX_ANTECEDENTES, max_oposicion=MAX_OPOSICION,
-            minimo_merito=MINIMO_MERITO, cambios=self.get_evaluacion().cambios.select_related("usuario")[:10]
+            minimo_merito=MINIMO_MERITO, puede_rendir=self.get_aspirante().puede_rendir,
+            cambios=self.get_evaluacion().cambios.select_related("usuario")[:10]
                 if self.get_evaluacion() else [],
             **kwargs)
 

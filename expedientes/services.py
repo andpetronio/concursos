@@ -4,7 +4,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from concursos.choices import EstadoConcurso
+from concursos.choices import EstadoConcurso, SituacionAdministrativa
 from participantes.models import Jurado
 
 from .catalogo import REQUISITOS, SECCIONES
@@ -176,13 +176,62 @@ def habilitacion_convocatoria(concurso, *, controles=None, jurados=None):
     return HabilitacionConvocatoria(documentos, tuple(faltantes_jurado), tuple(datos))
 
 
-def sugerencia_estado(concurso, controles):
-    """Solo propone un evento inequívoco; no ejecuta cambios administrativos."""
-    if concurso.estado not in (EstadoConcurso.PREPARACION, EstadoConcurso.CONVOCADO, EstadoConcurso.EN_CURSO):
+# Las cuatro actuaciones autorizadas para sugerir cambios de estado.
+# De más avanzada a más temprana: un documento posterior ya acreditado prevalece.
+_DOCUMENTOS_ESTADO = (
+    ("designacion", EstadoConcurso.FINALIZADO),
+    ("dictamen", EstadoConcurso.CON_DICTAMEN),
+    ("acta_inscriptos", EstadoConcurso.EN_CURSO),
+    ("publicacion_convocatoria", EstadoConcurso.CONVOCADO),
+)
+_ORDEN_ESTADOS = tuple(EstadoConcurso.values)
+
+
+@dataclass(frozen=True)
+class SugerenciaEstado:
+    requisito: str
+    estado: str
+    nombre_documento: str
+    nombre_estado: str
+    justificacion: str
+
+
+def detalle_sugerencia_estado(concurso, controles):
+    """Sugiere un avance, sin modificar estados ni emitir actos administrativos.
+
+    La verificación debe estar completa (incluidas fojas exigibles). Nunca se
+    sugieren retrocesos, ni avances con impugnación o suspensión vigente.
+    """
+    if concurso.situacion != SituacionAdministrativa.NORMAL:
         return None
-    if any(c.requisito == "dictamen" and c.completo for c in controles):
-        return EstadoConcurso.CON_DICTAMEN
+    actual = _ORDEN_ESTADOS.index(concurso.estado)
+    por_codigo = {control.requisito: control for control in controles}
+    for codigo, estado in _DOCUMENTOS_ESTADO:
+        if _ORDEN_ESTADOS.index(estado) <= actual:
+            continue
+        control = por_codigo.get(codigo)
+        if control is None or not control.completo:
+            continue
+        if codigo == "acta_inscriptos" and not concurso.aspirantes.exists():
+            # Una tabla vacía puede ser falta de carga, no una declaración de
+            # cero inscriptos. No sugerir una sustanciación sin esa distinción.
+            continue
+        documento = control.definicion.nombre
+        nombre_estado = EstadoConcurso(estado).label
+        referencia = f" (fojas {control.fojas})" if control.definicion.requiere_foja else ""
+        return SugerenciaEstado(
+            requisito=codigo, estado=estado, nombre_documento=documento,
+            nombre_estado=nombre_estado,
+            justificacion=(f"Confirmación del estado {nombre_estado} tras verificar "
+                           f"{documento}{referencia} en control documental."),
+        )
     return None
+
+
+def sugerencia_estado(concurso, controles):
+    """Compatibilidad con consultas que solo necesitan el estado propuesto."""
+    sugerencia = detalle_sugerencia_estado(concurso, controles)
+    return sugerencia.estado if sugerencia else None
 
 
 def advertencias_secuencia(controles):
@@ -208,6 +257,7 @@ class DocumentacionConcurso:
     advertencias: tuple
     sugerencia: str | None
     seguimiento: SeguimientoDocumental
+    detalle_sugerencia: SugerenciaEstado | None = None
 
     @property
     def total(self):
@@ -251,8 +301,9 @@ def consultar_documentacion(concurso, *, controles=None, jurados=None):
     )
     orden = {r.codigo: posicion for posicion, r in enumerate(REQUISITOS)}
     controles = tuple(sorted(controles, key=lambda control: orden[control.requisito]))
+    propuesta = detalle_sugerencia_estado(concurso, controles)
     return DocumentacionConcurso(
         controles, habilitacion_convocatoria(concurso, controles=controles, jurados=jurados),
-        advertencias_secuencia(controles), sugerencia_estado(concurso, controles),
-        SeguimientoDocumental.objects.get(concurso=concurso),
+        advertencias_secuencia(controles), propuesta.estado if propuesta else None,
+        SeguimientoDocumental.objects.get(concurso=concurso), propuesta,
     )

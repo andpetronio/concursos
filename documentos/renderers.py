@@ -94,6 +94,9 @@ def validar_textos_xml(valor):
 
 def renderizar(tipo, instantanea, *, membrete=None):
     validar_textos_xml(instantanea)
+    if tipo.codigo in ("sorteo_acta", "dictamen", "designacion"):
+        from .renderers_modelos import renderizar_fuente
+        return renderizar_fuente(tipo, instantanea)
     renderer = RENDERERS.get(tipo.codigo)
     if renderer is None:
         raise ValidationError("Plantilla documental no disponible.")

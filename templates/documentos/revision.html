@@ -1,5 +1,7 @@
 {% extends "layouts/private.html" %}
+{% load static %}
 {% block title %}Revisar borrador · UNSJ{% endblock %}
+{% block scripts %}{{ block.super }}<script src="{% static 'js/document-inline-generation.js' %}" defer></script>{% endblock %}
 {% block content %}
 {% include "components/page_header.html" with section="Documentos" title=disponibilidad.tipo.nombre description="Preparación de un documento editable. No equivale a emisión, firma ni incorporación al expediente." only %}
 <div class="document-review-context">
@@ -149,12 +151,17 @@
         <h3>Datos complementarios del borrador</h3>
         <p class="field-help">Completá exclusivamente los antecedentes correspondientes a este documento. No se guardan como datos generales del concurso.</p>
       </div>
+      {% if disponibilidad.tipo.codigo == "sorteo_acta" %}
+        {% include "documentos/sorteo_campos.html" with form=form %}
+      {% else %}
       <div class="document-review-form-grid">
         {% for field in campos_complementarios %}
-          {% if field.field.widget.input_type == "checkbox" %}{% include "components/checkbox_field.html" with field=field %}
+          {% if field.field.widget.allow_multiple_selected %}{% include "components/multiple_checkboxes_field.html" with field=field %}
+          {% elif field.field.widget.input_type == "checkbox" %}{% include "components/checkbox_field.html" with field=field %}
           {% else %}{% include "components/field.html" with field=field %}{% endif %}
         {% endfor %}
       </div>
+      {% endif %}
     {% elif disponibilidad.tipo.codigo != "jurados" %}
       <p class="field-help">No se solicitan datos complementarios para este documento.</p>
     {% endif %}

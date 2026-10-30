@@ -1,0 +1,7 @@
+<fieldset class="field document-attendees-field" data-attendees-group>
+  <legend>{{ field.label }}</legend>
+  <span class="document-attendees-count" data-attendees-count hidden aria-live="polite"></span>
+  <div class="document-attendees-options">{{ field }}</div>
+  {% if field.help_text %}<p id="{{ field.auto_id }}_helptext" class="field-help">{{ field.help_text }}</p>{% endif %}
+  {% if field.errors %}<div class="field-errors" role="alert">{{ field.errors }}</div>{% endif %}
+</fieldset>

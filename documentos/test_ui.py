@@ -20,7 +20,7 @@ class DocumentosPresentacionTests(TestCase):
     def setUp(self):
         self.client.post(reverse("login"), {"username": self.usuario.username, "password": PASSWORD})
 
-    def test_siete_tipos_agrupados_sin_cambiar_catalogo(self):
+    def test_ocho_tipos_agrupados_en_catalogo(self):
         respuesta = self.client.get(self.concurso.get_absolute_url())
         self.assertEqual(respuesta.status_code, 200)
         grupos = respuesta.context["grupos_tipos_documentos"]
@@ -36,6 +36,28 @@ class DocumentosPresentacionTests(TestCase):
         self.assertContains(respuesta, "Para habilitar la generación, falta:")
         self.assertContains(respuesta, "no significa que el modelo esté aprobado")
         self.assertContains(respuesta, "Todavía no hay borradores generados.")
+
+    def test_sorteo_asistencias_legibles_en_revision_clasica(self):
+        # La ficha presenta el formulario embebido al completar previamente
+        # los requisitos documentales; la revisión clásica permite inspeccionarlo
+        # aun en concursos todavía incompletos.
+        url = reverse("documentos:revisar", args=[self.concurso.pk, "sorteo_acta"])
+        respuesta = self.client.get(url)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, "3. Asistencias al sorteo")
+        self.assertContains(respuesta, 'data-sorteo-form')
+        self.assertContains(respuesta, 'data-attendees-group', count=2)
+        self.assertContains(respuesta, 'data-sorteo-summary')
+        self.assertContains(respuesta, 'type="radio"')
+        self.assertContains(respuesta, 'name="veedor_presencia"')
+        self.assertContains(respuesta, 'data-veedor-detail="presente"')
+        self.assertContains(respuesta, 'data-veedor-detail="sin_designacion"')
+        for nombre in ("jurados_presentes", "aspirantes_presentes"):
+            # Sin participantes en este fixture el widget no tiene inputs,
+            # pero debe conservar su estructura accesible.
+            self.assertContains(respuesta, f'id="id_{nombre}"', count=1)
+        for nombre in ("veedor_id", "oficio_veedor", "autoridad_nombre", "tema_practica"):
+            self.assertContains(respuesta, f'name="{nombre}"', count=1)
 
     def test_lector_consulta_documentos_sin_acciones_generacion(self):
         self.usuario.user_permissions.set(Permission.objects.filter(
