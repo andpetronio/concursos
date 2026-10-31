@@ -1,0 +1,168 @@
+<section class="overview-workspace" aria-labelledby="seguimiento-title">
+  <header class="overview-intro">
+    <div>
+      <p class="eyebrow">Seguimiento orientativo</p>
+      <h2 id="seguimiento-title">Así está el expediente</h2>
+    </div>
+    <a class="button button-secondary" href="{{ concurso.get_absolute_url }}#resumen">Actualizar resumen</a>
+  </header>
+
+  <div class="overview-metrics" aria-label="Indicadores del expediente">
+    <div class="overview-metric">
+      <span>Controles completos</span>
+      <strong>{{ panel_seguimiento.completos }} <small>de {{ panel_seguimiento.total }}</small></strong>
+      <small>Documentación registrada</small>
+    </div>
+    <div class="overview-metric">
+      <span>Pendientes de etapas exigibles</span>
+      <strong>{{ panel_seguimiento.pendientes_exigibles|length }}</strong>
+      <small>{% if panel_seguimiento.pendientes_exigibles %}Requieren revisión documental{% else %}Sin pendientes de la etapa actual y anteriores{% endif %}</small>
+    </div>
+    <div class="overview-metric">
+      <span>Pendientes de etapas futuras</span>
+      <strong>{{ panel_seguimiento.pendientes_futuros }}</strong>
+      <small>Aún no exigibles</small>
+    </div>
+    <div class="overview-metric">
+      <span>Aspirantes registrados</span>
+      <strong>{{ panel_seguimiento.aspirantes_registrados }}</strong>
+      <small>{% if panel_seguimiento.sin_continuidad %}{{ panel_seguimiento.sin_continuidad }} sin continuidad{% else %}Inscripciones cargadas{% endif %}</small>
+    </div>
+  </div>
+
+  <div class="overview-columns">
+    <aside class="overview-rail" aria-label="Orientaciones y revisiones">
+      <section class="overview-priority" aria-labelledby="seguimiento-proximo-title">
+        <p class="eyebrow">Prioridad orientativa</p>
+        <h3 id="seguimiento-proximo-title">{{ panel_seguimiento.proxima_revision.titulo }}</h3>
+        <p>{{ panel_seguimiento.proxima_revision.detalle }}</p>
+        {% with paso=panel_seguimiento.proxima_revision %}
+          {% if paso.destino == 'control' %}
+            <a href="#documental-{{ paso.id_control }}">{{ paso.enlace }}</a>
+          {% elif paso.destino == 'aspirantes' %}
+            <a href="#aspirantes">{{ paso.enlace }}</a>
+          {% elif paso.destino == 'estado' %}
+            {% if perms.concursos.cambiar_estado_concurso %}
+              <a href="{% url 'concursos:estado' concurso.pk %}{% if paso.sugerencia %}?sugerencia={{ paso.sugerencia }}{% endif %}">{{ paso.enlace }}</a>
+            {% else %}
+              <span class="field-help">La confirmación requiere un usuario autorizado.</span>
+            {% endif %}
+          {% else %}
+            <a href="#control-documental">{{ paso.enlace }}</a>
+          {% endif %}
+        {% endwith %}
+        <p class="field-help">Revisión recomendada, no decisión automática ni impedimento para registrar otras actuaciones.</p>
+      </section>
+
+      {% if panel_seguimiento.contraste_estado and panel_seguimiento.proxima_revision.destino != 'estado' %}
+        <section class="overview-context" aria-labelledby="seguimiento-contraste-title">
+          <h3 id="seguimiento-contraste-title">Revisar coherencia entre registros</h3>
+          <p>Estado formal: <strong>{{ panel_seguimiento.contraste_estado.actual }}</strong>. El control <strong>{{ panel_seguimiento.contraste_estado.documento }}</strong> está completo y permite revisar si corresponde <strong>{{ panel_seguimiento.contraste_estado.propuesto }}</strong>.</p>
+          <p class="field-help">El estado administrativo y la etapa documental son independientes. Ninguno cambia automáticamente.</p>
+          {% if perms.concursos.cambiar_estado_concurso %}<a href="{% url 'concursos:estado' concurso.pk %}?sugerencia={{ panel_seguimiento.contraste_estado.requisito }}">Revisar cambio de estado</a>{% endif %}
+        </section>
+      {% elif sugerencia_convocado and not documentacion.detalle_sugerencia %}
+        <section class="overview-context" aria-labelledby="seguimiento-convocatoria-title">
+          <h3 id="seguimiento-convocatoria-title">Revisar estado «Convocado»</h3>
+          <p>Se registró la Resolución N.º {{ concurso.resolucion_convocatoria }} como convocatoria oficial, pero el estado sigue en Preparación.</p>
+          {% if perms.concursos.cambiar_estado_concurso %}
+            <a href="{% url 'concursos:estado' concurso.pk %}?sugerencia=convocatoria">Revisar y confirmar cambio de estado</a>
+          {% else %}
+            <p class="field-help">El cambio requiere un usuario con permiso para modificar el estado. No se aplica automáticamente.</p>
+          {% endif %}
+        </section>
+      {% endif %}
+
+      {% if diagnostico_sin_ganador %}
+        <section class="overview-context" aria-labelledby="seguimiento-resultado-title">
+          <h3 id="seguimiento-resultado-title">{{ diagnostico_sin_ganador.titulo }}</h3>
+          <p>{{ diagnostico_sin_ganador.explicacion }}</p>
+          {% if diagnostico_sin_ganador.siguiente_nombre %}<p>Modalidad sugerida para un nuevo llamado: <strong>{{ diagnostico_sin_ganador.siguiente_nombre }}</strong>.</p>{% else %}<p>La modalidad {{ concurso.get_modalidad_display }} no tiene siguiente instancia definida en esta regla; requiere revisión administrativa.</p>{% endif %}
+          <p class="field-help">{{ diagnostico_sin_ganador.referencia }}. La nueva convocatoria debe tramitarse mediante acto administrativo y dentro del plazo reglamentario de 30 días corridos. SiCon no modifica el estado ni genera otro concurso automáticamente.</p>
+        </section>
+      {% endif %}
+
+      <section class="overview-pending" aria-labelledby="seguimiento-pendientes">
+        <h3 id="seguimiento-pendientes">Próximas revisiones documentales</h3>
+        {% if panel_seguimiento.primeros_pendientes %}
+          <p class="field-help">Controles pendientes de las etapas exigibles:</p>
+          <ul class="overview-pending-list">
+            {% for item in panel_seguimiento.primeros_pendientes %}
+              <li><span class="overview-pending-meta">{{ item.seccion }}{% if item.foja_pendiente %} · Foja pendiente{% endif %}</span><a href="#documental-{{ item.id_control }}">{{ item.nombre }}</a></li>
+            {% endfor %}
+          </ul>
+          {% if panel_seguimiento.otros_pendientes %}<p class="field-help">Hay {{ panel_seguimiento.otros_pendientes }} control(es) exigible(s) adicional(es).</p>{% endif %}
+        {% else %}
+          <p class="field-help">Sin pendientes de la etapa actual y las anteriores.</p>
+        {% endif %}
+        {% if panel_seguimiento.primeros_futuros %}
+          <p class="overview-future-label">Pendientes futuros, no exigibles todavía:</p>
+          <ul class="overview-pending-list">
+            {% for item in panel_seguimiento.primeros_futuros %}
+              <li><a href="#documental-{{ item.id_control }}">{{ item.nombre }}</a></li>
+            {% endfor %}
+          </ul>
+          {% if panel_seguimiento.otros_futuros %}<p class="field-help">Y {{ panel_seguimiento.otros_futuros }} futuro(s) más.</p>{% endif %}
+        {% endif %}
+        <a class="overview-all-link" href="#control-documental">Ver control documental completo</a>
+      </section>
+
+      {% if panel_seguimiento.avisos %}
+        <section class="overview-notices" aria-labelledby="seguimiento-alertas">
+          <h3 id="seguimiento-alertas">Otras atenciones</h3>
+          {% for aviso in panel_seguimiento.avisos %}
+            <article class="overview-notice">
+              <strong>{{ aviso.titulo }}</strong>
+              <p>{{ aviso.detalle }}</p>
+              {% if aviso.destino == 'estado' %}
+                {% if perms.concursos.cambiar_estado_concurso %}<a href="{% url 'concursos:estado' concurso.pk %}">{{ aviso.enlace }}</a>{% endif %}
+              {% else %}<a href="#aspirantes">{{ aviso.enlace }}</a>{% endif %}
+            </article>
+          {% endfor %}
+        </section>
+      {% endif %}
+    </aside>
+
+    <section class="overview-route card" aria-labelledby="seguimiento-recorrido-title">
+      <div class="overview-section-heading">
+        <div>
+          <p class="eyebrow">Recorrido del expediente</p>
+          <h3 id="seguimiento-recorrido-title">Etapas del control documental</h3>
+          {% if panel_seguimiento.atencion_diferente %}
+            <p class="field-help">Etapa de atención: <strong>{{ panel_seguimiento.etapa_atencion }}</strong>, según las actuaciones registradas. La etapa documental guardada sigue siendo <strong>{{ panel_seguimiento.etapa_actual }}</strong>. Este enfoque no cambia ningún estado. <a href="#control-documental">Revisar etapa registrada</a>.</p>
+          {% else %}
+            <p class="field-help">Etapa registrada: <strong>{{ panel_seguimiento.etapa_actual }}</strong>. Abrí una etapa para ver sus requisitos y fojas.</p>
+          {% endif %}
+        </div>
+        <a href="#control-documental">Ir al control documental</a>
+      </div>
+
+      <div class="overview-stage-list" aria-label="Etapas documentales y sus controles">
+        {% for etapa in panel_seguimiento.etapas %}
+          <details id="seguimiento-etapa-{{ etapa.codigo }}" name="etapas-seguimiento" class="overview-stage{% if etapa.actual %} overview-stage--current{% endif %}{% if etapa.en_foco %} overview-stage--focus{% endif %}"{% if etapa.en_foco %} open{% endif %}>
+            <summary>
+              <span class="overview-stage-number" aria-hidden="true">{{ forloop.counter }}</span>
+              <span class="overview-stage-main">
+                <strong>{{ etapa.nombre }}</strong>
+                <small>{{ etapa.etiqueta }}</small>
+              </span>
+              <span class="overview-stage-progress">{{ etapa.completos }}/{{ etapa.total }}</span>
+              <span class="overview-stage-chevron" aria-hidden="true"></span>
+            </summary>
+            <div class="overview-stage-content">
+              <ul class="overview-control-list">
+                {% for control in etapa.controles %}
+                  <li>
+                    <div class="overview-control-name"><a href="#documental-{{ control.id_control }}">{{ control.nombre }}</a></div>
+                    <span class="overview-control-state{% if control.completo %} overview-control-state--complete{% endif %}">{{ control.estado }}{% if control.fojas %} · Fojas {{ control.fojas }}{% endif %}</span>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          </details>
+        {% endfor %}
+      </div>
+      <p class="field-help overview-disclaimer">El control documental es independiente del estado formal. Una etapa completa no implica la emisión de resoluciones ni el vencimiento de plazos.</p>
+    </section>
+  </div>
+</section>

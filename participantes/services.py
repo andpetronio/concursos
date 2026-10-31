@@ -6,7 +6,21 @@ from .models import Persona
 
 
 @transaction.atomic
-def crear_participacion(*, modelo, concurso, datos, usuario, persona_id=None):
+def crear_participacion(*, modelo, concurso, datos, usuario, persona_id=None, permitir_reemplazo=False):
+    from .models import Jurado
+    if modelo is Jurado and not permitir_reemplazo:
+        from .jurados_services import plaza_con_antecedentes
+        plaza_usada = plaza_con_antecedentes(
+            concurso=concurso, representacion=datos["representacion"], calidad=datos["calidad"],
+        ) and not Jurado.objects.filter(
+            concurso=concurso, representacion=datos["representacion"], calidad=datos["calidad"],
+        ).exists()
+    else:
+        plaza_usada = False
+    if plaza_usada:
+        raise ValidationError(
+            "Esta plaza ya tuvo un integrante. Para cubrirla nuevamente, registrá una resolución rectoral de designación."
+        )
     identidad = {campo: datos[campo] for campo in ("apellido", "nombre", "dni")}
     identidad["dni"] = normalizar_dni(identidad["dni"])
     if persona_id is not None:
@@ -40,6 +54,12 @@ def comprobar_version(registro, version_esperada):
 def editar_participacion(*, participacion, datos, usuario, version_esperada):
     participacion = type(participacion).objects.select_for_update().get(pk=participacion.pk)
     comprobar_version(participacion, version_esperada)
+    from .models import Jurado
+    if isinstance(participacion, Jurado) and any(
+        campo in datos and datos[campo] != getattr(participacion, campo)
+        for campo in ("representacion", "calidad", "vigente")
+    ):
+        raise ValidationError("Los cambios de representación, calidad o vigencia requieren el circuito formal del jurado.")
     for campo, valor in datos.items():
         setattr(participacion, campo, valor)
     participacion.actualizado_por = usuario

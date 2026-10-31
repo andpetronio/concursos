@@ -51,6 +51,11 @@ class Participacion(models.Model):
         abstract = True
 
 
+class JuradosVigentes(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(vigente=True)
+
+
 class Jurado(Participacion):
     class Representacion(models.TextChoices):
         DEPENDENCIA = "dependencia", "Autoridad de dependencia convocante"
@@ -72,9 +77,19 @@ class Jurado(Participacion):
     email = models.EmailField("correo electrónico", blank=True)
     telefono = models.CharField("teléfono", max_length=40, blank=True)
     version = models.PositiveIntegerField(default=1, editable=False)
+    vigente = models.BooleanField(default=True, editable=False)
+    objects = JuradosVigentes()
+    todos = models.Manager()
 
     def clean(self):
         super().clean()
+        if self.vigente and Jurado.todos.filter(
+            concurso=self.concurso, representacion=self.representacion,
+            calidad=self.calidad, vigente=True,
+        ).exclude(pk=self.pk).exists():
+            raise ValidationError(
+                "Ya hay un integrante del jurado registrado para esa representación y calidad en este concurso."
+            )
         if self.telefono:
             try:
                 self.telefono = validar_cambio(self, "telefono", normalizar_telefono)
@@ -94,11 +109,46 @@ class Jurado(Participacion):
         default_permissions = ()
         constraints = [
             models.UniqueConstraint(fields=["concurso", "representacion", "calidad"],
-                                    name="jurado_plaza_unica"),
+                                    condition=models.Q(vigente=True), name="jurado_plaza_vigente_unica"),
             models.CheckConstraint(condition=models.Q(representacion__in=["dependencia", "rectorado", "personal"]),
                                    name="jurado_representacion_valida"),
             models.CheckConstraint(condition=models.Q(calidad__in=["titular", "suplente"]), name="jurado_calidad_valida"),
         ]
+
+
+class ActuacionJurado(models.Model):
+    """Bitácora inmutable de actuaciones y cambios de integración del jurado."""
+    class Tipo(models.TextChoices):
+        PRESENTACION = "presentacion", "Presentación recibida"
+        CESE = "cese", "Cese por resolución"
+        PROMOCION = "promocion", "Designación de suplente como titular"
+        DESIGNACION = "designacion", "Nueva designación"
+
+    class Motivo(models.TextChoices):
+        EXCUSACION = "excusacion", "Excusación"
+        RECUSACION = "recusacion", "Recusación"
+
+    concurso = models.ForeignKey(Concurso, on_delete=models.PROTECT, related_name="actuaciones_jurado")
+    jurado = models.ForeignKey(Jurado, on_delete=models.PROTECT, related_name="actuaciones")
+    tipo = models.CharField(max_length=20, choices=Tipo.choices)
+    motivo = models.CharField(max_length=20, choices=Motivo.choices, blank=True)
+    representacion = models.CharField(max_length=20, choices=Jurado.Representacion.choices)
+    calidad_anterior = models.CharField(max_length=10, choices=Jurado.Calidad.choices, blank=True)
+    calidad_nueva = models.CharField(max_length=10, choices=Jurado.Calidad.choices, blank=True)
+    fecha_actuacion = models.DateField()
+    resolucion = models.CharField(max_length=60, blank=True)
+    fojas = models.CharField(max_length=50, blank=True)
+    observaciones = models.TextField(max_length=1000, blank=True)
+    antecedente = models.ForeignKey("self", null=True, blank=True, on_delete=models.PROTECT,
+                                   related_name="movimientos_derivados")
+    resuelto_por = models.ForeignKey("self", null=True, blank=True, on_delete=models.PROTECT,
+                                    related_name="presentaciones_resueltas")
+    registrado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    registrado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-registrado_en", "-pk"]
+        default_permissions = ()
 
 
 class Veedor(Participacion):

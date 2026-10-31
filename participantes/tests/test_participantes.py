@@ -283,32 +283,22 @@ class ParticipanteTests(TestCase):
             "version_esperada": persona.version,
         }).status_code, 302)
 
-    def test_correccion_de_plaza_y_rechazo_de_plaza_ocupada(self):
+    def test_edicion_comun_no_puede_reubicar_plaza_ni_promover_suplente(self):
         self.client.post(self.url("jurado_crear"), JURADO)
         jurado = Jurado.objects.get()
+        response = self.client.get(self.url("jurado_editar", None, jurado.pk))
+        self.assertNotContains(response, 'name="representacion"')
+        self.assertNotContains(response, 'name="calidad"')
         response = self.client.post(self.url("jurado_editar", None, jurado.pk), {
-            "representacion": "rectorado", "calidad": "suplente", "titulo": jurado.titulo,
+            "representacion": "rectorado", "calidad": "suplente", "titulo": "Nuevo título",
             "unidad": jurado.unidad, "email": jurado.email, "telefono": jurado.telefono,
             "version_esperada": jurado.version,
         })
         self.assertEqual(response.status_code, 302)
         jurado.refresh_from_db()
-        self.assertEqual((jurado.representacion, jurado.calidad), ("rectorado", "suplente"))
+        self.assertEqual((jurado.representacion, jurado.calidad), ("dependencia", "titular"))
+        self.assertEqual(jurado.titulo, "Nuevo título")
         self.assertEqual(jurado.version, 2)
-        self.client.post(self.url("jurado_crear"), {
-            **JURADO, "apellido": "Otra", "nombre": "Persona", "dni": "22.222.222",
-            "representacion": "dependencia", "calidad": "titular",
-        })
-        otro = Jurado.objects.exclude(pk=jurado.pk).get()
-        response = self.client.post(self.url("jurado_editar", None, jurado.pk), {
-            "representacion": otro.representacion, "calidad": otro.calidad, "titulo": jurado.titulo,
-            "unidad": jurado.unidad, "email": jurado.email, "telefono": jurado.telefono,
-            "version_esperada": jurado.version,
-        })
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.context["form"].errors)
-        jurado.refresh_from_db()
-        self.assertEqual((jurado.representacion, jurado.calidad), ("rectorado", "suplente"))
 
     def test_formularios_viejos_no_pisan_persona_jurado_o_veedor(self):
         self.client.post(self.url("jurado_crear"), JURADO)

@@ -126,8 +126,6 @@ def disponibilidad(concurso, tipo, destinatario=None):
         faltantes.extend(faltantes_resultados(cuadro_resultados(concurso)))
     if tipo.codigo == "sorteo_acta":
         faltantes.extend(faltantes_sorteo(concurso))
-    if tipo.codigo == "designacion" and concurso.causa_vacancia != "jubilacion":
-        faltantes.append("El modelo recibido presupone jubilación del titular; se requiere modelo específico para esta causa de vacancia.")
     if tipo.codigo == "desierto_inscriptos":
         faltantes.extend(faltantes_desierto_inscriptos(concurso))
     if tipo.codigo == "apunsj":
@@ -174,11 +172,22 @@ def faltantes_modelos_fieles(concurso, tipo):
             faltantes.append("Completar los datos del iniciador del expediente.")
         if not concurso.iniciador_tratamiento:
             faltantes.append("Completar tratamiento del iniciador del expediente para este modelo.")
-    if tipo.codigo == "designacion" and concurso.causa_vacancia == "jubilacion":
-        for valor, etiqueta in ((concurso.ex_titular, "ex titular"), (concurso.fecha_baja, "fecha de vacancia"),
-                                (concurso.resolucion_baja, "resolución de aceptación de renuncia")):
-            if not valor:
-                faltantes.append("Completar " + etiqueta + " de la vacancia por jubilación.")
+    if tipo.codigo == "designacion":
+        # La resolución documenta la causa registrada, no un motivo fijo del modelo.
+        if not concurso.causa_vacancia:
+            faltantes.append("Seleccionar la causa de vacancia del cargo en Datos del concurso.")
+        if concurso.causa_vacancia and concurso.causa_vacancia != "nuevo" and not concurso.fecha_baja:
+            faltantes.append("Completar fecha de vacancia del cargo en Datos del concurso.")
+        if (concurso.causa_vacancia in {"jubilacion", "renuncia", "fallecimiento", "concurso", "efectivizacion"}
+                and not concurso.ex_titular):
+            faltantes.append("Completar ex titular del cargo según la causa de vacancia.")
+        if (concurso.causa_vacancia in {"jubilacion", "renuncia", "concurso", "efectivizacion"}
+                and not (concurso.resolucion_baja or concurso.acto_vacancia)):
+            faltantes.append("Completar el acto acreditado que fundamenta la causa de vacancia.")
+        if concurso.causa_vacancia == "traslado" and not concurso.acto_vacancia:
+            faltantes.append("Completar el acto que acredita el traslado del cargo.")
+        if concurso.causa_vacancia == "otra" and not (concurso.detalle_vacancia or "").strip():
+            faltantes.append("Completar la descripción acreditada de la causa de vacancia.")
     return faltantes
 
 
@@ -465,8 +474,6 @@ def preparar_revision(*, concurso_id, tipo_codigo, usuario, datos, huella_espera
         faltantes.extend(faltantes_resultados(snapshot["resultados"]))
     if tipo.codigo == "sorteo_acta":
         faltantes.extend(faltantes_sorteo(concurso, controles=controles, jurados=jurados, aspirantes=snapshot["aspirantes"]))
-    if tipo.codigo == "designacion" and concurso.causa_vacancia != "jubilacion":
-        faltantes.append("El modelo institucional recibido fundamenta la vacancia por jubilación; no corresponde aplicarlo a esta causa sin un texto aprobado.")
     if tipo.codigo == "desierto_inscriptos":
         faltantes.extend(faltantes_desierto_inscriptos(concurso, instantanea=snapshot))
     if tipo.codigo == "apunsj":
@@ -550,7 +557,10 @@ def generar(*, concurso_id, tipo_codigo, usuario, version_concurso, version_dest
         with ZipFile(salida, "w", compression=ZIP_DEFLATED) as archivo:
             for indice, jurado in enumerate(snapshot["jurados"], 1):
                 contenido_nota = renderizar(tipo, {**snapshot, "jurado_actual": jurado}, membrete=imagen_membrete)
-                nombre = nombre_miembro(indice)
+                nombre = nombre_miembro(
+                    indice, representacion=jurado["representacion"], calidad=jurado["calidad"],
+                    expediente=snapshot["concurso"]["expediente"],
+                )
                 archivo.writestr(nombre, contenido_nota)
                 snapshot["archivos"].append({"indice": indice, "nombre": nombre, "jurado_id": jurado["id"],
                     "representacion": jurado["representacion"], "calidad": jurado["calidad"],

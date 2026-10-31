@@ -12,56 +12,40 @@
 <p class="detail-tabs-help field-help" data-detail-tabs-help hidden></p>
 </div>
 <div data-detail-panel id="panel-resumen">
-<header id="resumen" class="card record-summary section" tabindex="-1" aria-labelledby="cargo-title">
-  <p class="eyebrow">Ficha del concurso</p>
-  <h1 id="cargo-title">{{ concurso.denominacion }}</h1>
-  <p class="record-subtitle">Expediente {{ concurso.expediente }}</p>
-  <p class="field-help">{{ concurso.unidad }} · {{ concurso.dependencia }}</p>
-  <dl class="summary-facts">
+<header id="resumen" class="card record-summary overview-header section" tabindex="-1" aria-labelledby="cargo-title">
+  <div class="overview-header-top">
+    <div class="overview-identity">
+      <p class="eyebrow">Concurso nodocente</p>
+      <h1 id="cargo-title">{{ concurso.denominacion }}</h1>
+      <p class="record-subtitle">Expediente {{ concurso.expediente }}</p>
+      <p class="overview-unit">{{ concurso.unidad }} · {{ concurso.dependencia }}</p>
+    </div>
+    <div class="overview-formal-status" aria-labelledby="estado-actual">
+      <h2 id="estado-actual" class="visually-hidden">Estado y situación administrativa</h2>
+      <span class="overview-label">Estado administrativo</span>
+      {% include "components/status.html" with label=concurso.get_estado_display %}
+      <span class="overview-situation">Situación administrativa: <strong>{{ concurso.get_situacion_display }}</strong></span>
+    </div>
+  </div>
+  <dl class="overview-identifiers">
     <div><dt>Modalidad</dt><dd>{{ concurso.get_modalidad_display }}</dd></div>
     <div><dt>Categoría</dt><dd>{{ concurso.categoria }}</dd></div>
     <div><dt>Tramo</dt><dd>{{ concurso.tramo }}</dd></div>
     <div><dt>Agrupamiento</dt><dd>{{ concurso.get_agrupamiento_display }}</dd></div>
+    <div><dt>Código presupuestario</dt><dd>{{ concurso.codigo_presupuestario }}</dd></div>
+    <div><dt>Etapa documental</dt><dd>{{ documentacion.seguimiento.get_etapa_display }}</dd></div>
   </dl>
-  <div class="record-status" aria-labelledby="estado-actual">
-    <h2 id="estado-actual" class="visually-hidden">Estado actual</h2>
-    <dl class="summary-facts">
-      <div><dt>Estado administrativo</dt><dd>{% include "components/status.html" with label=concurso.get_estado_display %}</dd></div>
-      <div><dt>Situación administrativa</dt><dd>{% include "components/status.html" with label=concurso.get_situacion_display %}</dd></div>
-      <div><dt>Etapa documental</dt><dd>{{ documentacion.seguimiento.get_etapa_display }}</dd></div>
-    </dl>
-    <p class="field-help">El estado solo cambia con tu confirmación; los documentos verificados pueden sugerir un avance.</p>
-    {% if diagnostico_sin_ganador %}
-      <div class="notice" role="status">
-        <p><strong>{{ diagnostico_sin_ganador.titulo }}</strong></p>
-        <p>{{ diagnostico_sin_ganador.explicacion }}</p>
-        {% if diagnostico_sin_ganador.siguiente_nombre %}
-          <p><strong>Modalidad sugerida para un nuevo llamado:</strong> {{ diagnostico_sin_ganador.siguiente_nombre }}.</p>
-        {% else %}
-          <p>La modalidad {{ concurso.get_modalidad_display }} no tiene una siguiente instancia definida en esta regla; requiere revisión administrativa.</p>
-        {% endif %}
-        <p class="field-help">{{ diagnostico_sin_ganador.referencia }}. La nueva convocatoria debe tramitarse mediante acto administrativo y dentro del plazo reglamentario de 30 días corridos. SiCon no modifica el estado ni genera un concurso automáticamente.</p>
-      </div>
-    {% endif %}
-    {% if sugerencia_convocado and not documentacion.detalle_sugerencia %}
-      <div class="notice" role="status">
-        <p><strong>Revisar estado «Convocado».</strong> En el concurso se registró la Resolución N.º {{ concurso.resolucion_convocatoria }} como resolución oficial de convocatoria. El estado administrativo sigue en «Preparación».</p>
-        {% if perms.concursos.cambiar_estado_concurso %}
-          <a href="{% url 'concursos:estado' concurso.pk %}?sugerencia=convocatoria">Revisar y confirmar cambio de estado</a>
-        {% else %}
-          <p class="field-help">El cambio requiere un usuario con permiso para modificar el estado. No se aplica automáticamente.</p>
-        {% endif %}
-      </div>
-    {% endif %}
-  </div>
-  <div class="actions">
-    {% include "components/button.html" with href="#control-documental" label="Ir al control documental" %}
-    {% if perms.concursos.change_concurso %}{% url 'concursos:editar' concurso.pk as editar_url %}{% include "components/button.html" with href=editar_url label="Editar datos" extra_class="button-secondary" %}{% endif %}
-    {% if perms.concursos.cambiar_estado_concurso %}{% url 'concursos:estado' concurso.pk as estado_url %}{% include "components/button.html" with href=estado_url label="Cambiar estado o situación" extra_class="button-secondary" %}{% endif %}
+  <div class="overview-header-footer">
+    <p class="field-help">El estado solo cambia con tu confirmación, si contás con autorización. Es independiente del control documental; los documentos verificados pueden sugerir un avance.</p>
+    <div class="overview-header-actions">
+      <a href="#datos-concurso">Ver datos generales</a>
+      {% if perms.concursos.change_concurso %}<a href="{% url 'concursos:editar' concurso.pk %}">Editar datos</a>{% endif %}
+      {% if perms.concursos.cambiar_estado_concurso %}<a href="{% url 'concursos:estado' concurso.pk %}">Cambiar estado o situación</a>{% endif %}
+    </div>
   </div>
 </header>
+{% include "concursos/panel_seguimiento.html" %}
 </div>
-
 <div data-detail-panel id="panel-datos-concurso">
 <section id="datos-concurso" class="card section" tabindex="-1" aria-labelledby="datos-heading">
   <div class="record-detail-heading">
@@ -97,6 +81,7 @@
   {% include "components/table_scroll_help.html" only %}
   {% include "participantes/jurados_tabla.html" with table_label="Integrantes del jurado" %}
   {% else %}{% include "components/empty_state_inline.html" with description="Todavía no hay integrantes del jurado registrados." only %}{% endif %}
+  {% include "participantes/historial_jurado.html" %}
 </section>
 </div>
 <div data-detail-panel id="panel-veedores">
@@ -130,6 +115,12 @@
 <section id="historial" class="section" tabindex="-1" aria-labelledby="historial-title">
   <div class="section-heading"><h2 id="historial-title">Historial de estados y situaciones</h2><p>Registro de cambios realizados en el trámite.</p></div>
   {% include "concursos/historial_tabla.html" with table_label="Historial de estados y situaciones" %}
+  {% if historial_jurados %}
+    <div class="section" aria-label="Actuaciones del jurado">
+      <h3>Modificaciones de la integración del jurado</h3>
+      {% include "participantes/historial_jurado_tabla.html" %}
+    </div>
+  {% endif %}
   {% include "components/pagination.html" with fragment="historial" %}
 </section>
 </div>

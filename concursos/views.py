@@ -101,6 +101,19 @@ class ConcursoDetailView(AccesoConcursoMixin, DetailView):
             self.request.GET.get("page")
         )
         context["jurados"] = Jurado.objects.filter(concurso=self.object).select_related("persona")
+        from participantes.models import ActuacionJurado
+        from participantes.jurados_services import plaza_con_antecedentes
+        context["historial_jurados"] = list(ActuacionJurado.objects.filter(
+            concurso=self.object,
+        ).select_related("jurado__persona", "registrado_por"))
+        context["plazas_jurado_reemplazo"] = [
+            {"representacion": rep, "calidad": cal,
+             "representacion_label": rep_label, "calidad_label": cal_label}
+            for rep, rep_label in Jurado.Representacion.choices
+            for cal, cal_label in Jurado.Calidad.choices
+            if plaza_con_antecedentes(concurso=self.object, representacion=rep, calidad=cal)
+            and not Jurado.objects.filter(concurso=self.object, representacion=rep, calidad=cal).exists()
+        ]
         context["veedores"] = Veedor.objects.filter(concurso=self.object).select_related("persona")
         context["sugerencia_convocado"] = services.sugerir_estado_convocado(self.object)
         context["aspirantes"] = Aspirante.objects.filter(concurso=self.object).select_related("persona", "evaluacion")
@@ -120,6 +133,12 @@ class ConcursoDetailView(AccesoConcursoMixin, DetailView):
             formulario_error_tipo=getattr(self, "generacion_error_tipo", None),
             formulario_error=getattr(self, "generacion_error_form", None),
         ))
+        from .seguimiento import panel_seguimiento
+        context["panel_seguimiento"] = panel_seguimiento(
+            self.object, documentacion=context["documentacion"],
+            secciones=context["secciones_documentales"],
+            cuadro=context["resultados_concurso"], aspirantes=list(context["aspirantes"]),
+        )
         return context
 
 

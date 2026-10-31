@@ -315,7 +315,8 @@ class DocumentosTests(TestCase):
         self.login(self.operador)
         respuesta = self.client.get(url)
         self.assertEqual(respuesta.content, bytes(registro.contenido))
-        self.assertIn(f'concurso-{self.concurso.pk}-documento-{registro.pk}.docx', respuesta["Content-Disposition"])
+        self.assertIn(f'oficio-solicitud-veedor-apunsj-exp-{self.concurso.expediente.lower()}-borrador-{registro.pk}.docx',
+                      respuesta["Content-Disposition"])
         self.assertIn("no-store", respuesta["Cache-Control"])
         otro = concurso_services.crear_concurso(datos=DATOS, usuario=self.operador)
         self.assertEqual(self.client.get(reverse("documentos:descargar", args=[otro.pk, registro.pk])).status_code, 404)
@@ -526,6 +527,29 @@ class ContinuacionDocumentosTests(TestCase):
             version_concurso=self.concurso.version, complementarios=datos if datos is not None else self.complementos(tipo),
             huella_esperada=kwargs.pop("huella_esperada", self.huella(tipo)), **kwargs)
 
+    def test_designacion_toma_causa_renuncia_y_deja_jubilacion_fuera_del_borrador(self):
+        self.completar_fuentes()
+        self.concurso.causa_vacancia = "renuncia"
+        self.concurso.save(update_fields=["causa_vacancia"])
+        registro = self.generar_tipo("designacion")
+        texto = self.texto(registro)
+        self.assertIn("presentó su renuncia", texto)
+        self.assertIn(self.concurso.ex_titular, texto)
+        self.assertNotIn("beneficio jubilatorio", texto)
+        self.assertEqual(registro.instantanea["concurso"]["causa_vacancia"], "renuncia")
+
+    def test_designacion_no_admite_causa_incompleta_y_no_usa_jubilacion_por_defecto(self):
+        self.completar_fuentes()
+        self.concurso.causa_vacancia = "traslado"
+        self.concurso.acto_vacancia = ""
+        self.concurso.save(update_fields=["causa_vacancia", "acto_vacancia"])
+        estado = services.disponibilidad(self.concurso, POR_CODIGO["designacion"])
+        self.assertFalse(estado["disponible"])
+        self.assertTrue(any("acredita el traslado" in mensaje for mensaje in estado["faltantes"]))
+        with self.assertRaisesMessage(ValidationError, "acredita el traslado"):
+            self.generar_tipo("designacion")
+        self.assertFalse(GeneracionDocumento.objects.exists())
+
     def test_cinco_salidas_con_fuentes_revisadas_sin_hechos_de_ejemplo(self):
         self.completar_fuentes(cantidad=7)
         for tipo in ("convocatoria", "dictamen", "designacion", "elecciones"):
@@ -668,7 +692,8 @@ class ContinuacionDocumentosTests(TestCase):
         datos = self.complementos("jurados")
         registro = self.generar_tipo("jurados", datos)
         with ZipFile(BytesIO(bytes(registro.contenido))) as archivo:
-            self.assertEqual(archivo.namelist(), [f"jurado-{i}.docx" for i in range(1, 7)])
+            self.assertEqual(archivo.namelist(), [fila["nombre"] for fila in registro.instantanea["archivos"]])
+            self.assertTrue(all(nombre.startswith("notificacion-jurado-") for nombre in archivo.namelist()))
             miembros = {nombre: archivo.read(nombre) for nombre in archivo.namelist()}
         self.assertEqual(len(registro.instantanea["archivos"]), 6)
         with patch("documentos.services.renderizar", side_effect=AssertionError("No regenerar")):
@@ -677,6 +702,8 @@ class ContinuacionDocumentosTests(TestCase):
                 respuesta = self.client.get(url)
                 self.assertEqual(respuesta.status_code, 200)
                 self.assertEqual(respuesta.content, miembros[fila["nombre"]])
+                self.assertIn(f'-{fila["representacion"]}-{fila["calidad"]}.docx',
+                              respuesta["Content-Disposition"])
                 self.assertEqual(hashlib.sha256(respuesta.content).hexdigest(), fila["sha256"])
                 doc = Document(BytesIO(respuesta.content))
                 texto = "\n".join(p.text for p in doc.paragraphs)
@@ -701,13 +728,14 @@ class ContinuacionDocumentosTests(TestCase):
         # No imprimir el tratamiento delante del destinatario: el encabezado
         # lleva título, nombre y apellido, seguido de la unidad y «Presente».
         self.assertNotIn("Tratamiento explícito", "\n".join(
-            p.text for p in Document(BytesIO(miembros["jurado-1.docx"])).paragraphs[:4]))
+            p.text for p in Document(BytesIO(miembros[registro.instantanea["archivos"][0]["nombre"]])).paragraphs[:4]))
         primero = self.concurso.jurados.order_by("pk").first()
         primero.persona.nombre = "Otro nombre posterior"
         primero.persona.save()
         respuesta = self.client.get(reverse("documentos:descargar", args=[self.concurso.pk, registro.pk]))
         self.assertEqual(respuesta.content, bytes(registro.contenido))
         self.assertEqual(respuesta["Content-Type"], "application/zip")
+        self.assertIn("notificaciones-jurados-exp-", respuesta["Content-Disposition"])
         self.assertEqual(self.client.get(reverse("documentos:descargar_jurado", args=[self.concurso.pk, registro.pk, 7])).status_code, 404)
         self.login(self.lector)
         self.assertEqual(self.client.get(reverse("documentos:descargar_jurado", args=[self.concurso.pk, registro.pk, 1])).status_code, 403)
@@ -1244,7 +1272,7 @@ class ContinuacionDocumentosTests(TestCase):
         self.assertEqual(registro.instantanea["complementarios"]["res_convocatoria"], "3278/26-R")
         self.assertIn("San Juan,", registro.instantanea["complementarios"]["lugar_fecha"])
         with ZipFile(BytesIO(bytes(registro.contenido))) as archivo:
-            nota = Document(BytesIO(archivo.read("jurado-1.docx")))
+            nota = Document(BytesIO(archivo.read(registro.instantanea["archivos"][0]["nombre"])))
         texto = "\n".join(p.text for p in nota.paragraphs)
         self.assertIn("3278/26-R", texto)
         self.assertNotIn("9999/26-R", texto)

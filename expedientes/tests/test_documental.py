@@ -549,7 +549,12 @@ class DocumentalTests(TestCase):
         self.assertContains(response, 'aria-label="Verificado: Certificación de vacancia del cargo"')
         self.assertContains(response, '/control-documental/etapa/#control-documental')
         self.assertContains(response, 'class="document-control-status document-control-status--no-registrado"', count=16)
-        self.assertContains(response, "Pendiente exigible", count=5)
+        # El Resumen F4I.1 también informa estados: contar solo etiquetas del checklist.
+        self.assertContains(
+            response,
+            'class="document-control-status document-control-status--exigible"',
+            count=5,
+        )
         self.assertNotContains(response, "Control documental · No disponible")
         self.guardar("vacancia", observaciones="<script>prueba</script>")
         self.assertContains(self.client.get(self.concurso.get_absolute_url()), "&lt;script&gt;prueba&lt;/script&gt;")
@@ -678,7 +683,12 @@ class DocumentalTests(TestCase):
         resultado = consultar_documentacion(self.concurso)
         self.assertEqual(len(resultado.pendientes_exigibles), 11)
         self.assertEqual(len(resultado.no_registrados_futuros), 9)
-        self.assertContains(self.client.get(self.concurso.get_absolute_url()), "Pendiente exigible", count=11)
+        # La etapa exigible se comprueba por los controles, no por textos repetidos en Resumen.
+        self.assertContains(
+            self.client.get(self.concurso.get_absolute_url()),
+            'class="document-control-status document-control-status--exigible"',
+            count=11,
+        )
         cambio = resultado.seguimiento.historial.get()
         self.assertEqual((cambio.anterior, cambio.nueva, cambio.usuario, cambio.version),
                          ("preparacion", "inscripciones", self.editor, 2))

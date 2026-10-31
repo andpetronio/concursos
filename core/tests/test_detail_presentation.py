@@ -128,8 +128,9 @@ class DetailPresentationTests(TestCase):
         self.assertContains(response, '<th scope="col">Unidad</th>', html=True)
         # Jurados y veedores conservan las acciones tradicionales; los aspirantes
         # usan el grupo compacto de tres íconos incorporado en SDD-006 F4C.
-        self.assertContains(response, 'class="actions participation-actions"', count=2)
-        self.assertContains(response, 'class="aspirant-actions"', count=2)
+        self.assertContains(response, 'class="actions participation-actions"', count=1)
+        self.assertContains(response, 'class="aspirant-actions" role="group"', count=3)
+        self.assertContains(response, 'aria-label="Registrar presentación del jurado"', count=1)
         self.assertContains(response, "Desplazá la tabla horizontalmente", count=3)
         for kind, record in (("jurado", self.jurado), ("veedor", self.veedor), ("aspirante", self.aspirantes[0])):
             self.assertContains(response, reverse(f"concursos:{kind}_editar", args=[self.concurso.pk, record.pk]))

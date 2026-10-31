@@ -26,7 +26,13 @@ class LoginView(DjangoLoginView):
 
 @login_required
 def dashboard(request):
-    return render(request, "core/dashboard.html")
+    contexto = {}
+    if request.user.has_perm("concursos.view_concurso"):
+        from .tablero import construir_tablero
+        contexto["tablero"] = construir_tablero(
+            puede_cambiar_estado=request.user.has_perm("concursos.cambiar_estado_concurso"),
+        )
+    return render(request, "core/dashboard.html", contexto)
 
 
 @never_cache

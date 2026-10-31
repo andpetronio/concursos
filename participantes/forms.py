@@ -61,7 +61,7 @@ class JuradoEdicionForm(FormularioVersionado):
 
     class Meta:
         model = Jurado
-        fields = ("representacion", "calidad", "titulo", "unidad", "email", "telefono")
+        fields = ("titulo", "unidad", "email", "telefono")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

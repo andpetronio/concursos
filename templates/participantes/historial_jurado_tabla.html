@@ -1,0 +1,12 @@
+<div class="table-region" role="region" aria-label="Actuaciones históricas del jurado" tabindex="0">
+      <table class="data-table"><thead><tr><th scope="col">Fecha</th><th scope="col">Integrante</th><th scope="col">Actuación</th><th scope="col">Respaldo</th><th scope="col">Registro</th></tr></thead><tbody>
+      {% for movimiento in historial_jurados %}
+        <tr><td>{{ movimiento.fecha_actuacion|date:"d/m/Y" }}</td>
+          <td>{{ movimiento.jurado.persona.apellido }}, {{ movimiento.jurado.persona.nombre }}<br>{{ movimiento.get_representacion_display }} · {{ movimiento.get_calidad_anterior_display|default:movimiento.get_calidad_nueva_display }}</td>
+          <td>{{ movimiento.get_tipo_display }}{% if movimiento.motivo %} · {{ movimiento.get_motivo_display }}{% endif %}{% if movimiento.tipo == 'presentacion' %}<br>{% if movimiento.resuelto_por_id %}Resuelta{% else %}Pendiente de resolución{% endif %}{% endif %}</td>
+          <td>{% if movimiento.resolucion %}Resolución {{ movimiento.resolucion }}{% else %}Sin resolución registrada{% endif %}{% if movimiento.fojas %}<br>Fojas {{ movimiento.fojas }}{% endif %}{% if movimiento.observaciones %}<br>{{ movimiento.observaciones }}{% endif %}</td>
+          <td>{{ movimiento.registrado_por.get_username }}<br>{{ movimiento.registrado_en|date:"d/m/Y H:i" }}</td>
+        </tr>
+      {% endfor %}
+      </tbody></table>
+    </div>

@@ -5,6 +5,7 @@ from django.http import HttpResponse, Http404
 from io import BytesIO
 from zipfile import ZipFile, BadZipFile
 import hashlib
+from django.utils.text import slugify
 from django.shortcuts import get_object_or_404, redirect
 from django.views.generic import FormView, TemplateView, View
 from concursos.models import Concurso
@@ -229,6 +230,42 @@ class GeneracionEnFichaView(ConcursoDetailView):
         return self.render_to_response(self.get_context_data(), status=400)
 
 
+NOMBRES_DOCUMENTOS = {
+    "elecciones": "nota-eleccion-representantes-personal",
+    "convocatoria": "proyecto-resolucion-convocatoria",
+    "jurados": "notificaciones-jurados",
+    "apunsj": "oficio-solicitud-veedor-apunsj",
+    "dictamen": "proyecto-resolucion-aprobacion-dictamen",
+    "sorteo_acta": "acta-sorteo-temas",
+    "desierto_inscriptos": "proyecto-resolucion-concurso-desierto",
+    "designacion": "proyecto-resolucion-designacion",
+    "solicitud_jurados_rectorado": "oficio-solicitud-jurados-rectorado",  # histórico
+}
+
+
+def nombre_descarga(registro, *, indice=None):
+    """Nombre legible y estable, derivado del tipo y expediente del snapshot histórico.
+
+    No se incluyen datos personales, rutas, ni texto sin normalizar del expediente.
+    La revisión del borrador se distingue por el ID de generación.
+    """
+    tipo = NOMBRES_DOCUMENTOS.get(registro.tipo, "documento-historico")
+    expediente = (registro.instantanea or {}).get("concurso", {}).get("expediente", "")
+    expediente = slugify(str(expediente))[:55].strip("-") or f"concurso-{registro.concurso_id}"
+    nombre = f"{tipo}-exp-{expediente}-borrador-{registro.pk}"
+    if indice is not None:
+        miembros = (registro.instantanea or {}).get("archivos", [])
+        jurado = next((m for m in miembros if m.get("indice") == indice), {})
+        rep = jurado.get("representacion")
+        calidad = jurado.get("calidad")
+        if rep in ("rectorado", "dependencia", "personal") and calidad in ("titular", "suplente"):
+            nombre += f"-{rep}-{calidad}"
+        else:
+            nombre += f"-jurado-{indice}"  # registros históricos sin metadatos
+    extension = "zip" if registro.tipo == "jurados" and indice is None else "docx"
+    return f"{nombre}.{extension}"
+
+
 class DescargaView(AccesoConcursoMixin, View):
     permission_required = services.PERMISOS_GENERACION
     http_method_names = ["get", "head", "options"]
@@ -255,8 +292,7 @@ class DescargaView(AccesoConcursoMixin, View):
             extension = "docx"
         response = HttpResponse(contenido, content_type="application/zip" if es_zip and indice is None else
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-        sufijo = f"-jurado-{indice}" if indice is not None else ""
-        response["Content-Disposition"] = f'attachment; filename="concurso-{pk}-documento-{registro.pk}{sufijo}.{extension}"'
+        response["Content-Disposition"] = f'attachment; filename="{nombre_descarga(registro, indice=indice)}"'
         response["Cache-Control"] = "private, no-store"
         response["X-Content-Type-Options"] = "nosniff"
         return response

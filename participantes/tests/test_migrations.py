@@ -37,6 +37,7 @@ class UnidadJuradoMigrationTests(TransactionTestCase):
             apps = executor.loader.project_state(destinos).apps
             migrado = apps.get_model("participantes", "Jurado").objects.values().get(pk=jurado.pk)
             self.assertEqual(migrado.pop("unidad"), "")
+            self.assertIs(migrado.pop("vigente"), True)
             self.assertEqual(migrado, original)
             MigrationExecutor(connection).migrate(anterior)
             self.assertEqual(Modelo.objects.values().get(pk=jurado.pk), original)

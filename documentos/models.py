@@ -33,6 +33,7 @@ class DestinatarioAPUNSJ(models.Model):
 
 class DestinatarioPersonal(models.Model):
     """Jefatura de Personal que recibe el oficio de elección por el estamento."""
+    id = models.BigAutoField(primary_key=True, serialize=False)
     tratamiento = models.CharField(max_length=4, choices=[("Sr.", "Sr."), ("Sra.", "Sra.")])
     cargo = models.CharField(max_length=45, choices=[
         ("Jefe del Departamento de Personal", "Jefe del Departamento de Personal"),

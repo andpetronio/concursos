@@ -284,3 +284,122 @@ class EvaluacionAspiranteView(ParticipanteFormView):
             return self.form_invalid(form)
         messages.success(self.request, "La evaluación se registró. El orden de mérito se actualiza a partir de los puntajes.")
         return redirect(self.get_success_url())
+
+
+# F4L: movimientos formales del jurado. La edición de datos comunes no mueve plazas.
+from django.http import Http404
+from .jurados_forms import PresentacionJuradoForm, ResolucionJuradoForm, ReemplazoJuradoForm
+from . import jurados_services
+
+
+class AccionJuradoView(ParticipanteFormView):
+    permission_required = ("concursos.view_concurso", "concursos.change_concurso")
+    template_name = "participantes/formulario.html"
+
+    def get_jurado(self):
+        if not hasattr(self, "jurado"):
+            self.jurado = get_object_or_404(
+                Jurado.objects.select_related("persona"), pk=self.kwargs["participacion_id"],
+                concurso=self.get_concurso(),
+            )
+        return self.jurado
+
+    def get_form_kwargs(self):
+        return {**super().get_form_kwargs(), "jurado": self.get_jurado()}
+
+    def get_context_data(self, **kwargs):
+        return super().get_context_data(identity=self.get_jurado().persona, **kwargs)
+
+    def get_success_url(self):
+        return f'{reverse("concursos:detalle", args=[self.get_concurso().pk])}#jurados'
+
+
+class JuradoPresentacionView(AccionJuradoView):
+    form_class = PresentacionJuradoForm
+    titulo = "Registrar excusación o recusación"
+    descripcion = "La presentación queda pendiente y no modifica la integración vigente."
+    boton = "Registrar presentación"
+
+    def form_valid(self, form):
+        try:
+            jurados_services.registrar_presentacion(
+                jurado_id=self.get_jurado().pk, concurso_id=self.get_concurso().pk,
+                usuario=self.request.user, **form.cleaned_data,
+            )
+        except ValidationError as error:
+            form.add_error(None, error)
+            return self.form_invalid(form)
+        messages.success(self.request, "Presentación registrada. La integración vigente no se modificó.")
+        return redirect(self.get_success_url())
+
+
+class JuradoResolverView(AccionJuradoView):
+    form_class = ResolucionJuradoForm
+    titulo = "Registrar resolución rectoral"
+    descripcion = "Se registra el cese formal y, si corresponde, la promoción del suplente de la misma representación."
+    boton = "Registrar cese y nueva integración"
+
+    def form_valid(self, form):
+        datos = form.cleaned_data
+        try:
+            jurados_services.resolver_presentacion(
+                jurado_id=self.get_jurado().pk, concurso_id=self.get_concurso().pk,
+                usuario=self.request.user, presentacion_id=datos["presentacion_id"].pk,
+                version_esperada=datos["version_esperada"], resolucion=datos["resolucion"],
+                fecha_resolucion=datos["fecha_resolucion"], fojas=datos["fojas"],
+                observaciones=datos["observaciones"],
+                promover_suplente=datos.get("promover_suplente", False),
+            )
+        except ValidationError as error:
+            form.add_error(None, error)
+            return self.form_invalid(form)
+        messages.success(self.request, "Resolución registrada. Integración vigente e historial actualizados.")
+        return redirect(self.get_success_url())
+
+
+class JuradoReemplazoView(ParticipanteFormView):
+    permission_required = ("concursos.view_concurso", "concursos.change_concurso")
+    form_class = ReemplazoJuradoForm
+    titulo = "Designar nuevo integrante del jurado"
+    descripcion = "Esta plaza tuvo un integrante anterior. La nueva designación requiere resolución rectoral."
+    boton = "Registrar nueva designación"
+
+    def _validar_plaza(self):
+        rep, calidad = self.kwargs["representacion"], self.kwargs["calidad"]
+        if rep not in Jurado.Representacion.values or calidad not in Jurado.Calidad.values:
+            raise Http404
+        if not jurados_services.plaza_con_antecedentes(
+            concurso=self.get_concurso(), representacion=rep, calidad=calidad,
+        ) or Jurado.objects.filter(
+            concurso=self.get_concurso(), representacion=rep, calidad=calidad,
+        ).exists():
+            raise Http404
+        return rep, calidad
+
+    def get(self, request, *args, **kwargs):
+        self._validar_plaza()
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        self._validar_plaza()
+        return super().post(request, *args, **kwargs)
+
+    def get_success_url(self):
+        return f'{reverse("concursos:detalle", args=[self.get_concurso().pk])}#jurados'
+
+    def form_valid(self, form):
+        datos = form.cleaned_data.copy()
+        extras = {campo: datos.pop(campo) for campo in
+                  ("resolucion", "fecha_resolucion", "fojas", "observaciones")}
+        try:
+            jurados_services.designar_reemplazante(
+                concurso=self.get_concurso(), representacion=self.kwargs["representacion"],
+                calidad=self.kwargs["calidad"], datos=datos,
+                usuario=self.request.user, **extras,
+            )
+        except (ValidationError, IntegrityError) as error:
+            form.add_error(None, error if isinstance(error, ValidationError)
+                           else "La plaza fue cubierta por otra operación. Volvé a cargar la ficha.")
+            return self.form_invalid(form)
+        messages.success(self.request, "Nueva designación registrada y conservada en el historial.")
+        return redirect(self.get_success_url())

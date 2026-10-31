@@ -1,0 +1,16 @@
+<div id="historial-jurado" class="section" aria-labelledby="historial-jurado-title">
+  <h3 id="historial-jurado-title">Historial de integración del jurado</h3>
+  <p class="field-help">Las presentaciones no modifican la integración. El cese y las nuevas designaciones requieren resolución rectoral.</p>
+  {% if plazas_jurado_reemplazo and perms.concursos.change_concurso %}
+    <div class="actions" aria-label="Plazas vacantes con antecedentes">
+      {% for plaza in plazas_jurado_reemplazo %}
+        <a class="button button-secondary" href="{% url 'concursos:jurado_reemplazo' concurso.pk plaza.representacion plaza.calidad %}">Designar {{ plaza.calidad_label|lower }} · {{ plaza.representacion_label }}</a>
+      {% endfor %}
+    </div>
+  {% endif %}
+  {% if historial_jurados %}
+    {% include "participantes/historial_jurado_tabla.html" %}
+  {% else %}
+    <p class="field-help">Todavía no hay cambios de integración registrados. Los integrantes iniciales se conservan en la tabla superior.</p>
+  {% endif %}
+</div>

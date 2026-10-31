@@ -8,6 +8,6 @@
   <td><div class="participation-data"><span>Representación: {{ jurado.get_representacion_display }}</span><span>Calidad: {{ jurado.get_calidad_display }}</span><span>Título: {{ jurado.titulo }}</span>{% if jurado.cargo %}<span>Cargo registrado anteriormente: {{ jurado.cargo }}</span>{% endif %}</div></td>
   <td><span class="participation-data">{{ jurado.unidad|default:"Pendiente de completar" }}</span></td>
   <td><div class="participation-data"><span>{{ jurado.email|default:"Sin correo registrado" }}</span><span>{{ jurado.telefono|default:"Sin teléfono registrado" }}</span></div></td>
-  {% if perms.concursos.change_concurso %}<td>{% include "participantes/acciones.html" with return_section="jurados" registro=jurado editar_route="concursos:jurado_editar" editar_label="Editar participación" %}</td>{% endif %}
+  {% if perms.concursos.change_concurso %}<td>{% include "participantes/acciones_jurado.html" %}</td>{% endif %}
 </tr>{% endfor %}
 {% endblock %}

@@ -1,0 +1,14 @@
+<div class="aspirant-actions" role="group" aria-label="Acciones de {{ jurado.persona.apellido }}, {{ jurado.persona.nombre }}">
+  <a class="aspirant-action" href="{% url 'concursos:jurado_editar' concurso.pk jurado.pk %}"
+     title="Editar datos" aria-label="Editar datos del jurado" data-tooltip="Editar datos">
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L9 17l-4 1 1-4Z"/></svg>
+  </a>
+  <a class="aspirant-action" href="{% url 'concursos:jurado_presentacion' concurso.pk jurado.pk %}"
+     title="Registrar excusación o recusación" aria-label="Registrar presentación del jurado" data-tooltip="Registrar presentación">
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+  </a>
+  <a class="aspirant-action aspirant-action--evaluation" href="{% url 'concursos:jurado_resolver' concurso.pk jurado.pk %}"
+     title="Registrar resolución rectoral" aria-label="Registrar resolución y cese del jurado" data-tooltip="Registrar resolución">
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14v18H5zM9 9h6M9 13h6M9 17l2 2 4-4"/></svg>
+  </a>
+</div>

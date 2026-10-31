@@ -1,27 +1,130 @@
 {% extends "layouts/private.html" %}
 {% block title %}Panel inicial · SiCon{% endblock %}
 {% block content %}
-{% include "components/page_header.html" with section="SiCon · Espacio de trabajo" title="Panel inicial" description="Accedé a las tareas de gestión de concursos nodocentes." %}
-<section class="card welcome-card" aria-labelledby="work-title">
-  <span class="eyebrow">Gestión de concursos</span>
-  <h2 id="work-title">¿En qué concurso vas a trabajar?</h2>
-  {% if perms.concursos.view_concurso %}
-    <p>Buscá por expediente o cargo. Desde la ficha podés consultar participantes, controlar documentación y revisar los borradores disponibles.</p>
-    <div class="actions">
-      {% url 'concursos:lista' as lista_url %}{% include "components/button.html" with href=lista_url label="Consultar concursos" %}
-      {% if perms.concursos.add_concurso %}{% url 'concursos:crear' as crear_url %}{% include "components/button.html" with href=crear_url label="Registrar concurso" extra_class="button-secondary" %}{% endif %}
+{% include "components/page_header.html" with section="SiCon · Panel inicial" title="Gestión de concursos" description="Situación general y seguimiento de los concursos nodocentes registrados." %}
+{% if perms.concursos.view_concurso %}
+  <div class="f4j-actions f4j-actions-top" aria-label="Acciones generales">
+    {% url 'concursos:lista' as lista_url %}{% include "components/button.html" with href=lista_url label="Consultar concursos" %}
+    {% if perms.concursos.add_concurso %}{% url 'concursos:crear' as crear_url %}{% include "components/button.html" with href=crear_url label="Registrar concurso" extra_class="button-secondary" %}{% endif %}
+  </div>
+
+  {% if tablero.hay_concursos %}
+    <section class="f4j-metrics" aria-label="Indicadores generales">
+      <div class="f4j-metric"><span>Total registrados</span><strong>{{ tablero.totales.total }}</strong><small>Concursos en SiCon</small></div>
+      <div class="f4j-metric"><span>Activos</span><strong>{{ tablero.totales.activos }}</strong><small>No finalizados</small></div>
+      <div class="f4j-metric"><span>Atención administrativa</span><strong>{{ tablero.totales.atencion_administrativa }}</strong><small>Con revisión específica</small></div>
+      <div class="f4j-metric"><span>Seguimiento documental</span><strong>{{ tablero.totales.seguimiento_documental }}</strong><small>Con controles para revisar</small></div>
+      <div class="f4j-metric"><span>Con dictamen</span><strong>{{ tablero.totales.con_dictamen }}</strong><small>Estado formal</small></div>
+      <div class="f4j-metric"><span>Finalizados</span><strong>{{ tablero.totales.finalizados }}</strong><small>Estado formal</small></div>
+    </section>
+    <p class="f4j-metrics-note">Los indicadores de estado pueden superponerse con los de seguimiento; no se suman entre sí.</p>
+
+    <div class="f4j-columns">
+      <div class="f4j-main-sections">
+        <section class="card f4j-review" aria-labelledby="f4j-atencion-title">
+          <div class="f4j-section-head">
+            <h2 id="f4j-atencion-title">Atención administrativa</h2>
+            <p>Situaciones especiales, inconsistencias, impugnaciones y sugerencias de estado que requieren revisión.</p>
+          </div>
+          {% if tablero.atencion %}
+            <ul class="f4j-review-list">
+              {% for item in tablero.atencion %}
+                <li class="f4j-review-item">
+                  <div class="f4j-review-heading">
+                    <div>
+                      <a class="f4j-concurso-link" href="{{ item.url }}">{{ item.denominacion }}</a>
+                      <p class="f4j-muted">Expediente {{ item.expediente }} · Estado: {{ item.estado }}</p>
+                    </div>
+                    {% if item.orden == 0 %}<span class="f4j-attention-label">Situación especial</span>{% endif %}
+                  </div>
+                  <p class="f4j-review-reason">{{ item.motivo }}</p>
+                  <p class="f4j-review-detail">{{ item.detalle }}</p>
+                  <a class="f4j-action-link" href="{{ item.destino }}">Ir a la revisión</a>
+                  {% if item.pendientes_exigibles %}
+                    <p class="f4j-secondary-signal">También hay {{ item.pendientes_exigibles }} controles documentales exigibles pendientes. <a href="{{ item.url }}#control-documental">Ver controles</a></p>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+            {% if tablero.otras_atencion %}
+              <p class="f4j-overflow">Se muestran 8 concursos. Hay {{ tablero.otras_atencion }} más con atención administrativa. <a href="{% url 'concursos:lista' %}">Ver listado completo</a>.</p>
+            {% endif %}
+          {% else %}
+            <p class="f4j-empty">No se detectaron situaciones administrativas para revisar.</p>
+          {% endif %}
+        </section>
+
+        <section class="card f4j-review" aria-labelledby="f4j-documental-title">
+          <div class="f4j-section-head">
+            <h2 id="f4j-documental-title">Seguimiento documental</h2>
+            <p>Controles exigibles pendientes o actuaciones posteriores que ya tienen actividad registrada.</p>
+          </div>
+          {% if tablero.documental %}
+            <ul class="f4j-review-list">
+              {% for item in tablero.documental %}
+                <li class="f4j-review-item">
+                  <div class="f4j-review-heading">
+                    <div>
+                      <a class="f4j-concurso-link" href="{{ item.url }}">{{ item.denominacion }}</a>
+                      <p class="f4j-muted">Expediente {{ item.expediente }} · Estado: {{ item.estado }}</p>
+                      <p class="f4j-muted f4j-review-meta">Etapa registrada: {{ item.etapa }}{% if item.atencion_diferente %} · Etapa de atención: {{ item.etapa_atencion }}{% endif %}</p>
+                    </div>
+                    <span class="f4j-document-count">{{ item.completos }}/{{ item.total_controles }} controles</span>
+                  </div>
+                  <p class="f4j-review-reason">{{ item.motivo }}</p>
+                  <p class="f4j-review-detail">{{ item.detalle }}</p>
+                  <p class="f4j-muted f4j-review-meta">{{ item.pendientes_exigibles }} pendientes exigibles{% if item.pendientes_foco %} · {{ item.pendientes_foco }} pendientes en la etapa de atención, aún no exigibles{% endif %}</p>
+                  <a class="f4j-action-link" href="{{ item.destino }}">Ir al control</a>
+                  {% if item.aviso_estado %}
+                    <p class="f4j-secondary-signal">{{ item.aviso_estado.texto }} <a href="{{ item.aviso_estado.url }}">Consultar estado</a></p>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+            {% if tablero.otras_documental %}
+              <p class="f4j-overflow">Se muestran 8 concursos. Hay {{ tablero.otras_documental }} más en seguimiento documental. <a href="{% url 'concursos:lista' %}">Ver listado completo</a>.</p>
+            {% endif %}
+          {% else %}
+            <p class="f4j-empty">Sin controles priorizados para seguimiento documental.</p>
+          {% endif %}
+        </section>
+      </div>
+
+      <aside class="f4j-aside" aria-label="Otros concursos y criterios del tablero">
+        <section class="card" aria-labelledby="f4j-otros-title">
+          <h2 id="f4j-otros-title">Otros concursos activos</h2>
+          <p class="f4j-muted">Sin atención ni seguimiento priorizados por las reglas actuales.</p>
+          {% if tablero.sin_revision %}
+            <ul class="f4j-other-list">
+              {% for item in tablero.sin_revision %}
+                <li><a href="{{ item.url }}">{{ item.denominacion }}</a><span>Expediente {{ item.expediente }} · {{ item.estado }}</span></li>
+              {% endfor %}
+            </ul>
+            {% if tablero.otras_sin_revision %}<p class="f4j-muted">Y {{ tablero.otras_sin_revision }} más en el <a href="{% url 'concursos:lista' %}">listado de concursos</a>.</p>{% endif %}
+          {% else %}
+            <p class="f4j-muted">No hay otros concursos activos en esta categoría.</p>
+          {% endif %}
+        </section>
+        <details class="card f4j-help">
+          <summary>Cómo interpretar el tablero</summary>
+          <div class="f4j-help-content">
+            <p>Una revisión sugerida no supone urgencia, plazo vencido ni trámite bloqueado.</p>
+            <p><strong>Control documental:</strong> la exigibilidad depende de la etapa registrada. Las actuaciones posteriores pueden orientar el seguimiento sin cambiarla.</p>
+            <p>Los cambios de estado requieren permisos y confirmación. SiCon no reemplaza el expediente ni los actos administrativos oficiales.</p>
+          </div>
+        </details>
+      </aside>
     </div>
   {% else %}
-    <p>Tu cuenta todavía no tiene acceso a concursos. Solicitá los permisos al administrador.</p>
+    <section class="card welcome-card" aria-labelledby="work-title">
+      <h2 id="work-title">Todavía no hay concursos registrados</h2>
+      <p>Podés consultar el listado o comenzar con el registro de un concurso, según los permisos de tu cuenta.</p>
+    </section>
   {% endif %}
-</section>
-<section class="section" aria-labelledby="tasks-title">
-  <div class="section-heading"><h2 id="tasks-title">Desde la ficha de cada concurso</h2><p>Consultá o actualizá según los permisos de tu cuenta.</p></div>
-  <div class="card-grid task-grid">
-    {% include "components/card.html" with title="Participantes" description="Jurados titulares y suplentes, veedores de APUNSJ e inscripciones de aspirantes." %}
-    {% include "components/card.html" with title="Control documental" description="Etapa activa, requisitos, fojas e historial de verificaciones. El estado administrativo se registra por separado." %}
-    {% include "components/card.html" with title="Proyectos y borradores" description="Revisión de datos, disponibilidad y descarga de documentos editables. Generar no emite ni verifica actuaciones." %}
-  </div>
-</section>
-<aside class="notice" aria-label="Alcance del sistema"><strong>El expediente sigue su curso.</strong> SiCon no reemplaza el expediente ni los actos administrativos oficiales.</aside>
+{% else %}
+  <section class="card welcome-card" aria-labelledby="work-title">
+    <h2 id="work-title">Tu cuenta no tiene permisos de consulta</h2>
+    <p>Solicitá los permisos al administrador. Los datos de concursos no están disponibles para esta cuenta.</p>
+  </section>
+{% endif %}
 {% endblock %}

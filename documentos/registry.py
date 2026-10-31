@@ -48,8 +48,14 @@ TIPOS = (
 POR_CODIGO = {tipo.codigo: tipo for tipo in TIPOS}
 
 
-def nombre_miembro(indice):
-    """Nombres internos fijos: no se aceptan rutas ni nombres de personas."""
+def nombre_miembro(indice, *, representacion=None, calidad=None, expediente=None):
+    """Nombres internos seguros para nuevos ZIP; la forma histórica queda disponible."""
     if indice not in range(1, 7):
         raise ValueError("Índice de notificación inválido")
-    return f"jurado-{indice}.docx"
+    if representacion is None and calidad is None and expediente is None:
+        return f"jurado-{indice}.docx"  # compatibilidad de generaciones anteriores
+    if representacion not in ("dependencia", "rectorado", "personal") or calidad not in ("titular", "suplente"):
+        raise ValueError("Representación o carácter de jurado inválidos")
+    from django.utils.text import slugify
+    expediente_seguro = slugify(str(expediente or ""))[:55].strip("-") or "sin-expediente"
+    return f"notificacion-jurado-{indice}-{representacion}-{calidad}-exp-{expediente_seguro}.docx"

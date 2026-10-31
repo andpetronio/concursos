@@ -13,6 +13,7 @@ from docx import Document
 
 from concursos.catalogos import CATALOGO_CARGOS
 from concursos.models import Concurso
+from .renderers import causa_de_vacancia
 from .temario_rico import poner_temario
 
 FUENTES_WORD = {
@@ -89,6 +90,15 @@ def _reemplazar(parrafo, cambios):
                     runs[i].text = ''
                 runs[cierre].text = despues
             desde = idx + len(reemplazo)
+
+
+def _reemplazar_literal_obligatorio(parrafo, original, nuevo, descripcion):
+    """Si cambia un literal de ejemplo del modelo Word, nunca emitirlo sin sustituir."""
+    if original not in parrafo.text:
+        raise ValidationError(
+            f'Cambió el modelo institucional ({descripcion}); revisá el archivo fuente antes de generar.'
+        )
+    _reemplazar(parrafo, {original: nuevo})
 
 
 def _quitar(parrafo):
@@ -235,8 +245,15 @@ def _acta(documento, datos, m):
     if comienzo < 0:
         raise ValidationError('El modelo de sorteo cambió: falta la mención del veedor.')
     _reemplazar(documento.paragraphs[2], {texto[comienzo:].strip(): veedor_txt})
-    _reemplazar(documento.paragraphs[3], {'Lic. Marcelo Javier PINOS': _jurado(next(j for j in datos['jurados'] if str(j['id']) == x['jurado_autor_tema']))})
-    _reemplazar(documento.paragraphs[11], {'doce horas': x['hora_cierre'] + ' horas'})
+    _reemplazar_literal_obligatorio(
+        documento.paragraphs[3], 'Lic. Marcelo Javier PINOS',
+        _jurado(next(j for j in datos['jurados'] if str(j['id']) == x['jurado_autor_tema'])),
+        'autor del temario sorteado',
+    )
+    _reemplazar_literal_obligatorio(
+        documento.paragraphs[11], 'doce horas', x['hora_cierre'] + ' horas',
+        'hora de cierre del acta',
+    )
     _firma_asistentes(documento, presentes_j)
     _llenar_firmas_postulantes(documento, presentes_a)
     if not presentes_a:
@@ -288,7 +305,30 @@ def _dictamen(documento, datos):
         marcador = Paragraph(nuevo, marcador._parent)
 
 
+def _considerando_vacancia_designacion(documento, datos):
+    """Reemplaza solo el considerando de ejemplo, tomando la causa del concurso.
+
+    Los otros considerandos y el texto dispositivo del modelo permanecen intactos.
+    Si cambió el original, bloquea la emisión antes de dejar una jubilación ficticia.
+    """
+    inicio = 'Que según lo informado en las referidas actuaciones, el cargo se encuentra vacante'
+    parrafos = [p for p in documento.paragraphs if p.text.startswith(inicio)]
+    if len(parrafos) != 1 or not all(frase in parrafos[0].text for frase in (
+        'beneficio jubilatorio', 'renuncia definitiva fue aceptada',
+    )):
+        raise ValidationError(
+            'Cambió el considerando de vacancia del modelo de designación; '
+            'revisá el archivo fuente antes de generar.'
+        )
+    texto_actual = parrafos[0].text
+    texto_vacancia = causa_de_vacancia(datos)
+    _reemplazar_literal_obligatorio(
+        parrafos[0], texto_actual, texto_vacancia, 'causa de vacancia',
+    )
+
+
 def _designacion(documento, datos, m):
+    _considerando_vacancia_designacion(documento, datos)
     x = datos['complementarios']
     elegido = next((a for a in datos['aspirantes'] if str(a['id']) == str(x.get('aspirante_id'))), None)
     if elegido is None:
@@ -296,6 +336,10 @@ def _designacion(documento, datos, m):
     m['{{ganador_a}}'] = _nombre(elegido)
     m['{{dni_ganador_a}}'] = _dni(elegido)
     m['{{dni_ganador_a \\@ "0\'.\'000\'.\'000"}}'] = _dni(elegido)
+    bloques_limitacion = [p for p in documento.paragraphs if
+        p.text.startswith('Que corresponde limitar,') or p.text.startswith('ARTÍCULO 2º.- Limitar')]
+    if len(bloques_limitacion) != 2:
+        raise ValidationError('Cambió el modelo de designación: revisá los dos párrafos de limitación anterior.')
     if x.get('aplica_limitacion'):
         requeridos = ('resolucion_anterior', 'categoria_anterior', 'tramo_anterior',
                       'agrupamiento_anterior', 'cp_anterior', 'funciones_anteriores', 'unidad_anterior')
@@ -310,13 +354,17 @@ def _designacion(documento, datos, m):
             'Departamento de Rendición de Cuentas': x['funciones_anteriores'],
             'Dirección de Contabilidad de la Dirección General de Contabilidad y Finanzas (SAF del Rectorado)': x['unidad_anterior'],
         }
-        for p in documento.paragraphs:
-            if p.text.startswith('Que corresponde limitar,') or p.text.startswith('ARTÍCULO 2º.- Limitar'):
-                _reemplazar(p, cambios_previos)
+        for ejemplo in cambios_previos:
+            if not any(ejemplo in p.text for p in bloques_limitacion):
+                raise ValidationError(
+                    'Cambió el modelo institucional de designación: '
+                    f'no se encontró el dato de ejemplo «{ejemplo}» para sustituir.'
+                )
+        for p in bloques_limitacion:
+            _reemplazar(p, cambios_previos)
     else:
-        for p in list(documento.paragraphs):
-            if p.text.startswith('Que corresponde limitar,') or p.text.startswith('ARTÍCULO 2º.- Limitar'):
-                _quitar(p)
+        for p in bloques_limitacion:
+            _quitar(p)
         for p in documento.paragraphs:
             if p.text.startswith('ARTÍCULO 3º.-'):
                 _reemplazar(p, {'ARTÍCULO 3º.-': 'ARTÍCULO 2º.-'})
