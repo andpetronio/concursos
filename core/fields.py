@@ -90,3 +90,28 @@ class TelefonoField(forms.CharField):
         if not value or value == self.valor_anterior:
             return value
         return normalizar_telefono(value)
+
+class ResolucionRectoralField(forms.CharField):
+    """Entrada compartida para números oficiales del Rectorado: NNNN/NN-R."""
+
+    def __init__(self, **kwargs):
+        from django.core.validators import RegexValidator
+
+        kwargs.setdefault("max_length", 9)
+        kwargs.setdefault("help_text", "Formato: 3278/26-R.")
+        kwargs.setdefault("widget", forms.TextInput(attrs={
+            "data-mask": "resolucion",
+            "inputmode": "text",
+            "maxlength": 9,
+            "placeholder": "3278/26-R",
+            "pattern": r"[0-9]{4}/[0-9]{2}-R",
+            "autocomplete": "off",
+        }))
+        validators = list(kwargs.pop("validators", []))
+        validators.append(RegexValidator(
+            r"^[0-9]{4}/[0-9]{2}-R$",
+            "Utilizá el formato 3278/26-R (resolución del Rectorado).",
+        ))
+        kwargs["validators"] = validators
+        super().__init__(**kwargs)
+

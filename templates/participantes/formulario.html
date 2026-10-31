@@ -17,7 +17,13 @@
     {% endif %}
     {% include "components/form_errors.html" %}
     <div class="form-grid">
-      {% for field in form.visible_fields %}{% include "components/field.html" with field=field %}{% endfor %}
+      {% for field in form.visible_fields %}
+        {% if field.field.widget.input_type == "checkbox" %}
+          {% include "components/checkbox_field.html" with field=field %}
+        {% else %}
+          {% include "components/field.html" with field=field %}
+        {% endif %}
+      {% endfor %}
     </div>
   </section>
   <div class="form-actions">

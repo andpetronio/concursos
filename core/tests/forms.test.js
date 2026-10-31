@@ -14,6 +14,11 @@ function createInput(kind, value, legacy = "") {
     validMessage: null,
     addEventListener(name, callback) { handlers[name] = callback; },
     setSelectionRange(start, end) { this.selectionStart = start; this.selectionEnd = end; },
+    setRangeText(text, start, end) {
+      this.value = this.value.slice(0, start) + text + this.value.slice(end);
+      this.selectionStart = start + text.length;
+      this.selectionEnd = this.selectionStart;
+    },
     setCustomValidity(message) { this.validMessage = message; },
     dispatchEvent(event) { handlers[event.type]?.(event); },
     input(value, event = {}) {
@@ -70,4 +75,33 @@ test("Teléfono legado: conservar la entrada existente sin transformarla", () =>
   assert.equal(input.validMessage, "");
   input.input("2641234567");
   assert.equal(input.value, "264-1234567");
+});
+
+
+test("Resolución rectoral: NNNN/NN-R al escribir, pegar y borrar", () => {
+  const input = attach(createInput("resolucion", ""));
+  input.input("3278");
+  assert.equal(input.value, "3278");
+  input.input("32782");
+  assert.equal(input.value, "3278/2");
+  input.input("327826");
+  assert.equal(input.value, "3278/26-R");
+  assert.equal(input.validMessage, "");
+  input.input("233926", { inputType: "insertFromPaste" });
+  assert.equal(input.value, "2339/26-R");
+  input.input("3278/26-r", { inputType: "insertFromPaste" });
+  assert.equal(input.value, "3278/26-R");
+  input.input("3278/26-C", { inputType: "insertFromPaste" });
+  assert.equal(input.value, "3278/26-C");
+  assert.ok(input.validMessage);
+  input.input("3278/2");
+  assert.ok(input.validMessage);
+  input.input("3278/26-R");
+  let blocked = false;
+  input.handlers.beforeinput({
+    inputType: "deleteContentBackward",
+    preventDefault() { blocked = true; },
+  });
+  assert.ok(blocked);
+  assert.equal(input.value, "3278/2");
 });

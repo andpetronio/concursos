@@ -32,14 +32,27 @@
       (hasYear ? "-" + year : "");
   };
 
+  const formatResolucion = (value) => {
+    const suffix = value.match(/[A-Za-z]+$/)?.[0];
+    // Un sufijo ajeno al Rectorado no debe convertirse silenciosamente en «-R».
+    if (suffix && suffix.toUpperCase() !== "R") return value;
+    const raw = digits(value).slice(0, 6);
+    if (raw.length <= 4) return raw;
+    return raw.slice(0, 4) + "/" + raw.slice(4) + (raw.length === 6 ? "-R" : "");
+  };
+
   document.querySelectorAll("input[data-mask]").forEach((input) => {
     const kind = input.dataset.mask;
-    const format = kind === "dni" ? formatDni : kind === "telefono" ? formatTelefono : formatExpediente;
+    const format = kind === "dni" ? formatDni : kind === "telefono" ? formatTelefono :
+      kind === "resolucion" ? formatResolucion : formatExpediente;
     const legacy = input.dataset.legacyValue;
     const valid = kind === "dni" ? /^[0-9]{2}\.[0-9]{3}\.[0-9]{3}$/ :
-      kind === "telefono" ? /^[0-9]{3}-[0-9]{7}$/ : /^[0-9]{2}-[1-9][0-9]{0,3}-[0-9]{4}$/;
+      kind === "telefono" ? /^[0-9]{3}-[0-9]{7}$/ :
+      kind === "resolucion" ? /^[0-9]{4}\/[0-9]{2}-R$/ :
+      /^[0-9]{2}-[1-9][0-9]{0,3}-[0-9]{4}$/;
     const message = kind === "dni" ? "Ingresá exactamente 8 dígitos." :
       kind === "telefono" ? "Usá el formato 999-9999999 (10 dígitos)." :
+      kind === "resolucion" ? "Usá el formato 3278/26-R: cuatro dígitos, barra, dos dígitos y -R." :
       "Usá el formato 01-758-2026; separá el número del año con un guion.";
     let composing = false;
     const update = (event) => {
@@ -68,8 +81,24 @@
     input.addEventListener("compositionend", () => { composing = false; update(); });
     input.addEventListener("input", update);
     input.addEventListener("beforeinput", (event) => {
-      if (kind !== "dni" || composing || input.value === legacy ||
-          input.selectionStart !== input.selectionEnd) return;
+      if (composing || input.value === legacy || input.selectionStart !== input.selectionEnd) return;
+      if (kind === "resolucion") {
+        const start = input.selectionStart;
+        if (event.inputType === "deleteContentBackward" &&
+            input.value.endsWith("-R") && start === input.value.length) {
+          // La terminación es automática: retroceder elimina el último dígito del año.
+          event.preventDefault();
+          input.setRangeText("", start - 3, start, "start");
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+        } else if (event.inputType === "deleteContentBackward" &&
+                   input.value[start - 1] === "/" && start >= 2) {
+          event.preventDefault();
+          input.setRangeText("", start - 2, start, "start");
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+        return;
+      }
+      if (kind !== "dni") return;
       const start = input.selectionStart;
       const backwards = event.inputType === "deleteContentBackward";
       const forwards = event.inputType === "deleteContentForward";
