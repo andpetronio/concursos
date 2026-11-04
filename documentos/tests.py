@@ -430,11 +430,12 @@ class ContinuacionDocumentosTests(TestCase):
             datos={"tratamiento": "Sra.", "cargo": "Jefa del Departamento de Personal",
                    "titulo": "Lic.", "nombre": "Persona", "apellido": "Ficticia"},
             usuario=self.operador, version_esperada=0)
+        self.concurso.resolucion_aprobacion_dictamen = "1298/26-R"
         self.concurso.causa_vacancia = "nuevo"
         self.concurso.fecha_baja = timezone.localdate()
         # Un concurso correctamente identificado permite renderizar su estructura.
         self.concurso.jurisdiccion = "rectorado"
-        self.concurso.save(update_fields=["causa_vacancia", "fecha_baja", "jurisdiccion"])
+        self.concurso.save(update_fields=["causa_vacancia", "fecha_baja", "jurisdiccion", "resolucion_aprobacion_dictamen"])
 
     login = DocumentosTests.login
     texto = DocumentosTests.texto
@@ -463,10 +464,7 @@ class ContinuacionDocumentosTests(TestCase):
         if tipo == "dictamen":
             datos["confirmacion_sin_recursos"] = True
         if tipo == "designacion":
-            aspirantes = list(self.concurso.aspirantes.order_by("pk"))
-            datos["merito"] = "\n".join(f"{i} | {a.pk}" for i, a in enumerate(reversed(aspirantes), 1))
-        if tipo == "designacion":
-            datos.update(aspirante_id=str(aspirantes[-1].pk), aplica_limitacion="no", limitacion="")
+            datos.update(aplica_limitacion="no", limitacion="")
         return datos
 
     def test_elecciones_fuente_presente_genera_nota_editable(self):
@@ -527,6 +525,32 @@ class ContinuacionDocumentosTests(TestCase):
             version_concurso=self.concurso.version, complementarios=datos if datos is not None else self.complementos(tipo),
             huella_esperada=kwargs.pop("huella_esperada", self.huella(tipo)), **kwargs)
 
+    def test_designacion_cita_resolucion_del_concurso_no_del_formulario(self):
+        self.completar_fuentes(cantidad=2)
+        from .forms import GeneracionForm
+        formulario = GeneracionForm(tipo=POR_CODIGO["designacion"], concurso=self.concurso)
+        self.assertNotIn("res_dictamen", formulario.fields)
+        self.assertEqual(self.concurso.resolucion_aprobacion_dictamen, "1298/26-R")
+        registro = self.generar_tipo("designacion", {
+            **self.complementos("designacion"), "res_dictamen": "9999/26-R",
+        })
+        self.assertEqual(registro.instantanea["complementarios"]["res_dictamen"], "1298/26-R")
+        self.assertIn("1298/26-R", self.texto(registro))
+        self.assertNotIn("9999/26-R", self.texto(registro))
+
+    def test_designacion_exige_resolucion_registrada_y_versiona_fuente(self):
+        self.completar_fuentes(cantidad=2)
+        huella = self.huella("designacion")
+        self.concurso.resolucion_aprobacion_dictamen = ""
+        self.concurso.save(update_fields=["resolucion_aprobacion_dictamen"])
+        estado = services.disponibilidad(self.concurso, POR_CODIGO["designacion"])
+        self.assertFalse(estado["disponible"])
+        self.assertTrue(any("aprobación del dictamen" in falta for falta in estado["faltantes"]))
+        with self.assertRaisesMessage(ValidationError, "Los datos cambiaron"):
+            self.generar_tipo("designacion", huella_esperada=huella)
+        with self.assertRaisesMessage(ValidationError, "aprobación del dictamen"):
+            self.generar_tipo("designacion")
+
     def test_designacion_toma_causa_renuncia_y_deja_jubilacion_fuera_del_borrador(self):
         self.completar_fuentes()
         self.concurso.causa_vacancia = "renuncia"
@@ -572,12 +596,10 @@ class ContinuacionDocumentosTests(TestCase):
                     self.assertEqual(len(registro.instantanea["aspirantes"]), 7)
                     for i in range(7):
                         self.assertIn(f"Aspirante ficticio {i}", texto)
+                    orden = registro.instantanea["resultados"]["orden_merito"]
+                    self.assertEqual(registro.instantanea["resultados"]["escala"]["minimo"], "42.50")
                     if tipo == "dictamen":
-                        orden = registro.instantanea["resultados"]["orden_merito"]
-                        self.assertEqual(registro.instantanea["resultados"]["escala"]["minimo"], "42.50")
                         self.assertIn("orden de mérito es el siguiente", texto)
-                    else:
-                        orden = registro.instantanea["complementarios"]["orden_merito"]
                     self.assertEqual(orden[0]["aspirante_id"], self.concurso.aspirantes.order_by("pk").last().pk)
                 if tipo == "convocatoria":
                     self.assertEqual(len(doc.tables[-2].columns), 13)
@@ -978,17 +1000,96 @@ class ContinuacionDocumentosTests(TestCase):
         estado = services.disponibilidad(self.concurso, POR_CODIGO["dictamen"])
         self.assertTrue(any("Registrar evaluación" in falta for falta in estado["faltantes"]))
 
-    def test_merito_ajeno_duplicado_o_vacio_y_designacion_sin_eleccion_se_rechazan(self):
+    def test_designacion_previsualiza_al_primero_y_no_repite_campos(self):
+        self.completar_fuentes(cantidad=3)
+        respuesta = self.client.get(self.url_revision("designacion"))
+        self.assertEqual(respuesta.status_code, 200)
+        primero = self.concurso.aspirantes.order_by("pk").last()
+        self.assertContains(respuesta, "Primer puesto del orden de mérito")
+        self.assertContains(respuesta, primero.persona.apellido)
+        self.assertNotIn("aspirante_id", respuesta.context["form"].fields)
+        self.assertNotIn("merito", respuesta.context["form"].fields)
+
+    def test_designacion_rechaza_evaluacion_pendiente_y_empate(self):
+        from participantes.services import guardar_evaluacion
+        from participantes.models import Aspirante, Persona
+        from decimal import Decimal
+        self.completar_fuentes(cantidad=2)
+        # Las evaluaciones registradas tienen cambios históricos protegidos:
+        # para probar un pendiente, agregamos un aspirante todavía sin evaluar.
+        persona = Persona.objects.create(
+            nombre="Pendiente", apellido="Evaluación", dni="29999998",
+            creado_por=self.operador, actualizado_por=self.operador,
+        )
+        pendiente = Aspirante.objects.create(
+            concurso=self.concurso, persona=persona,
+            creado_por=self.operador, actualizado_por=self.operador,
+        )
+        estado = services.disponibilidad(self.concurso, POR_CODIGO["designacion"])
+        self.assertFalse(estado["disponible"])
+        self.assertTrue(any("Registrar evaluación" in falta for falta in estado["faltantes"]))
+        with self.assertRaises(ValidationError):
+            self.generar_tipo("designacion")
+        # El primer puesto existente tiene 21 de antecedentes y 31 de oposición.
+        # Igualarlo genera un empate real sin borrar evaluaciones ni su auditoría.
+        guardar_evaluacion(
+            aspirante=pendiente, antecedentes=Decimal("21"), oposicion=Decimal("31"),
+            usuario=self.operador, version_esperada=0,
+        )
+        estado = services.disponibilidad(self.concurso, POR_CODIGO["designacion"])
+        self.assertFalse(estado["disponible"])
+        self.assertTrue(any("Empate" in falta for falta in estado["faltantes"]))
+        with self.assertRaises(ValidationError):
+            self.generar_tipo("designacion")
+
+    def test_designacion_no_se_habilita_sin_ganador(self):
+        from participantes.services import guardar_evaluacion
+        from decimal import Decimal
+        self.completar_fuentes(cantidad=2)
+        for aspirante in self.concurso.aspirantes.order_by("pk"):
+            guardar_evaluacion(aspirante=aspirante, antecedentes=Decimal("10"),
+                oposicion=Decimal("10"), usuario=self.operador, version_esperada=1,
+                motivo="Rectificación de prueba, fs. 90")
+        estado = services.disponibilidad(self.concurso, POR_CODIGO["designacion"])
+        self.assertFalse(estado["disponible"])
+        self.assertTrue(any("42,50" in falta for falta in estado["faltantes"]))
+        with self.assertRaises(ValidationError):
+            self.generar_tipo("designacion")
+
+    def test_cambio_de_evaluacion_invalida_revision_de_designacion(self):
+        from participantes.services import guardar_evaluacion
+        from decimal import Decimal
+        self.completar_fuentes(cantidad=2)
+        huella = self.huella("designacion")
+        aspirante = self.concurso.aspirantes.order_by("pk").first()
+        guardar_evaluacion(aspirante=aspirante, antecedentes=Decimal("30"),
+            oposicion=Decimal("32"), usuario=self.operador, version_esperada=1,
+            motivo="Rectificación acreditada, fs. 91")
+        with self.assertRaisesMessage(ValidationError, "Los datos cambiaron"):
+            self.generar_tipo("designacion", huella_esperada=huella)
+
+    def test_designacion_usa_unico_merito_y_no_acepta_eleccion_manual(self):
         self.completar_fuentes()
+        from .forms import GeneracionForm
+        formulario = GeneracionForm(tipo=POR_CODIGO["designacion"], concurso=self.concurso)
+        self.assertNotIn("merito", formulario.fields)
+        self.assertNotIn("aspirante_id", formulario.fields)
+
         a, b = self.concurso.aspirantes.order_by("pk")[:2]
-        for tipo in ("designacion",):
-            for merito in ("", f"1 | {a.pk}\n1 | {b.pk}", f"1 | {a.pk}\n2 | {a.pk}", "1 | 999999", f"2 | {a.pk}"):
-                with self.subTest(tipo=tipo, merito=merito), self.assertRaises(ValidationError):
-                    self.generar_tipo(tipo, {**self.complementos(tipo), "merito": merito})
         datos = self.complementos("designacion")
-        for elegido in ("", "999999"):
-            with self.assertRaises(ValidationError):
-                self.generar_tipo("designacion", {**datos, "aspirante_id": elegido})
+        # Los campos antiguos enviados manualmente no deben modificar el resultado.
+        datos.update(merito=f"1 | {a.pk}\n2 | {b.pk}", aspirante_id=str(a.pk))
+        registro_automatico = self.generar_tipo("designacion", datos)
+        ganador = self.concurso.aspirantes.order_by("pk").last()
+        self.assertEqual(registro_automatico.instantanea["resultados"]["orden_merito"][0]["aspirante_id"], ganador.pk)
+        self.assertNotIn("merito", registro_automatico.instantanea["complementarios"])
+        self.assertNotIn("aspirante_id", registro_automatico.instantanea["complementarios"])
+        doc = Document(BytesIO(bytes(registro_automatico.contenido)))
+        self.assertTrue(any(
+            "Designar" in p.text and ganador.persona.apellido in p.text
+            for p in doc.paragraphs
+        ))
+
         with self.assertRaises(ValidationError):
             self.generar_tipo("designacion", {**datos, "aplica_limitacion": "si"})
         registro = self.generar_tipo("designacion", {

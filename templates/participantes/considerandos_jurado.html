@@ -1,0 +1,68 @@
+{% extends "layouts/private.html" %}
+{% block title %}Antecedentes del jurado · Concurso {{ concurso.expediente }} · UNSJ{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'concursos:detalle' concurso.pk %}#jurados">Volver al concurso</a>
+<section class="card section" aria-labelledby="considerandos-heading">
+  <header class="form-section-header">
+    <h1 id="considerandos-heading">Antecedentes del jurado para documentos</h1>
+    <p>Concurso {{ concurso.expediente }} · {{ concurso.denominacion }}</p>
+    <p class="field-help">Vista previa de considerandos a partir de actuaciones registradas. No emite resoluciones, no modifica el expediente y no incorpora texto a los DOCX.</p>
+  </header>
+
+  <form method="get" class="form" aria-label="Filtrar antecedentes por fecha del documento">
+    <div class="field{% if formulario_fecha.fecha_documento.errors %} has-error{% endif %}">
+      <label for="{{ formulario_fecha.fecha_documento.id_for_label }}">{{ formulario_fecha.fecha_documento.label }}</label>
+      {{ formulario_fecha.fecha_documento }}
+      {% for error in formulario_fecha.fecha_documento.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+      <p class="field-help">{{ formulario_fecha.fecha_documento.help_text }}</p>
+    </div>
+    <div class="actions">
+      <button class="button" type="submit">Actualizar vista previa</button>
+      <a class="button button-secondary" href="{% url 'concursos:jurados_considerandos' concurso.pk %}">Mostrar todas</a>
+    </div>
+  </form>
+
+  {% if vista_previa %}
+    {% if fecha_documento_seleccionada %}
+      <p class="field-help" role="status">Se consideran resoluciones emitidas hasta el {{ fecha_documento_seleccionada|date:"d/m/Y" }}. La fecha de emisión no confirma la fecha de efectos administrativos.</p>
+    {% endif %}
+    {% if not cantidad_actuaciones_jurado %}
+      <div class="empty-state" role="status"><p>Este concurso no registra modificaciones del jurado. No hay considerandos adicionales para proponer.</p></div>
+    {% endif %}
+
+    {% if vista_previa.advertencias %}
+      <section class="notice" aria-labelledby="considerandos-advertencias">
+        <h2 id="considerandos-advertencias">Advertencias sobre las actuaciones</h2>
+        <ul>{% for aviso in vista_previa.advertencias %}<li>{{ aviso }}</li>{% endfor %}</ul>
+      </section>
+    {% endif %}
+
+    {% if vista_previa.bloques %}
+      <section aria-labelledby="considerandos-bloques">
+        <h2 id="considerandos-bloques">Considerandos propuestos</h2>
+        <p class="field-help">Los bloques se ordenan por fecha de resolución. La falta de datos impide proponer texto para el bloque afectado; no significa que el expediente carezca necesariamente de esa documentación.</p>
+        {% for bloque in vista_previa.bloques %}
+          <article class="card section" aria-labelledby="considerando-{{ forloop.counter }}">
+            <h3 id="considerando-{{ forloop.counter }}">Resolución {{ bloque.resolucion|default:"sin número registrado" }}{% if bloque.fecha_resolucion %} · {{ bloque.fecha_resolucion|date:"d/m/Y" }}{% endif %}</h3>
+            {% if bloque.faltantes %}
+              <p><strong>Datos pendientes para redactar este bloque:</strong></p>
+              <ul>{% for faltante in bloque.faltantes %}<li>{{ faltante }}</li>{% endfor %}</ul>
+              <p class="field-help">No se propone una redacción incompleta. Comprobá la actuación y su respaldo antes de generar documentos.</p>
+            {% else %}
+              {% for considerando in bloque.considerandos %}
+                <p class="text-preserve">{{ considerando }}</p>
+              {% endfor %}
+            {% endif %}
+          </article>
+        {% endfor %}
+      </section>
+    {% elif cantidad_actuaciones_jurado %}
+      <p class="field-help" role="status">No hay resoluciones que permitan proponer considerandos con el filtro seleccionado. Las presentaciones pendientes no se interpretan como ceses.</p>
+    {% endif %}
+
+    <p class="field-help"><strong>Control administrativo:</strong> la redacción es un borrador para revisión. Los números, las fojas y las decisiones provienen de lo registrado en SiCon; esta pantalla no acredita la incorporación de documentos al expediente ni verifica los efectos jurídicos de las resoluciones.</p>
+  {% else %}
+    <p role="alert">Corregí la fecha ingresada para consultar los antecedentes. No se muestran resultados con un filtro inválido.</p>
+  {% endif %}
+</section>
+{% endblock %}

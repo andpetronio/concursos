@@ -32,7 +32,7 @@ class DocumentosPresentacionTests(TestCase):
             # Se muestran todos los tipos, pero los faltantes bloquean su botón.
             self.assertContains(respuesta, tipo.nombre)
         self.assertNotContains(respuesta, ">Revisar documento</a>")
-        self.assertContains(respuesta, "Generar borrador DOCX")
+        self.assertContains(respuesta, ">Generar borrador</button>")
         self.assertContains(respuesta, "Para habilitar la generación, falta:")
         self.assertContains(respuesta, "no significa que el modelo esté aprobado")
         self.assertContains(respuesta, "Todavía no hay borradores generados.")

@@ -109,7 +109,13 @@ def guardar_evaluacion(*, aspirante, antecedentes, oposicion, usuario, version_e
     version = actual.version if actual else 0
     if version != version_esperada:
         raise ValidationError("Otro operador modificó esta evaluación. Volvé a abrir el formulario antes de guardar.")
-    if actual and (actual.antecedentes != antecedentes or actual.oposicion != oposicion) and not motivo.strip():
+    # Un formulario vacío no genera una evaluación ficticia.
+    if actual is None and antecedentes is None and oposicion is None:
+        return None
+    if actual and any(
+        getattr(actual, campo) is not None and getattr(actual, campo) != valor
+        for campo, valor in (("antecedentes", antecedentes), ("oposicion", oposicion))
+    ) and not motivo.strip():
         raise ValidationError("Indicá el motivo de la corrección de puntajes para conservar su trazabilidad.")
     if actual and (actual.antecedentes, actual.oposicion) == (antecedentes, oposicion):
         return actual

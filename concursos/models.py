@@ -19,7 +19,7 @@ class Concurso(models.Model):
         "turno_trabajo", "domicilio_trabajo", "jurisdiccion", "articulo_unidad",
         "articulo_dependencia", "articulo_superior", "articulo_iniciador",
         "causa_vacancia", "acto_vacancia", "detalle_vacancia",
-        "resolucion_convocatoria",
+        "resolucion_convocatoria", "resolucion_aprobacion_dictamen",
     )
 
     expediente = models.CharField("expediente", max_length=100)
@@ -82,6 +82,14 @@ class Concurso(models.Model):
             "Utilizá el formato 3278/26-R (resolución emitida por Rectorado).",
         )],
         help_text="Completá este dato solo cuando la resolución de convocatoria haya sido efectivamente emitida.",
+    )
+    resolucion_aprobacion_dictamen = models.CharField(
+        "resolución oficial de aprobación del dictamen", max_length=9, blank=True,
+        validators=[RegexValidator(
+            r"^[0-9]{4}/[0-9]{2}-R$",
+            "Utilizá el formato 3278/26-R (resolución del Rectorado).",
+        )],
+        help_text="Registrar solo cuando la resolución de aprobación del dictamen haya sido emitida.",
     )
     estado = models.CharField("estado principal", max_length=20, choices=EstadoConcurso,
                               default=EstadoConcurso.PREPARACION, db_index=True)

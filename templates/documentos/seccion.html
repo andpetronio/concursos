@@ -32,12 +32,6 @@
             {% if not documento.disponible %}Requiere completar datos{% elif documento.tiene_complementos %}Completar datos del borrador{% else %}Listo para generar{% endif %}
           </span>
         </div>
-        {% if documento.faltantes %}
-          <div class="document-generation-missing" aria-label="Requisitos pendientes">
-            <p class="field-help"><strong>Para habilitar la generación, falta:</strong></p>
-            <ul>{% for faltante in documento.faltantes %}<li>{{ faltante }}</li>{% endfor %}</ul>
-          </div>
-        {% endif %}
         {% if perms.documentos.generar_documento %}
           {% if documento.formulario %}
             <form method="post" action="{% url 'documentos:generar_en_ficha' concurso.pk documento.tipo.codigo %}#documentos"
@@ -50,9 +44,21 @@
               {% if documento.formulario.non_field_errors %}
                 <div class="field-errors document-inline-errors" role="alert">{{ documento.formulario.non_field_errors }}</div>
               {% endif %}
+              <div class="document-generation-action">
+                <button type="submit" class="button" data-document-generate-button
+                        {% if not documento.disponible or documento.tiene_complementos %}disabled{% endif %}>Generar borrador</button>
+                <span class="field-help" data-document-generation-help aria-live="polite">
+                  {% if documento.disponible %}
+                    {% if documento.tiene_complementos %}Completá los campos y las confirmaciones para habilitar el botón.{% else %}Sin faltantes detectados.{% endif %}
+                  {% else %}Hay requisitos pendientes de registrar.{% endif %}
+                </span>
+              </div>
               {% if documento.tiene_complementos %}
                 <details class="document-inline-complements" {% if documento.formulario_con_errores %}open{% endif %}>
                   <summary>Completar datos y confirmaciones para generar</summary>
+                  {% if documento.tipo.codigo == "dictamen" or documento.tipo.codigo == "designacion" %}
+                    <p class="field-help"><a href="{% url 'concursos:jurados_considerandos' concurso.pk %}">Revisar antecedentes y considerandos del jurado</a>. Si hubo modificaciones, confirmá su procedencia y la fecha del proyecto antes de generar.</p>
+                  {% endif %}
                   <p class="field-help">Estos datos pertenecen únicamente al borrador. No modifican la ficha ni acreditan actuaciones.</p>
                   {% if documento.tipo.codigo == "sorteo_acta" %}
                     {% include "documentos/sorteo_campos.html" with form=documento.formulario %}
@@ -84,30 +90,25 @@
                   {% endif %}
                 </details>
               {% endif %}
-              <div class="document-generation-footer">
-                <span class="field-help" data-document-generation-help aria-live="polite">
-                  {% if documento.disponible %}
-                    {% if documento.tiene_complementos %}Completá los campos y las confirmaciones para habilitar el botón.{% else %}Sin faltantes detectados.{% endif %}
-                  {% else %}Hay requisitos pendientes de registrar.{% endif %}
-                </span>
-                <button type="submit" class="button" data-document-generate-button
-                        {% if not documento.disponible or documento.tiene_complementos %}disabled{% endif %}>
-                  {% if documento.tipo.codigo == "jurados" %}Generar seis notas (ZIP){% else %}Generar borrador DOCX{% endif %}
-                </button>
-              </div>
               {% if documento.disponible and documento.tiene_complementos %}
                 <noscript><p class="field-help">Para completar los datos sin JavaScript, utilizá la
                   <a href="{% url 'documentos:revisar' concurso.pk documento.tipo.codigo %}">revisión clásica</a>.</p></noscript>
               {% endif %}
             </form>
           {% else %}
-            <div class="document-generation-footer">
+            <div class="document-generation-action">
+              <button type="button" class="button" disabled>Generar borrador</button>
               <span class="field-help">{{ documento.faltantes|length }} requisito{{ documento.faltantes|length|pluralize }} pendiente{{ documento.faltantes|length|pluralize }}</span>
-              <button type="button" class="button" disabled>Generar borrador DOCX</button>
             </div>
           {% endif %}
         {% else %}
           <p class="field-help">Generación reservada a usuarios autorizados</p>
+        {% endif %}
+        {% if documento.faltantes %}
+          <div class="document-generation-missing" aria-label="Requisitos pendientes">
+            <p class="field-help"><strong>Para habilitar la generación, falta:</strong></p>
+            <ul>{% for faltante in documento.faltantes %}<li>{{ faltante }}</li>{% endfor %}</ul>
+          </div>
         {% endif %}
         <details class="document-generation-details">
           <summary>Ver datos utilizados y requisitos</summary>

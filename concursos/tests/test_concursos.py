@@ -79,14 +79,41 @@ class ConcursoTests(TestCase):
         self.assertEqual(concurso.iniciador_nombre, "Iniciadora ficticia")
         self.assertEqual(concurso.resolucion_baja, "3278/26-R")
 
+    def test_resolucion_dictamen_se_registra_una_vez_y_valida_formato(self):
+        from concursos.forms import ConcursoForm
+        from django.core.exceptions import ValidationError
+        datos = {**DATOS, "resolucion_aprobacion_dictamen": "1298/26-R"}
+        formulario = ConcursoForm(datos)
+        self.assertTrue(formulario.is_valid(), formulario.errors)
+        self.assertEqual(formulario.fields["resolucion_aprobacion_dictamen"].widget.attrs["data-mask"], "resolucion")
+        concurso = services.crear_concurso(datos=formulario.cleaned_data, usuario=self.operador)
+        self.assertEqual(concurso.resolucion_aprobacion_dictamen, "1298/26-R")
+        invalido = ConcursoForm({**DATOS, "resolucion_aprobacion_dictamen": "1298/26-CS"})
+        self.assertFalse(invalido.is_valid())
+        concurso.resolucion_aprobacion_dictamen = "1298/26-CS"
+        with self.assertRaises(ValidationError):
+            concurso.full_clean()
+        concurso = services.editar_concurso(
+            pk=concurso.pk, datos={"resolucion_aprobacion_dictamen": "1320/26-R"},
+            usuario=self.operador, version_esperada=concurso.version,
+        )
+        self.assertEqual(concurso.resolucion_aprobacion_dictamen, "1320/26-R")
+        self.assertContains(self.client.get(concurso.get_absolute_url()), "1320/26-R")
+
     def test_resolucion_oficial_convocatoria_se_carga_una_vez_y_valida_rectorado(self):
         from django.core.exceptions import ValidationError
         from concursos.forms import ConcursoForm
         datos = {**DATOS, "resolucion_convocatoria": "3278/26-R"}
         formulario = ConcursoForm(datos)
         self.assertTrue(formulario.is_valid(), formulario.errors)
+        # La convocatoria utiliza la misma máscara rectoral que la aprobación del dictamen.
+        mascara = formulario.fields["resolucion_convocatoria"].widget.attrs
+        self.assertEqual(mascara["data-mask"], "resolucion")
+        self.assertEqual(mascara["pattern"], r"[0-9]{4}/[0-9]{2}-R")
         concurso = services.crear_concurso(datos=formulario.cleaned_data, usuario=self.operador)
         self.assertEqual(concurso.resolucion_convocatoria, "3278/26-R")
+        html = self.client.get(self.url("editar", concurso)).content.decode("utf-8")
+        self.assertRegex(html, r'<input[^>]*name="resolucion_convocatoria"[^>]*data-mask="resolucion"')
         concurso.resolucion_convocatoria = "3278/26-CS"
         with self.assertRaises(ValidationError):
             concurso.full_clean()

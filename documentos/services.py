@@ -5,6 +5,7 @@ from pathlib import Path
 from io import BytesIO
 from zipfile import ZipFile, ZIP_DEFLATED
 from django.conf import settings
+from participantes.models import ActuacionJurado
 from participantes.models import Jurado, Aspirante, Veedor, Persona
 from participantes.evaluaciones import cuadro_resultados, faltantes_resultados
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -122,7 +123,7 @@ def disponibilidad(concurso, tipo, destinatario=None):
     if tipo.codigo in ("jurados", "dictamen", "designacion", "sorteo_acta"):
         faltantes.extend(expediente_services.habilitacion_convocatoria(concurso).pendientes_jurado)
     faltantes.extend(faltantes_antecedentes(concurso, tipo))
-    if tipo.codigo == "dictamen":
+    if tipo.codigo in ("dictamen", "designacion"):
         faltantes.extend(faltantes_resultados(cuadro_resultados(concurso)))
     if tipo.codigo == "sorteo_acta":
         faltantes.extend(faltantes_sorteo(concurso))
@@ -173,6 +174,8 @@ def faltantes_modelos_fieles(concurso, tipo):
         if not concurso.iniciador_tratamiento:
             faltantes.append("Completar tratamiento del iniciador del expediente para este modelo.")
     if tipo.codigo == "designacion":
+        if not concurso.resolucion_aprobacion_dictamen:
+            faltantes.append("Registrar la resolución oficial de aprobación del dictamen en Datos del concurso.")
         # La resolución documenta la causa registrada, no un motivo fijo del modelo.
         if not concurso.causa_vacancia:
             faltantes.append("Seleccionar la causa de vacancia del cargo en Datos del concurso.")
@@ -398,6 +401,12 @@ def fuentes_actuales(concurso, tipo, *, bloquear=False):
     jurados = _participantes(concurso, Jurado, bloquear) if tipo.codigo in ("convocatoria", "jurados", "dictamen", "designacion", "sorteo_acta") else []
     aspirantes = _participantes(concurso, Aspirante, bloquear) if tipo.codigo in ("dictamen", "designacion", "desierto_inscriptos", "sorteo_acta") else []
     veedores = _participantes(concurso, Veedor, bloquear) if tipo.codigo == "sorteo_acta" else []
+    # F4M.3: incluir los cambios de jurado en la huella de fuentes.
+    # Las operaciones F4L bloquean el concurso antes de editar esas actuaciones.
+    actuaciones_jurado = list(
+        ActuacionJurado.objects.filter(concurso=concurso)
+        .select_related("jurado__persona").order_by("pk")
+    ) if tipo.codigo in ("dictamen", "designacion") else []
     def persona(registro):
         return {campo: getattr(registro.persona, campo) for campo in ("id", "nombre", "apellido", "dni", "version")}
     def participacion(registro, campos):
@@ -417,7 +426,15 @@ def fuentes_actuales(concurso, tipo, *, bloquear=False):
         "jurados": [participacion(j, ("titulo", "unidad", "representacion", "calidad", "version")) for j in jurados],
         "aspirantes": [participacion(a, ("email", "expediente_inscripcion", "situacion", "version")) for a in aspirantes],
         "veedores": [participacion(v, ("cargo", "version")) for v in veedores],
-        "resultados": cuadro_resultados(concurso, bloquear=bloquear) if tipo.codigo == "dictamen" else {},
+        "actuaciones_jurado": [{
+            "id": a.pk, "jurado_id": a.jurado_id, "tipo": a.tipo, "motivo": a.motivo,
+            "fecha": a.fecha_actuacion.isoformat(), "resolucion": a.resolucion,
+            "fojas": a.fojas, "antecedente_id": a.antecedente_id,
+            "resuelto_por_id": a.resuelto_por_id, "representacion": a.representacion,
+            "calidad_anterior": a.calidad_anterior, "calidad_nueva": a.calidad_nueva,
+            "nombre": a.jurado.persona.nombre, "apellido": a.jurado.persona.apellido,
+        } for a in actuaciones_jurado],
+        "resultados": cuadro_resultados(concurso, bloquear=bloquear) if tipo.codigo in ("dictamen", "designacion") else {},
         "controles_versiones": [{"id": c.pk, "version": c.version, "verificado": c.verificado,
                                    "fojas": c.fojas, "partida_principal": c.partida_principal,
                                    "actividad_presupuestaria": c.actividad_presupuestaria} for c in controles],
@@ -470,7 +487,7 @@ def preparar_revision(*, concurso_id, tipo_codigo, usuario, datos, huella_espera
     if tipo.codigo in ("jurados", "dictamen", "designacion", "sorteo_acta"):
         faltantes.extend(habilitacion.pendientes_jurado)
     faltantes.extend(faltantes_antecedentes(concurso, tipo, controles=controles, aspirantes=snapshot["aspirantes"]))
-    if tipo.codigo == "dictamen":
+    if tipo.codigo in ("dictamen", "designacion"):
         faltantes.extend(faltantes_resultados(snapshot["resultados"]))
     if tipo.codigo == "sorteo_acta":
         faltantes.extend(faltantes_sorteo(concurso, controles=controles, jurados=jurados, aspirantes=snapshot["aspirantes"]))
@@ -525,7 +542,17 @@ def preparar_revision(*, concurso_id, tipo_codigo, usuario, datos, huella_espera
         }
     snapshot["complementarios"] = {k: (v.isoformat() if isinstance(v, (date, time)) else v)
         for k, v in limpios.items() if not k.startswith("version_") and k != "huella_esperada"}
+    if tipo.codigo == "designacion":
+        # Fuente única: el número oficial del concurso, nunca un texto enviado por el formulario.
+        # Se guarda también en la instantánea para mantener inmutables los DOCX generados.
+        snapshot["complementarios"]["res_dictamen"] = concurso.resolucion_aprobacion_dictamen
     snapshot["pendientes"] = []
+    if tipo.codigo in ("dictamen", "designacion") and snapshot["actuaciones_jurado"]:
+        from .jurados_integracion import incorporar_antecedentes_jurado
+        snapshot["considerandos_jurado"] = incorporar_antecedentes_jurado(
+            concurso=concurso, fecha_corte=limpios["fecha_corte_jurado"]
+        )
+
     if tipo.codigo in ("jurados", "elecciones", "apunsj"):
         # La fecha efectiva de preparación se captura en la generación y queda histórica.
         hoy = timezone.localdate()

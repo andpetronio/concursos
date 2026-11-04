@@ -104,6 +104,12 @@
       {% include "components/field.html" with field=form.resolucion_convocatoria %}
     </div>
   </fieldset>
+  <fieldset class="card form-section" aria-labelledby="acto-dictamen-heading">
+    {% include "components/form_section_header.html" with heading_id="acto-dictamen-heading" title="Resolución oficial de aprobación del dictamen" description="Solo cuando se haya emitido la resolución: registrá su número para reutilizarlo en el proyecto de designación." only %}
+    <div class="form-grid">
+      {% include "components/field.html" with field=form.resolucion_aprobacion_dictamen %}
+    </div>
+  </fieldset>
   <details class="card form-section additional-data"{% if form.funciones.value or form.funciones.errors %} open{% endif %}>
     <summary>Datos adicionales del cargo (opcional)</summary>
     <div class="additional-data-content">

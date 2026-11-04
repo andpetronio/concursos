@@ -1,5 +1,5 @@
 from django import forms
-from core.fields import IdentificadorField
+from core.fields import IdentificadorField, ResolucionRectoralField
 from core.validators import validar_codigo_presupuestario
 
 from .choices import EstadoConcurso, ModalidadConcurso, SituacionAdministrativa
@@ -12,6 +12,14 @@ class ConcursoForm(forms.ModelForm):
     expediente = IdentificadorField(formato="expediente", max_length=100)
     agrupamiento = forms.ChoiceField(choices=[("", "Seleccioná un agrupamiento"), *AGRUPAMIENTOS])
     categoria = forms.ChoiceField(label="Categoría")
+    resolucion_convocatoria = ResolucionRectoralField(
+        label="Resolución oficial de convocatoria", required=False,
+        help_text="Número oficial emitido por Rectorado (ej.: 3278/26-R). No registrar el número de un proyecto.",
+    )
+    resolucion_aprobacion_dictamen = ResolucionRectoralField(
+        label="Resolución oficial de aprobación del dictamen", required=False,
+        help_text="Registrá el número oficial cuando la resolución esté emitida. Se reutilizará en la designación. Formato: 3278/26-R.",
+    )
     version_esperada = forms.IntegerField(min_value=1, widget=forms.HiddenInput, required=False)
 
     class Meta:
@@ -39,6 +47,7 @@ class ConcursoForm(forms.ModelForm):
             "domicilio_trabajo": "Opcional. Dirección donde se desempeñarán las funciones; se reutiliza en el anexo.",
             "iniciador_tratamiento": "Tratamiento registrado en la nota de inicio (Sr., Sra., Dr., etc.). El artículo se selecciona aparte.",
             "resolucion_convocatoria": "Número oficial emitido por Rectorado (ej.: 3278/26-R). No registrar el número de un proyecto.",
+            "resolucion_aprobacion_dictamen": "Registrá el número oficial una sola vez, después de emitida la resolución. SiCon lo reutilizará en el proyecto de designación.",
         }
 
     def __init__(self, *args, **kwargs):

@@ -81,6 +81,9 @@
   {% include "components/table_scroll_help.html" only %}
   {% include "participantes/jurados_tabla.html" with table_label="Integrantes del jurado" %}
   {% else %}{% include "components/empty_state_inline.html" with description="Todavía no hay integrantes del jurado registrados." only %}{% endif %}
+  <div class="actions">
+    <a class="button button-secondary" href="{% url 'concursos:jurados_considerandos' concurso.pk %}">Revisar antecedentes y considerandos</a>
+  </div>
   {% include "participantes/historial_jurado.html" %}
 </section>
 </div>

@@ -99,6 +99,15 @@
     <dl class="detail-list">{% for etiqueta, valor in datos_concurso %}<dt>{{ etiqueta }}</dt><dd>{{ valor|default:"No registrado (opcional)" }}</dd>{% endfor %}</dl>
   </details>
   {% if destinatario %}<h3>Destinatario</h3><p>{{ destinatario.tratamiento }} {{ destinatario.cargo }}<br>Asociación del Personal Nodocente de la UNSJ<br>{{ destinatario.titulo }} {{ destinatario.nombre }} {{ destinatario.apellido }}<br>Presente</p>{% endif %}
+  {% if disponibilidad.tipo.codigo == "designacion" %}
+    <p><strong>Resolución oficial de aprobación del dictamen:</strong> {{ concurso.resolucion_aprobacion_dictamen|default:"Pendiente de registrar" }}. Se incorpora automáticamente al proyecto de designación.</p>
+    {% if perms.concursos.change_concurso %}
+      <p><a href="{% url 'concursos:editar' concurso.pk %}">Registrar o corregir la resolución de aprobación del dictamen</a></p>
+    {% endif %}
+  {% endif %}
+  {% if disponibilidad.tipo.codigo == "designacion" and fuentes.resultados.orden_merito and not fuentes.resultados.empates_pendientes %}
+    <p><strong>Primer puesto del orden de mérito:</strong> {{ fuentes.resultados.orden_merito.0.apellido }}, {{ fuentes.resultados.orden_merito.0.nombre }} · DNI {{ fuentes.resultados.orden_merito.0.dni }} · {{ fuentes.resultados.orden_merito.0.total }} puntos. SiCon incorpora estos datos automáticamente al proyecto.</p>
+  {% endif %}
   {% if disponibilidad.tipo.codigo == "apunsj" %}
     <p>Resolución oficial de convocatoria: <strong>{{ concurso.resolucion_convocatoria|default:"Pendiente de registrar" }}</strong>.</p>
     <p>Membrete vigente de Configuración institucional; fecha de preparación automática.</p>
@@ -150,6 +159,9 @@
       <div class="document-review-form-intro">
         <h3>Datos complementarios del borrador</h3>
         <p class="field-help">Completá exclusivamente los antecedentes correspondientes a este documento. No se guardan como datos generales del concurso.</p>
+        {% if disponibilidad.tipo.codigo == "dictamen" or disponibilidad.tipo.codigo == "designacion" %}
+          <p class="field-help"><a href="{% url 'concursos:jurados_considerandos' concurso.pk %}">Revisar antecedentes y considerandos del jurado</a> antes de confirmar su inclusión.</p>
+        {% endif %}
       </div>
       {% if disponibilidad.tipo.codigo == "sorteo_acta" %}
         {% include "documentos/sorteo_campos.html" with form=form %}

@@ -240,7 +240,7 @@ class EvaluacionAspiranteView(ParticipanteFormView):
     form_class = EvaluacionAspiranteForm
     template_name = "participantes/evaluacion.html"
     titulo = "Evaluación del aspirante"
-    descripcion = "Registrá los puntajes acreditados por el jurado. El total y el mérito se calculan automáticamente."
+    descripcion = "Podés cargar antecedentes y oposición en momentos distintos. El total y el mérito se calculan cuando ambos puntajes están completos."
     boton = "Guardar evaluación"
 
     def get_aspirante(self):
@@ -274,7 +274,7 @@ class EvaluacionAspiranteView(ParticipanteFormView):
 
     def form_valid(self, form):
         try:
-            services.guardar_evaluacion(
+            evaluacion = services.guardar_evaluacion(
                 aspirante=self.get_aspirante(), antecedentes=form.cleaned_data["antecedentes"],
                 oposicion=form.cleaned_data["oposicion"], usuario=self.request.user,
                 version_esperada=form.cleaned_data["version_esperada"],
@@ -282,7 +282,12 @@ class EvaluacionAspiranteView(ParticipanteFormView):
         except ValidationError as error:
             form.add_error(None, error)
             return self.form_invalid(form)
-        messages.success(self.request, "La evaluación se registró. El orden de mérito se actualiza a partir de los puntajes.")
+        if evaluacion is None:
+            messages.info(self.request, "No se registraron puntajes; la evaluación permanece pendiente.")
+        elif evaluacion.total is None:
+            messages.success(self.request, "Puntaje parcial guardado. La evaluación permanece pendiente hasta completar ambos conceptos.")
+        else:
+            messages.success(self.request, "La evaluación se registró. El orden de mérito se actualiza a partir de los puntajes.")
         return redirect(self.get_success_url())
 
 

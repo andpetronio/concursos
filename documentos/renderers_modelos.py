@@ -330,9 +330,14 @@ def _considerando_vacancia_designacion(documento, datos):
 def _designacion(documento, datos, m):
     _considerando_vacancia_designacion(documento, datos)
     x = datos['complementarios']
-    elegido = next((a for a in datos['aspirantes'] if str(a['id']) == str(x.get('aspirante_id'))), None)
+    # La persona designada es siempre el primer puesto del cuadro de evaluaciones.
+    resultados = datos.get('resultados', {})
+    orden = resultados.get('orden_merito', [])
+    if resultados.get('empates_pendientes') or not orden or orden[0].get('puesto') != 1:
+        raise ValidationError('No hay un primer puesto de mérito definido para la designación.')
+    elegido = next((a for a in datos['aspirantes'] if a['id'] == orden[0]['aspirante_id']), None)
     if elegido is None:
-        raise ValidationError('Seleccioná un aspirante registrado para la designación.')
+        raise ValidationError('El primer puesto del mérito no corresponde a un aspirante registrado.')
     m['{{ganador_a}}'] = _nombre(elegido)
     m['{{dni_ganador_a}}'] = _dni(elegido)
     m['{{dni_ganador_a \\@ "0\'.\'000\'.\'000"}}'] = _dni(elegido)

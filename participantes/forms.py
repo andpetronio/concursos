@@ -123,10 +123,10 @@ class PersonaEdicionForm(FormularioVersionado):
 class EvaluacionAspiranteForm(forms.Form):
     from .evaluaciones import MAX_ANTECEDENTES, MAX_OPOSICION
     antecedentes = forms.DecimalField(label="Puntaje de antecedentes (sobre 34)", min_value=0,
-        max_value=MAX_ANTECEDENTES, decimal_places=2, max_digits=5,
+        max_value=MAX_ANTECEDENTES, decimal_places=2, max_digits=5, required=False,
         widget=forms.NumberInput(attrs={"step": "0.01", "inputmode": "decimal"}))
     oposicion = forms.DecimalField(label="Puntaje de oposición (sobre 51)", min_value=0,
-        max_value=MAX_OPOSICION, decimal_places=2, max_digits=5,
+        max_value=MAX_OPOSICION, decimal_places=2, max_digits=5, required=False,
         widget=forms.NumberInput(attrs={"step": "0.01", "inputmode": "decimal"}))
     version_esperada = forms.IntegerField(min_value=0, widget=forms.HiddenInput)
     motivo = forms.CharField(label="Motivo de corrección", required=False, max_length=1000,
@@ -145,8 +145,13 @@ class EvaluacionAspiranteForm(forms.Form):
         datos = super().clean()
         anterior = self.evaluacion
         if anterior and all(campo in datos for campo in ("antecedentes", "oposicion")):
-            modificada = (anterior.antecedentes, anterior.oposicion) != (datos["antecedentes"], datos["oposicion"])
-            if modificada and not datos.get("motivo", "").strip():
+            # Completar un puntaje que estaba pendiente no es una corrección.
+            rectifica = any(
+                getattr(anterior, campo) is not None
+                and getattr(anterior, campo) != datos[campo]
+                for campo in ("antecedentes", "oposicion")
+            )
+            if rectifica and not datos.get("motivo", "").strip():
                 self.add_error("motivo", "Indicá el motivo de la corrección de los puntajes.")
         return datos
 

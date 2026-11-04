@@ -87,7 +87,7 @@ class ConcursoDetailView(AccesoConcursoMixin, DetailView):
                                           "acto_vacancia", "detalle_vacancia", "resolucion_baja")),
             ("Inicio del expediente", ("iniciador_tratamiento", "articulo_iniciador",
                                       "iniciador_nombre", "iniciador_cargo")),
-            ("Resolución oficial", ("resolucion_convocatoria",)),
+            ("Resoluciones oficiales", ("resolucion_convocatoria", "resolucion_aprobacion_dictamen")),
         )
         context["grupos_datos_concurso"] = [
             {"titulo": titulo, "campos": [

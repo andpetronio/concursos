@@ -11,9 +11,13 @@
   <td>
     {% if aspirante.evaluacion %}
       {% if not aspirante.puede_rendir %}<span class="field-help">Puntajes históricos. No computan en mérito.</span>{% endif %}
-      <span class="participation-data">Ant.: {{ aspirante.evaluacion.antecedentes }}/34 ·</span>
-      <span class="participation-data">Op.: {{ aspirante.evaluacion.oposicion }}/51 ·</span>
-      <strong>Total: {{ aspirante.evaluacion.total }}/85</strong>
+      <span class="participation-data">Ant.: {{ aspirante.evaluacion.antecedentes|default_if_none:"Pendiente" }}/34 ·</span>
+      <span class="participation-data">Op.: {{ aspirante.evaluacion.oposicion|default_if_none:"Pendiente" }}/51 ·</span>
+      {% if aspirante.evaluacion.total is not None %}
+        <strong>Total: {{ aspirante.evaluacion.total }}/85</strong>
+      {% else %}
+        <span class="field-help">Total pendiente</span>
+      {% endif %}
     {% elif not aspirante.puede_rendir %}<span class="field-help">No corresponde evaluar</span>
     {% else %}<span class="field-help">Evaluación pendiente</span>{% endif %}
   </td>

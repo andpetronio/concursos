@@ -53,7 +53,7 @@ class IntegridadDeModelosWordTests(SimpleTestCase):
     @staticmethod
     def _datos_designacion():
         complementarios = {
-            'aspirante_id': '1', 'aplica_limitacion': True,
+            'aplica_limitacion': True,
             'resolucion_anterior': '1234/26-R', 'categoria_anterior': '6',
             'tramo_anterior': 'Intermedio', 'agrupamiento_anterior': 'Servicios 03',
             'cp_anterior': '10888', 'funciones_anteriores': 'Archivo',
@@ -71,6 +71,7 @@ class IntegridadDeModelosWordTests(SimpleTestCase):
                          'acto_vacancia': '', 'detalle_vacancia': ''},
             'aspirantes': [{'id': 1, 'persona': {
                 'nombre': 'Ana', 'apellido': 'Ejemplo', 'dni': '12345678'}}],
+            'resultados': {'orden_merito': [{'puesto': 1, 'aspirante_id': 1}]},
         }
 
     @staticmethod
@@ -124,6 +125,13 @@ class IntegridadDeModelosWordTests(SimpleTestCase):
             self.assertNotIn('3164/23-R', texto)
             self.assertNotIn('11991', texto)
         self.assertEqual(m['{{ganador_a}}'], 'Ana Ejemplo')
+
+    def test_designacion_rechaza_el_cuadro_sin_primer_puesto(self):
+        documento = self._modelo_designacion()
+        datos = self._datos_designacion()
+        datos["resultados"]["orden_merito"] = []
+        with self.assertRaisesMessage(ValidationError, "No hay un primer puesto"):
+            _designacion(documento, datos, {})
 
     def test_designacion_no_acepta_modelo_con_dato_de_ejemplo_modificado(self):
         documento = self._modelo_designacion()

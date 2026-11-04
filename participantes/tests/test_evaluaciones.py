@@ -10,6 +10,8 @@ from concursos import services as concursos_services
 from concursos.tests.test_concursos import DATOS, PASSWORD
 from participantes.evaluaciones import cuadro_resultados, faltantes_resultados, diagnostico_sin_ganador
 from participantes.models import Aspirante, CambioEvaluacion, EvaluacionAspirante, Persona
+from documentos.registry import POR_CODIGO
+from documentos.services import disponibilidad
 from participantes.services import guardar_evaluacion
 
 
@@ -153,3 +155,94 @@ class EvaluacionTests(TestCase):
         self.assertEqual(int(self.client.session["_auth_user_id"]), self.lector.pk)
         self.assertEqual(self.client.get(url).status_code, 403)
         self.assertEqual(self.client.post(url, {"antecedentes": 0, "oposicion": 0, "version_esperada": 1}).status_code, 403)
+
+    def test_puntajes_pueden_registrarse_en_momentos_diferentes(self):
+        # Primero antecedentes, después oposición; completar no es corregir.
+        parcial = guardar_evaluacion(
+            aspirante=self.aspirantes[0], antecedentes=Decimal("24"), oposicion=None,
+            usuario=self.operador, version_esperada=0,
+        )
+        self.assertEqual(parcial.antecedentes, Decimal("24"))
+        self.assertIsNone(parcial.oposicion)
+        self.assertIsNone(parcial.total)
+        cuadro = cuadro_resultados(self.concurso)
+        self.assertEqual(len(cuadro["evaluaciones_pendientes"]), 3)
+        self.assertEqual(cuadro["orden_merito"], [])
+        for codigo in ("dictamen", "designacion"):
+            with self.subTest(documento=codigo):
+                self.assertTrue(any(
+                    "Apellido 0, Nombre 0" in faltante
+                    for faltante in disponibilidad(self.concurso, POR_CODIGO[codigo])["faltantes"]
+                ))
+        completa = guardar_evaluacion(
+            aspirante=self.aspirantes[0], antecedentes=Decimal("24"), oposicion=Decimal("41"),
+            usuario=self.operador, version_esperada=1,
+        )
+        self.assertEqual(completa.total, Decimal("65"))
+        self.assertEqual(completa.version, 2)
+        cambio = completa.cambios.first()
+        self.assertIsNone(cambio.oposicion_antes)
+        self.assertEqual(cambio.oposicion_despues, Decimal("41"))
+        cuadro = cuadro_resultados(self.concurso)
+        self.assertEqual(len(cuadro["evaluaciones_pendientes"]), 2)
+        self.assertEqual([fila["aspirante_id"] for fila in cuadro["orden_merito"]], [self.aspirantes[0].pk])
+        self.guardar(1, "25", "32")
+        self.guardar(2, "22", "33")
+        self.assertEqual(cuadro_resultados(self.concurso)["evaluaciones_pendientes"], [])
+        for codigo in ("dictamen", "designacion"):
+            with self.subTest(documento_completo=codigo):
+                self.assertFalse(any(
+                    "Registrar evaluación de antecedentes y oposición" in faltante
+                    for faltante in disponibilidad(self.concurso, POR_CODIGO[codigo])["faltantes"]
+                ))
+
+    def test_puntaje_oposicion_puede_cargarse_primero_y_cero_no_es_pendiente(self):
+        parcial = guardar_evaluacion(
+            aspirante=self.aspirantes[1], antecedentes=None, oposicion=Decimal("0"),
+            usuario=self.operador, version_esperada=0,
+        )
+        self.assertIsNone(parcial.total)
+        self.assertEqual(parcial.oposicion, Decimal("0"))
+        completo = guardar_evaluacion(
+            aspirante=self.aspirantes[1], antecedentes=Decimal("0"), oposicion=Decimal("0"),
+            usuario=self.operador, version_esperada=1,
+        )
+        self.assertEqual(completo.total, Decimal("0"))
+        self.assertNotIn("Apellido 1, Nombre 1", cuadro_resultados(self.concurso)["evaluaciones_pendientes"])
+
+    def test_correccion_de_puntaje_registrado_requiere_motivo_pero_completar_no(self):
+        parcial = guardar_evaluacion(
+            aspirante=self.aspirantes[0], antecedentes=Decimal("20"), oposicion=None,
+            usuario=self.operador, version_esperada=0,
+        )
+        with self.assertRaisesMessage(ValidationError, "motivo"):
+            guardar_evaluacion(
+                aspirante=self.aspirantes[0], antecedentes=Decimal("21"), oposicion=None,
+                usuario=self.operador, version_esperada=1,
+            )
+        with self.assertRaisesMessage(ValidationError, "motivo"):
+            guardar_evaluacion(
+                aspirante=self.aspirantes[0], antecedentes=None, oposicion=None,
+                usuario=self.operador, version_esperada=1,
+            )
+        self.assertEqual(parcial.antecedentes, Decimal("20"))
+        self.assertEqual(parcial.cambios.count(), 1)
+
+    def test_formulario_admite_guardar_puntaje_parcial_y_vacio_sin_crear_cero(self):
+        aspirante = self.aspirantes[0]
+        url = reverse("concursos:aspirante_evaluacion", args=[self.concurso.pk, aspirante.pk])
+        self.client.post(reverse("login"), {"username": self.operador.username, "password": PASSWORD})
+        respuesta = self.client.post(url, {"antecedentes": "", "oposicion": "", "version_esperada": "0"})
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertFalse(EvaluacionAspirante.objects.filter(aspirante=aspirante).exists())
+        respuesta = self.client.post(url, {"antecedentes": "23", "oposicion": "", "version_esperada": "0"})
+        self.assertEqual(respuesta.status_code, 302)
+        evaluacion = EvaluacionAspirante.objects.get(aspirante=aspirante)
+        self.assertIsNone(evaluacion.oposicion)
+        pagina = self.client.get(self.concurso.get_absolute_url())
+        self.assertContains(pagina, "Total pendiente")
+        self.assertContains(pagina, "Op.: Pendiente/51")
+        respuesta = self.client.post(url, {"antecedentes": "23", "oposicion": "40", "version_esperada": "1"})
+        self.assertEqual(respuesta.status_code, 302)
+        evaluacion.refresh_from_db()
+        self.assertEqual(evaluacion.total, Decimal("63"))

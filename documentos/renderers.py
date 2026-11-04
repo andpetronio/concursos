@@ -661,6 +661,10 @@ def antecedentes_posteriores(documento, datos):
     parrafo(documento, f'Que obra el acta de cierre de inscripción a fs. {foja(datos, "acta_inscriptos")}. {x["antecedentes_inscriptos"]}')
     parrafo(documento, "Personas inscriptas: " + "; ".join(persona_texto(a["persona"]) for a in datos["aspirantes"]) + ".")
     parrafo(documento, "Integración del jurado: " + jurados_texto(datos) + ".")
+    # F4M.3: se inserta solo la redacción que el servicio validó y congeló
+    # en la instantánea del borrador. No cambia las plantillas originales.
+    for texto in datos.get("considerandos_jurado", {}).get("textos", ()):
+        parrafo(documento, texto)
     for campo, codigo, etiqueta in (("valoracion", "valoracion_antecedentes", "Valoración de antecedentes"),
         ("sorteo", "sorteo_temas", "Sorteo de temas"), ("prueba", "acta_oposicion", "Prueba de oposición"),
         ("resultado", "dictamen", "Dictamen")):
@@ -670,7 +674,7 @@ def antecedentes_posteriores(documento, datos):
 
 
 def merito(documento, datos):
-    """Dictamen ordinario: tabla de puntajes calculados; designación sigue provisional."""
+    """Tabla de puntajes estructurados para dictamen y designación."""
     ancho = Emu(documento.sections[0].page_width - documento.sections[0].left_margin - documento.sections[0].right_margin).twips
     if datos.get("resultados"):
         resultados = datos["resultados"]
@@ -761,8 +765,14 @@ def designacion(documento, datos):
     parrafo(documento, "Que el dictamen fue aprobado por resolución oficial " + x["res_dictamen"] + ".")
     parrafo(documento, f'Que obra la afectación presupuestaria a fs. {foja(datos, "afectacion_presupuestaria")}.')
     merito(documento, datos)
-    elegida = next(a for a in datos["aspirantes"] if str(a["id"]) == x["aspirante_id"])
-    parrafo(documento, "Persona expresamente propuesta para designación: " + persona_texto(elegida["persona"]) + ".")
+    resultados = datos.get("resultados", {})
+    orden = resultados.get("orden_merito", [])
+    if resultados.get("empates_pendientes") or not orden or orden[0].get("puesto") != 1:
+        raise ValidationError("No hay un primer puesto de mérito definido para la designación.")
+    elegida = next((a for a in datos["aspirantes"] if a["id"] == orden[0]["aspirante_id"]), None)
+    if elegida is None:
+        raise ValidationError("El primer puesto del mérito no corresponde a un aspirante registrado.")
+    parrafo(documento, "Persona con primer puesto del orden de mérito: " + persona_texto(elegida["persona"]) + ".")
     resuelve(documento, datos)
     articulo(documento, 1, f'Designar a {persona_texto(elegida["persona"])}, en el cargo de {cargo(datos)}. {x["efectos"]}')
     numero = 2

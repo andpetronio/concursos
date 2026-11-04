@@ -244,8 +244,8 @@ class EvaluacionAspirante(models.Model):
     """Puntajes acreditados por el jurado; no constituyen un dictamen por sí solos."""
 
     aspirante = models.OneToOneField(Aspirante, on_delete=models.PROTECT, related_name="evaluacion")
-    antecedentes = models.DecimalField("puntaje de antecedentes", max_digits=5, decimal_places=2)
-    oposicion = models.DecimalField("puntaje de oposición", max_digits=5, decimal_places=2)
+    antecedentes = models.DecimalField("puntaje de antecedentes", max_digits=5, decimal_places=2, null=True, blank=True)
+    oposicion = models.DecimalField("puntaje de oposición", max_digits=5, decimal_places=2, null=True, blank=True)
     version = models.PositiveIntegerField(default=1, editable=False)
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
@@ -257,6 +257,8 @@ class EvaluacionAspirante(models.Model):
 
     @property
     def total(self):
+        if self.antecedentes is None or self.oposicion is None:
+            return None  # Pendiente no equivale a 0.
         return self.antecedentes + self.oposicion
 
     def clean(self):
@@ -274,8 +276,8 @@ class CambioEvaluacion(models.Model):
     evaluacion = models.ForeignKey(EvaluacionAspirante, on_delete=models.PROTECT, related_name="cambios")
     antecedentes_antes = models.DecimalField(max_digits=5, decimal_places=2, null=True)
     oposicion_antes = models.DecimalField(max_digits=5, decimal_places=2, null=True)
-    antecedentes_despues = models.DecimalField(max_digits=5, decimal_places=2)
-    oposicion_despues = models.DecimalField(max_digits=5, decimal_places=2)
+    antecedentes_despues = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    oposicion_despues = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     motivo = models.TextField(max_length=1000, blank=True)
     version = models.PositiveIntegerField()
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)

@@ -2,6 +2,7 @@ from django.urls import path
 
 from . import views
 from participantes import views as participante_views
+from participantes.jurados_considerandos_views import ConsiderandosJuradoPreviewView
 from expedientes import views as documental_views
 
 app_name = "concursos"
@@ -16,6 +17,7 @@ urlpatterns = [
     path("<int:pk>/control-documental/etapa/", documental_views.EtapaDocumentalUpdateView.as_view(), name="etapa_documental"),
     path("<int:pk>/control-documental/etapa/historial/", documental_views.HistorialEtapaView.as_view(), name="etapa_historial"),
     path("<int:pk>/participantes/jurados/nuevo/", participante_views.JuradoAltaView.as_view(), name="jurado_crear"),
+    path("<int:pk>/jurados/considerandos/", ConsiderandosJuradoPreviewView.as_view(), name="jurados_considerandos"),
     path("<int:pk>/participantes/jurados/<int:participacion_id>/editar/",
          participante_views.JuradoEdicionView.as_view(), name="jurado_editar"),
     path("<int:pk>/participantes/jurados/<int:participacion_id>/presentacion/",

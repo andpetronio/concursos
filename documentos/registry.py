@@ -40,9 +40,9 @@ TIPOS = (
                   "Confirmación del operador de que el acta acredita cero inscriptos",
                   "Requiere acta verificada, ausencia de aspirantes registrados y modalidad que permita nuevo llamado",
                   "desierto-inscriptos-1"),
-    TipoDocumento("designacion", "Proyecto de resolución de designación", "Sin selección automática de aspirante ni efectos administrativos.",
-                  "PROYECTO RES. DESIGNACION.docx", "Concurso y antecedentes documentales verificados",
-                  "Persona propuesta, mérito, antecedentes, limitación opcional y presupuesto acreditados", "Los antecedentes y complementos críticos son obligatorios", "designacion-fuente-1"),
+    TipoDocumento("designacion", "Proyecto de resolución de designación", "Utiliza el primer puesto de mérito; sin presumir efectos administrativos.",
+                  "PROYECTO RES. DESIGNACION.docx", "Concurso, orden de mérito y antecedentes documentales verificados",
+                  "Antecedentes, limitación opcional y presupuesto acreditados", "Los antecedentes y complementos críticos son obligatorios", "designacion-fuente-1"),
 
 )
 POR_CODIGO = {tipo.codigo: tipo for tipo in TIPOS}

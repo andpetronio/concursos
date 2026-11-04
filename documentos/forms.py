@@ -75,6 +75,24 @@ class GeneracionForm(forms.Form):
 
         self.tipo = tipo
         self.concurso = concurso
+        if tipo and tipo.codigo in ("dictamen", "designacion"):
+            # Las actuaciones se vuelven a consultar bajo bloqueo del concurso
+            # al preparar la generación: este formulario no certifica su validez.
+            from participantes.models import ActuacionJurado
+            if ActuacionJurado.objects.filter(concurso=concurso).exists():
+                self.fields["fecha_corte_jurado"] = forms.DateField(
+                    label="Fecha del proyecto a la que corresponden los antecedentes del jurado",
+                    input_formats=["%Y-%m-%d"],
+                    widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+                    help_text=("Obligatoria cuando existen actuaciones del jurado. No es la "
+                               "fecha de efectos jurídicos de la resolución."),
+                )
+                self.fields["confirmacion_jurado"] = forms.BooleanField(
+                    required=True,
+                    label="Revisé los antecedentes y la integración del jurado para este proyecto",
+                    help_text=("Contrastá las actuaciones, la composición del jurado y sus fojas "
+                               "con el expediente. SiCon no certifica la fecha de efectos de los actos."),
+                )
         if tipo and tipo.codigo == "convocatoria":
             self.fields["fecha_apertura"] = forms.DateField(
                 label="Fecha de apertura de inscripciones", input_formats=["%Y-%m-%d"],
@@ -84,7 +102,7 @@ class GeneracionForm(forms.Form):
             if tipo.codigo != "convocatoria":
                 for nombre, etiqueta, tipos, largo in COMPLEMENTOS:
                     if tipo.codigo in tipos and not (tipo.codigo == "jurados" and nombre in ("marco_normativo", "firmante", "lugar_fecha")) \
-                        and not (tipo.codigo in ("dictamen", "designacion") and nombre not in ("res_dictamen", "merito")):
+                        and tipo.codigo not in ("dictamen", "designacion"):
                         self.fields[nombre] = forms.CharField(label=etiqueta, required=True, max_length=largo,
                             widget=forms.Textarea(attrs={"rows": 3}) if largo > 300 else forms.TextInput(),
                             help_text="Ingresá el texto completo acreditado para este concurso; no se presume ningún hecho del modelo.")
@@ -94,8 +112,6 @@ class GeneracionForm(forms.Form):
                     label="Confirmo que el acta de cierre de inscripciones acredita que no se presentaron aspirantes",
                     help_text="Verificá el contenido del acta y las fojas del expediente. No basta con que SiCon tenga cero aspirantes cargados.")
             if tipo.codigo == "dictamen":
-                # El orden ordinario surge de evaluaciones estructuradas, no de un textarea libre.
-                del self.fields["merito"]
                 self.fields["confirmacion_sin_recursos"] = forms.BooleanField(
                     label="Confirmo que no hay recursos contra el dictamen pendientes de resolución",
                     required=True,
@@ -176,10 +192,6 @@ class GeneracionForm(forms.Form):
                     self.fields[campo] = forms.CharField(label=etiqueta, max_length=500, required=False,
                         help_text="Obligatorio únicamente si corresponde limitar una designación anterior.")
             if tipo.codigo == "designacion":
-                opciones = list(concurso.aspirantes.select_related("persona").all())
-                self.fields["merito"].help_text = "Una línea por puesto: puesto | ID de aspirante. IDs: " + "; ".join(
-                    f"{a.pk}: {a.persona.apellido}, {a.persona.nombre}" for a in opciones)
-            if tipo.codigo == "designacion":
                 for nombre, etiqueta in PRESUPUESTO:
                     self.fields[f"presupuesto_{nombre}"] = forms.CharField(label=etiqueta, max_length=200,
                         help_text="" if tipo.codigo == "convocatoria" else
@@ -188,10 +200,6 @@ class GeneracionForm(forms.Form):
                 self.fields["aplica_limitacion"] = forms.TypedChoiceField(
                     label="¿Corresponde limitar una designación anterior?", coerce=lambda valor: valor == "si",
                     choices=[("", "Seleccioná expresamente"), ("si", "Sí, con texto completo acreditado"), ("no", "No corresponde")])
-                self.fields["aspirante_id"] = forms.ChoiceField(label="Persona propuesta para designación", required=True,
-                    choices=[("", "Seleccioná expresamente una persona")]+[
-                        (str(a.pk), f"{a.persona.apellido}, {a.persona.nombre}")
-                        for a in concurso.aspirantes.select_related("persona").all()])
 
     def clean(self):
         datos = super().clean()
@@ -213,23 +221,6 @@ class GeneracionForm(forms.Form):
             if not marcado:
                 self.add_error(nombre, "Marcá la casilla para confirmar expresamente este hecho.")
 
-        if self.tipo and self.tipo.codigo == "designacion" and datos.get("merito"):
-            ids = set(self.concurso.aspirantes.values_list("pk", flat=True))
-            posiciones, personas, orden = set(), set(), []
-            try:
-                for linea in datos["merito"].splitlines():
-                    puesto, persona_id = (int(valor.strip()) for valor in linea.split("|"))
-                    if puesto < 1 or persona_id not in ids or puesto in posiciones or persona_id in personas:
-                        raise ValueError
-                    posiciones.add(puesto)
-                    personas.add(persona_id)
-                    orden.append({"puesto": puesto, "aspirante_id": persona_id})
-                if posiciones != set(range(1, len(orden) + 1)):
-                    raise ValueError
-            except (ValueError, TypeError):
-                self.add_error("merito", "Indicá puestos consecutivos desde 1, sin duplicados, con IDs de aspirantes de este concurso: puesto | ID.")
-            else:
-                datos["orden_merito"] = sorted(orden, key=lambda fila: fila["puesto"])
         if self.tipo and self.tipo.codigo == "designacion" and datos.get("aplica_limitacion"):
             for campo in ("resolucion_anterior", "categoria_anterior", "tramo_anterior",
                           "agrupamiento_anterior", "cp_anterior", "funciones_anteriores", "unidad_anterior"):
@@ -274,8 +265,6 @@ COMPLEMENTOS = (
     ("impugnaciones", "Impugnaciones, observaciones y recursos: situación acreditada", POSTERIORES, 2000),
     ("comunicacion", "Comunicación del dictamen: fechas, destinatarios y constancias acreditadas", POSTERIORES, 2000),
     ("tramites", "Cumplimiento de trámites formales acreditado", POSTERIORES, 2000),
-    ("merito", "Orden de mérito acreditado (un puesto y persona por línea; nunca se deduce de inscripciones)", POSTERIORES, 3000),
-    ("res_dictamen", "Resolución oficial de aprobación del dictamen: número y fecha", ("designacion",), 200),
     ("efectos", "Fecha o condición acreditada de efectos de la designación", ("designacion",), 500),
     ("limitacion", "Texto completo acreditado de limitación anterior (solo si corresponde)", ("designacion",), 2500),
     ("circuito", "Circuito de notificación y actuaciones posteriores aplicable a la unidad", ("designacion",), 1500),

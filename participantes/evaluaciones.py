@@ -34,6 +34,10 @@ def cuadro_resultados(concurso, *, bloquear=False):
         except EvaluacionAspirante.DoesNotExist:
             pendientes.append(f"{aspirante.persona.apellido}, {aspirante.persona.nombre}")
             continue
+        # Sin ambos puntajes no existe todavía un total ni un puesto válido.
+        if evaluacion.total is None:
+            pendientes.append(f"{aspirante.persona.apellido}, {aspirante.persona.nombre}")
+            continue
         total = evaluacion.total
         fila = {
             "aspirante_id": aspirante.pk,
