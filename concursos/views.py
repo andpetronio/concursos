@@ -127,6 +127,52 @@ class ConcursoDetailView(AccesoConcursoMixin, DetailView):
         context.update(contexto_documental(self.object, jurados=context["jurados"],
                                           error=getattr(self, "documental_error", None),
                                           error_etapa=getattr(self, "documental_error_etapa", None)))
+        # El acta se coteja desde Aspirantes, pero es el mismo control del expediente.
+        from expedientes.forms import CotejoActaInscriptosForm
+        from participantes.models import Aspirante as AspiranteModelo
+        acta = next(c for c in context["documentacion"].controles if c.requisito == "acta_inscriptos")
+        cantidad = AspiranteModelo.objects.filter(concurso=self.object).count()
+        context["acta_inscriptos_control"] = acta
+        context["cantidad_aspirantes"] = cantidad
+        context["acta_inscriptos_cotejada"] = bool(acta.completo and acta.cantidad_cotejada == cantidad)
+        context["acta_inscriptos_revisar"] = bool(
+            acta.completo and acta.cantidad_cotejada is not None and acta.cantidad_cotejada != cantidad
+        )
+        context["cotejo_acta_form"] = getattr(self, "cotejo_acta_error", None) or CotejoActaInscriptosForm(
+            initial={"fojas": acta.fojas, "version_esperada": acta.version, "cantidad_vista": cantidad},
+        )
+
+        # La edición documental se realiza en la pestaña de trabajo correspondiente.
+        from expedientes.forms import FojasIndicacionJuradoForm, OficioAPUNSJForm
+        from expedientes.services import JURADO_REQUISITO_POR_REPRESENTACION
+        por_requisito = {item.requisito: item for item in context["documentacion"].controles}
+        jurados_por_plaza = {(item.representacion, item.calidad): item for item in context["jurados"]}
+        context["indicaciones_jurado"] = [
+            {
+                "representacion": representacion, "nombre": nombre,
+                "titular": jurados_por_plaza.get((representacion, Jurado.Calidad.TITULAR)),
+                "suplente": jurados_por_plaza.get((representacion, Jurado.Calidad.SUPLENTE)),
+                "control": por_requisito[codigo],
+                "form": (
+                    self.indicacion_jurado_error[1]
+                    if getattr(self, "indicacion_jurado_error", None)
+                    and self.indicacion_jurado_error[0] == representacion
+                    else FojasIndicacionJuradoForm(prefix=f"indicacion-{representacion}", initial={
+                        "fojas": por_requisito[codigo].fojas,
+                        "version_esperada": por_requisito[codigo].version,
+                    })
+                ),
+            }
+            for representacion, nombre in Jurado.Representacion.choices
+            for codigo in [JURADO_REQUISITO_POR_REPRESENTACION[representacion]]
+        ]
+        context["oficio_veedor_control"] = por_requisito["oficio_apunsj"]
+        context["oficio_veedor_form"] = getattr(self, "oficio_veedor_error", None) or OficioAPUNSJForm(
+            prefix="oficio-apunsj", initial={
+                "oficio_incorporado": por_requisito["oficio_apunsj"].verificado,
+                "version_esperada": por_requisito["oficio_apunsj"].version,
+            },
+        )
         from documentos.services import contexto_documentos
         context.update(contexto_documentos(
             self.object, usuario=self.request.user,

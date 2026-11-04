@@ -84,6 +84,7 @@
   <div class="actions">
     <a class="button button-secondary" href="{% url 'concursos:jurados_considerandos' concurso.pk %}">Revisar antecedentes y considerandos</a>
   </div>
+  {% include "participantes/indicaciones_jurado.html" %}
   {% include "participantes/historial_jurado.html" %}
 </section>
 </div>
@@ -95,17 +96,19 @@
   {% include "components/table_scroll_help.html" only %}
   {% include "participantes/veedores_tabla.html" with table_label="Veedores de APUNSJ" %}
   {% else %}{% include "components/empty_state_inline.html" with description="No hay veedores registrados. El concurso puede continuar." only %}{% endif %}
+  {% include "participantes/oficio_apunsj.html" %}
 </section>
 </div>
 <div data-detail-panel id="panel-aspirantes">
 <section id="aspirantes" class="card section participant-table" tabindex="-1" aria-labelledby="aspirantes-heading">
-  {% include "components/form_section_header.html" with heading_id="aspirantes-heading" title="Aspirantes" description="Registrar al recibir el acta de inscriptos. Esta carga todavía no depende del checklist documental." only %}
+  {% include "components/form_section_header.html" with heading_id="aspirantes-heading" title="Aspirantes" description="Registrá los aspirantes y cotejá el acta desde esta misma pestaña." only %}
   {% if perms.concursos.add_concurso %}<div class="actions">{% url 'concursos:aspirante_crear' concurso.pk as aspirante_url %}{% include "components/button.html" with href=aspirante_url label="Agregar aspirante" extra_class="button-secondary" %}</div>{% endif %}
   {% if aspirantes %}
   {% include "components/table_scroll_help.html" only %}
   {% include "participantes/aspirantes_tabla.html" with table_label="Aspirantes" %}
   {% include "participantes/resultados.html" %}
   {% else %}{% include "components/empty_state_inline.html" with description="Todavía no hay aspirantes registrados." only %}{% endif %}
+  {% include "participantes/cotejo_acta_inscriptos.html" %}
 </section>
 </div>
 <div data-detail-panel id="panel-control-documental">

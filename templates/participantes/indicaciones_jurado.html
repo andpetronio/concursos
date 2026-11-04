@@ -1,0 +1,28 @@
+<section class="section" aria-labelledby="indicaciones-jurado-heading">
+  <h3 id="indicaciones-jurado-heading">Indicaciones documentales por representación</h3>
+  <p class="field-help">Registrá las fojas de la indicación de cada representación. Si titular y suplente están cargados, guardar las fojas verifica automáticamente ese requisito. No se verifica por el solo hecho de agregar integrantes.</p>
+  {% for item in indicaciones_jurado %}
+    <div class="card section" aria-label="Indicación del jurado por {{ item.nombre }}">
+      <div class="section-heading">
+        <h4>{{ item.nombre }}</h4>
+        <span class="document-control-status{% if item.control.completo %} document-control-status--completo{% endif %}">{% if item.control.completo %}Verificado{% else %}Pendiente{% endif %}</span>
+      </div>
+      <p class="field-help">Titular: {% if item.titular %}{{ item.titular.persona }}{% else %}Pendiente{% endif %} · Suplente: {% if item.suplente %}{{ item.suplente.persona }}{% else %}Pendiente{% endif %}</p>
+      {% if item.control.fojas %}<p class="field-help">Fojas registradas: {{ item.control.fojas }}</p>{% endif %}
+      {% if perms.expedientes.change_controldocumental %}
+        <form method="post" action="{% url 'concursos:jurado_indicacion_fojas' concurso.pk item.representacion %}#jurados">
+          {% csrf_token %}
+          {% for oculto in item.form.hidden_fields %}{{ oculto }}{{ oculto.errors }}{% endfor %}
+          {% include "components/form_errors.html" with form=item.form %}
+          {% include "components/field.html" with field=item.form.fojas %}
+          {% if not item.titular or not item.suplente %}<p class="field-help">Para verificar la indicación deben estar registrados el titular y el suplente. Podés continuar cargándolos antes de guardar las fojas.</p>{% endif %}
+          <p class="field-help">Si borrás las fojas y guardás, se revoca esta verificación y se conserva el historial.</p>
+          <div class="actions"><button type="submit" class="button button-secondary">Guardar fojas</button></div>
+        </form>
+      {% else %}
+        <p class="field-help">La edición requiere permisos de Control documental.</p>
+      {% endif %}
+      {% if item.control.actualizado_por %}<p class="field-help"><a href="{% url 'concursos:control_historial' concurso.pk item.control.pk %}">Historial de verificaciones</a></p>{% endif %}
+    </div>
+  {% endfor %}
+</section>

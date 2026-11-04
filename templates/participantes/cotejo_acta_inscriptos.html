@@ -1,0 +1,37 @@
+<section class="card section" aria-labelledby="acta-inscriptos-heading">
+  <div class="section-heading">
+    <h3 id="acta-inscriptos-heading">Acta de inscriptos</h3>
+    <span class="document-control-status{% if acta_inscriptos_control.completo %} document-control-status--completo{% endif %}">
+      {% if acta_inscriptos_control.completo %}Verificada{% else %}Pendiente{% endif %}
+    </span>
+  </div>
+  <p class="field-help">Registrá las fojas y confirmá el cotejo con la nómina del acta. Cargar aspirantes no verifica el documento.</p>
+  <p><strong>{{ cantidad_aspirantes }}</strong> aspirante{{ cantidad_aspirantes|pluralize }} registrado{{ cantidad_aspirantes|pluralize }} en SiCon.</p>
+  {% if acta_inscriptos_cotejada %}
+    <p class="field-help" role="status">Nómina cotejada con el acta ({{ acta_inscriptos_control.cantidad_cotejada }} inscripto{{ acta_inscriptos_control.cantidad_cotejada|pluralize }}).</p>
+  {% elif acta_inscriptos_revisar %}
+    <p class="notice" role="status">Se modificó la cantidad de aspirantes desde el último cotejo ({{ acta_inscriptos_control.cantidad_cotejada }}). Revisá el acta y volvé a confirmar. La verificación documental anterior se conserva.</p>
+  {% elif acta_inscriptos_control.completo %}
+    <p class="field-help" role="status">El acta está verificada en Control documental, pero todavía no se confirmó el cotejo de la nómina desde Aspirantes.</p>
+  {% endif %}
+  {% if acta_inscriptos_control.fojas %}<p class="field-help">Fojas registradas: {{ acta_inscriptos_control.fojas }}</p>{% endif %}
+  {% if perms.expedientes.change_controldocumental %}
+    <form method="post" action="{% url 'concursos:acta_inscriptos_cotejar' concurso.pk %}#aspirantes">
+      {% csrf_token %}
+      {% for campo in cotejo_acta_form.hidden_fields %}{{ campo }}{{ campo.errors }}{% endfor %}
+      {% include "components/form_errors.html" with form=cotejo_acta_form %}
+      {% include "components/field.html" with field=cotejo_acta_form.fojas %}
+      <div class="check-field">
+        <label for="{{ cotejo_acta_form.confirmar_nomina.id_for_label }}">
+          {{ cotejo_acta_form.confirmar_nomina }}
+          <span>{% if cantidad_aspirantes == 0 %}Confirmo que el acta consigna cero inscriptos.{% else %}{{ cotejo_acta_form.confirmar_nomina.label }}{% endif %}</span>
+        </label>
+        {% if cotejo_acta_form.confirmar_nomina.errors %}<div class="field-errors" role="alert">{{ cotejo_acta_form.confirmar_nomina.errors }}</div>{% endif %}
+      </div>
+      <div class="actions"><button type="submit" class="button button-secondary">Verificar acta y confirmar nómina</button></div>
+    </form>
+  {% else %}
+    <p class="field-help">La verificación del acta requiere permisos de Control documental.</p>
+  {% endif %}
+  <p class="field-help"><a href="#control-documental">Consultar requisito 9 en Control documental</a></p>
+</section>

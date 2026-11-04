@@ -1,5 +1,5 @@
 <section class="section documentary-workspace" id="control-documental" aria-labelledby="documental-heading">
-  {% include "components/form_section_header.html" with heading_id="documental-heading" title="Control documental" description="Activá cada verificación y completá las fojas cuando corresponda. Los cambios válidos se guardan automáticamente y quedan registrados en el historial." only %}
+  {% include "components/form_section_header.html" with heading_id="documental-heading" title="Control documental" description="Consultá los requisitos del expediente. Los vinculados con Aspirantes, Jurados y Veedores se gestionan desde sus pestañas; los demás se verifican aquí." only %}
   <div class="card document-summary">
     <div class="document-summary-top">
       <div>
@@ -24,7 +24,7 @@
               <ul>
                 {% for fila in seccion.filas %}
                   <li data-document-quick-item="{{ fila.control.pk }}"{% if fila.control.completo %} hidden{% endif %}>
-                    <a href="#documental-{{ fila.control.pk }}">{{ fila.numero }}. {{ fila.requisito.nombre }}</a>
+                    <a href="{% if fila.destino_participantes %}#{{ fila.destino_participantes }}{% else %}#documental-{{ fila.control.pk }}{% endif %}">{{ fila.numero }}. {{ fila.requisito.nombre }}</a>
                     {% if fila.control.verificado and not fila.control.completo %}<span class="field-help">Foja o datos pendientes</span>{% endif %}
                   </li>
                 {% endfor %}

@@ -1,0 +1,22 @@
+<section class="card section" aria-labelledby="oficio-veedor-heading">
+  <div class="section-heading">
+    <h3 id="oficio-veedor-heading">Oficio de solicitud a APUNSJ</h3>
+    <span class="document-control-status{% if oficio_veedor_control.completo %} document-control-status--completo{% endif %}">{% if oficio_veedor_control.completo %}Verificado{% else %}Pendiente{% endif %}</span>
+  </div>
+  <p class="field-help">La verificación corresponde al oficio de solicitud, no a la designación ni a la presencia del veedor. No exige registrar fojas según el control documental vigente.</p>
+  {% if perms.expedientes.change_controldocumental %}
+    <form method="post" action="{% url 'concursos:veedor_oficio_apunsj' concurso.pk %}#veedores">
+      {% csrf_token %}
+      {% for oculto in oficio_veedor_form.hidden_fields %}{{ oculto }}{{ oculto.errors }}{% endfor %}
+      {% include "components/form_errors.html" with form=oficio_veedor_form %}
+      <div class="check-field">
+        <label for="{{ oficio_veedor_form.oficio_incorporado.id_for_label }}">{{ oficio_veedor_form.oficio_incorporado }} <span>{{ oficio_veedor_form.oficio_incorporado.label }}</span></label>
+      </div>
+      <div class="actions"><button type="submit" class="button button-secondary">Guardar constancia del oficio</button></div>
+      <p class="field-help">Si desmarcás y guardás, la verificación se revoca conservando el historial.</p>
+    </form>
+  {% else %}
+    <p class="field-help">La edición requiere permisos de Control documental.</p>
+  {% endif %}
+  {% if oficio_veedor_control.actualizado_por %}<p class="field-help"><a href="{% url 'concursos:control_historial' concurso.pk oficio_veedor_control.pk %}">Historial de verificaciones</a></p>{% endif %}
+</section>

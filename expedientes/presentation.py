@@ -29,9 +29,17 @@ def contexto_documental(concurso, *, jurados, error=None, error_etapa=None):
         formulario = error[1] if error and error[0] == control.pk else ControlDocumentalForm(
             instance=control, prefix=f"control-{control.pk}",
         )
+
+        destino = {
+            "acta_inscriptos": "aspirantes",
+            "jurado_dependencia": "jurados",
+            "jurado_rectorado": "jurados",
+            "jurado_personal": "jurados",
+            "oficio_apunsj": "veedores",
+        }.get(requisito.codigo)
         grupos[requisito.seccion].append({
             "numero": numero, "control": control, "requisito": requisito, "estado": estado, "form": formulario,
-            "estado_clase": estado_clase,
+            "estado_clase": estado_clase, "destino_participantes": destino,
         })
     return {
         "documentacion": documentacion,

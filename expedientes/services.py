@@ -5,7 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from concursos.choices import EstadoConcurso, SituacionAdministrativa
-from participantes.models import Jurado
+from participantes.models import Aspirante, Jurado
 
 from .catalogo import REQUISITOS, SECCIONES
 from .models import CambioControlDocumental, ControlDocumental, SeguimientoDocumental, CambioEtapaDocumental
@@ -46,6 +46,7 @@ def instantanea(control):
         "partida_principal": control.partida_principal,
         "actividad_presupuestaria": control.actividad_presupuestaria,
         "observaciones": control.observaciones,
+        "cantidad_cotejada": control.cantidad_cotejada,
         "responsable_id": control.responsable_id,
         "verificado_en": control.verificado_en.isoformat() if control.verificado_en else None,
     }
@@ -79,8 +80,13 @@ def _avanzar_documentacion_previa(*, seguimiento, controles_previos, estaba_comp
     )
 
 
+# Solo la confirmación explícita desde Aspirantes puede actualizar esta instantánea.
+_SIN_COTEJO = object()
+
+
 @transaction.atomic
-def actualizar_control(*, concurso_id, control_id, datos, usuario, version_esperada):
+def actualizar_control(*, concurso_id, control_id, datos, usuario, version_esperada,
+                       cantidad_cotejada=_SIN_COTEJO):
     if not usuario.has_perms(("concursos.view_concurso", "expedientes.change_controldocumental")):
         raise PermissionDenied
     # Orden de bloqueo compartido con actualizar_etapa: primero seguimiento.
@@ -104,6 +110,15 @@ def actualizar_control(*, concurso_id, control_id, datos, usuario, version_esper
     for campo in ("verificado", "fojas", "partida_principal", "actividad_presupuestaria", "observaciones"):
         if campo in datos:
             setattr(control, campo, datos[campo])
+    if cantidad_cotejada is not _SIN_COTEJO:
+        if control.requisito != "acta_inscriptos" or not control.verificado or not control.fojas:
+            raise ValidationError("El cotejo requiere el acta de inscriptos verificada y con fojas.")
+        control.cantidad_cotejada = cantidad_cotejada
+    elif control.requisito == "acta_inscriptos" and (
+        control.verificado != anterior["verificado"] or control.fojas != anterior["fojas"]
+    ):
+        # Cambiar el check o la foja desde el checklist no confirma la nómina.
+        control.cantidad_cotejada = None
     control.full_clean()
     if instantanea(control) == anterior:
         return control
@@ -124,6 +139,68 @@ def actualizar_control(*, concurso_id, control_id, datos, usuario, version_esper
             estaba_completa=estaba_completa, usuario=usuario,
         )
     return control
+
+
+@transaction.atomic
+def cotejar_acta_inscriptos(*, concurso_id, fojas, cantidad_vista, usuario, version_esperada):
+    """Verificación voluntaria del acta desde Aspirantes, usando el control existente.
+
+    La cantidad visible debe seguir siendo la actual; no se carga a mano ni se
+    presupone a partir de la sola existencia de inscripciones.
+    """
+    cantidad_actual = Aspirante.objects.filter(concurso_id=concurso_id).count()
+    if cantidad_actual != cantidad_vista:
+        raise ValidationError(
+            "La nómina cambió desde que abriste la ficha. Revisá los aspirantes y volvé a confirmar."
+        )
+    control = ControlDocumental.objects.get(concurso_id=concurso_id, requisito="acta_inscriptos")
+    return actualizar_control(
+        concurso_id=concurso_id, control_id=control.pk,
+        datos={"fojas": fojas, "verificado": True}, usuario=usuario,
+        version_esperada=version_esperada, cantidad_cotejada=cantidad_actual,
+    )
+
+
+# La indicación inicial se acredita por representación; no son tres campos de los jurados.
+JURADO_REQUISITO_POR_REPRESENTACION = {
+    "dependencia": "jurado_dependencia",
+    "rectorado": "jurado_rectorado",
+    "personal": "jurado_personal",
+}
+
+
+def registrar_fojas_indicacion_jurado(*, concurso_id, representacion, fojas, version_esperada, usuario):
+    """Acredita el documento solo con fojas y las dos plazas registradas.
+
+    No verifica nada automáticamente por crear un jurado: el operador debe
+    registrar la referencia documental. Borrar las fojas revoca la verificación.
+    """
+    codigo = JURADO_REQUISITO_POR_REPRESENTACION.get(representacion)
+    if codigo is None:
+        raise ValidationError("Representación del jurado no válida.")
+    if fojas:
+        plazas = set(Jurado.objects.filter(concurso_id=concurso_id, representacion=representacion)
+                     .values_list("calidad", flat=True))
+        if not {Jurado.Calidad.TITULAR, Jurado.Calidad.SUPLENTE} <= plazas:
+            raise ValidationError(
+                "Antes de verificar esta indicación, registrá el titular y el suplente de la representación."
+            )
+    control = ControlDocumental.objects.get(concurso_id=concurso_id, requisito=codigo)
+    return actualizar_control(
+        concurso_id=concurso_id, control_id=control.pk,
+        datos={"fojas": fojas, "verificado": bool(fojas)},
+        usuario=usuario, version_esperada=version_esperada,
+    )
+
+
+def registrar_oficio_apunsj(*, concurso_id, incorporado, version_esperada, usuario):
+    """El oficio no exige que APUNSJ ya haya designado un veedor."""
+    control = ControlDocumental.objects.get(concurso_id=concurso_id, requisito="oficio_apunsj")
+    return actualizar_control(
+        concurso_id=concurso_id, control_id=control.pk,
+        datos={"verificado": incorporado},
+        usuario=usuario, version_esperada=version_esperada,
+    )
 
 
 @dataclass(frozen=True)

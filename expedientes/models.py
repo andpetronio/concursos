@@ -14,6 +14,9 @@ class ControlDocumental(models.Model):
     partida_principal = models.CharField("Partida principal (2 dígitos)", max_length=2, blank=True)
     actividad_presupuestaria = models.CharField("Actividad (2 dígitos)", max_length=2, blank=True)
     observaciones = models.TextField("Observaciones", max_length=2000, blank=True)
+    # Instantánea automática del número de inscriptos al confirmar el cotejo desde Aspirantes.
+    # No es un segundo padrón ni un dato que el operador tenga que escribir.
+    cantidad_cotejada = models.PositiveIntegerField(null=True, blank=True, editable=False)
     responsable = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
                                     related_name="controles_verificados")
     verificado_en = models.DateTimeField(null=True, blank=True)

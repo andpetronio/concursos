@@ -82,7 +82,12 @@ def panel_seguimiento(concurso, *, documentacion, secciones, cuadro, aspirantes)
     sin_continuidad = cuadro.get("sin_continuidad", [])
     evaluaciones_pendientes = cuadro.get("evaluaciones_pendientes", [])
     acta = next((c for c in documentacion.controles if c.requisito == "acta_inscriptos"), None)
-    sin_carga = bool(acta and acta.completo and not aspirantes)
+    # Un cero confirmado desde Aspirantes no es una carga faltante.
+    sin_carga = bool(acta and acta.completo and not aspirantes and acta.cantidad_cotejada is None)
+    cotejo_desactualizado = bool(
+        acta and acta.completo and acta.cantidad_cotejada is not None
+        and acta.cantidad_cotejada != len(aspirantes)
+    )
     avisos = []
     if concurso.situacion != "normal":
         avisos.append({
@@ -101,6 +106,12 @@ def panel_seguimiento(concurso, *, documentacion, secciones, cuadro, aspirantes)
             "titulo": "Acta de inscriptos verificada, sin aspirantes cargados",
             "detalle": "Conciliá la carga con el acta. La ausencia de registros no acredita por sí sola un concurso sin inscriptos.",
             "destino": "aspirantes", "enlace": "Revisar inscripciones",
+        })
+    if cotejo_desactualizado:
+        avisos.append({
+            "titulo": "Revisar cotejo de la nómina de inscriptos",
+            "detalle": "La cantidad de aspirantes cambió desde la última confirmación del acta.",
+            "destino": "aspirantes", "enlace": "Confirmar nómina",
         })
     if evaluaciones_pendientes and documentacion.seguimiento.etapa in ("oposicion", "finalizacion"):
         avisos.append({
@@ -134,6 +145,12 @@ def panel_seguimiento(concurso, *, documentacion, secciones, cuadro, aspirantes)
             "titulo": "Conciliar el acta de inscriptos con la carga de aspirantes",
             "detalle": "El acta está verificada, pero SiCon no tiene aspirantes registrados. No presupone un concurso desierto.",
             "destino": "aspirantes", "enlace": "Revisar aspirantes",
+        }
+    elif cotejo_desactualizado:
+        proxima = {
+            "titulo": "Revisar el cotejo del acta de inscriptos",
+            "detalle": "La cantidad de aspirantes cambió desde la confirmación anterior.",
+            "destino": "aspirantes", "enlace": "Confirmar nómina",
         }
     elif pendientes_exigibles:
         primero = pendientes_exigibles[0]

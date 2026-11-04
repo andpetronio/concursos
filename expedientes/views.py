@@ -9,12 +9,12 @@ from django.views.generic import ListView
 
 from concursos.views import AccesoConcursoMixin, ConcursoDetailView
 
-from .forms import ControlDocumentalForm, EtapaDocumentalForm
+from .forms import ControlDocumentalForm, CotejoActaInscriptosForm, EtapaDocumentalForm
 from .catalogo import SECCIONES
 from .models import ControlDocumental, SeguimientoDocumental
 from .presentation import estado_de_control
 from .services import consultar_documentacion
-from .services import actualizar_control, actualizar_etapa
+from .services import actualizar_control, actualizar_etapa, cotejar_acta_inscriptos
 
 
 class ControlDocumentalUpdateView(ConcursoDetailView):
@@ -103,6 +103,91 @@ class ControlDocumentalUpdateView(ConcursoDetailView):
                             for mensajes in errores.values() for texto in mensajes)
             return JsonResponse({"ok": False, "errores": errores}, status=409 if conflicto else 400)
         self.documental_error = (control.pk, form)
+        return self.render_to_response(self.get_context_data())
+
+
+class CotejoActaInscriptosView(ConcursoDetailView):
+    """Acción explícita desde Aspirantes. No se ejecuta al crear participaciones."""
+    permission_required = ("concursos.view_concurso", "expedientes.change_controldocumental")
+    http_method_names = ["post"]
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        form = CotejoActaInscriptosForm(request.POST)
+        if form.is_valid():
+            try:
+                cotejar_acta_inscriptos(
+                    concurso_id=self.object.pk,
+                    fojas=form.cleaned_data["fojas"],
+                    cantidad_vista=form.cleaned_data["cantidad_vista"],
+                    version_esperada=form.cleaned_data["version_esperada"],
+                    usuario=request.user,
+                )
+            except ValidationError as error:
+                form.add_error(None, error)
+            else:
+                messages.success(request, "El acta de inscriptos quedó verificada y la nómina fue cotejada.")
+                return redirect(f"{self.object.get_absolute_url()}#aspirantes")
+        self.cotejo_acta_error = form
+        return self.render_to_response(self.get_context_data())
+
+
+class IndicacionJuradoFojasView(ConcursoDetailView):
+    """Fojas y verificación del documento, desde la pestaña Jurados."""
+    permission_required = ("concursos.view_concurso", "expedientes.change_controldocumental")
+    http_method_names = ["post"]
+
+    def post(self, request, *args, **kwargs):
+        from .forms import FojasIndicacionJuradoForm
+        from .services import registrar_fojas_indicacion_jurado, JURADO_REQUISITO_POR_REPRESENTACION
+        from django.http import Http404
+
+        self.object = self.get_object()
+        representacion = kwargs["representacion"]
+        if representacion not in JURADO_REQUISITO_POR_REPRESENTACION:
+            raise Http404
+        form = FojasIndicacionJuradoForm(request.POST, prefix=f"indicacion-{representacion}")
+        if form.is_valid():
+            try:
+                registrar_fojas_indicacion_jurado(
+                    concurso_id=self.object.pk, representacion=representacion,
+                    fojas=form.cleaned_data["fojas"],
+                    version_esperada=form.cleaned_data["version_esperada"],
+                    usuario=request.user,
+                )
+            except ValidationError as error:
+                form.add_error(None, error)
+            else:
+                messages.success(request, "La indicación del jurado quedó actualizada en Control documental.")
+                return redirect(f"{self.object.get_absolute_url()}#jurados")
+        self.indicacion_jurado_error = (representacion, form)
+        return self.render_to_response(self.get_context_data())
+
+
+class OficioAPUNSJDesdeVeedoresView(ConcursoDetailView):
+    """El mismo requisito de oficio a APUNSJ, sin duplicarlo en Veedores."""
+    permission_required = ("concursos.view_concurso", "expedientes.change_controldocumental")
+    http_method_names = ["post"]
+
+    def post(self, request, *args, **kwargs):
+        from .forms import OficioAPUNSJForm
+        from .services import registrar_oficio_apunsj
+        self.object = self.get_object()
+        form = OficioAPUNSJForm(request.POST, prefix="oficio-apunsj")
+        if form.is_valid():
+            try:
+                registrar_oficio_apunsj(
+                    concurso_id=self.object.pk,
+                    incorporado=form.cleaned_data["oficio_incorporado"],
+                    version_esperada=form.cleaned_data["version_esperada"],
+                    usuario=request.user,
+                )
+            except ValidationError as error:
+                form.add_error(None, error)
+            else:
+                messages.success(request, "La constancia del oficio a APUNSJ quedó actualizada.")
+                return redirect(f"{self.object.get_absolute_url()}#veedores")
+        self.oficio_veedor_error = form
         return self.render_to_response(self.get_context_data())
 
 

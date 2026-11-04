@@ -43,6 +43,49 @@ class ControlDocumentalForm(forms.ModelForm):
         return normalizar_codigo_dos_digitos(self.cleaned_data["actividad_presupuestaria"])
 
 
+class CotejoActaInscriptosForm(forms.Form):
+    """El operador confirma la nómina; la cantidad nunca se escribe a mano."""
+    version_esperada = forms.IntegerField(min_value=1, widget=forms.HiddenInput)
+    cantidad_vista = forms.IntegerField(min_value=0, widget=forms.HiddenInput)
+    fojas = forms.CharField(
+        label="Fojas del acta", max_length=50, required=True,
+        widget=forms.TextInput(attrs={"placeholder": "Ej.: 45/48"}),
+        help_text="Indicá una foja o un rango del expediente.",
+    )
+    confirmar_nomina = forms.BooleanField(
+        label="Confirmo que la nómina registrada en SiCon coincide con el acta de inscriptos.",
+        required=True,
+    )
+
+    def clean_fojas(self):
+        fojas = normalizar_fojas(self.cleaned_data["fojas"])
+        if not fojas:
+            raise forms.ValidationError("Indicá las fojas del acta antes de verificarla.")
+        return fojas
+
+
+class FojasIndicacionJuradoForm(forms.Form):
+    """La indicación se verifica al registrar fojas con ambas plazas cubiertas."""
+    version_esperada = forms.IntegerField(min_value=1, widget=forms.HiddenInput)
+    fojas = forms.CharField(
+        label="Fojas de la indicación", max_length=50, required=False,
+        widget=forms.TextInput(attrs={"placeholder": "Ej.: 12/15"}),
+        help_text="Las fojas verifican el requisito si están registrados titular y suplente.",
+    )
+
+    def clean_fojas(self):
+        return normalizar_fojas(self.cleaned_data["fojas"])
+
+
+class OficioAPUNSJForm(forms.Form):
+    """Confirmación del oficio, independiente del registro de veedores."""
+    version_esperada = forms.IntegerField(min_value=1, widget=forms.HiddenInput)
+    oficio_incorporado = forms.BooleanField(
+        label="El oficio de solicitud a APUNSJ está incorporado al expediente.",
+        required=False,
+    )
+
+
 class EtapaDocumentalForm(forms.ModelForm):
     version_esperada = forms.IntegerField(min_value=1, widget=forms.HiddenInput)
 

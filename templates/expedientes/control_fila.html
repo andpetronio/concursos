@@ -1,5 +1,20 @@
 <article id="documental-{{ fila.control.pk }}" class="document-control" aria-labelledby="documental-titulo-{{ fila.control.pk }}">
-  {% if perms.expedientes.change_controldocumental %}
+  {% if fila.destino_participantes %}
+    <div class="document-control-overview">
+      <div class="document-control-identity">
+        <h4 id="documental-titulo-{{ fila.control.pk }}">{{ fila.numero }}. {{ fila.requisito.nombre }}</h4>
+        <div class="document-control-facts" data-document-facts>
+          {% if fila.requisito.requiere_foja %}<span>Fojas: <strong data-document-fojas>{{ fila.control.fojas|default:"Sin registrar" }}</strong></span>{% endif %}
+        </div>
+      </div>
+      <span class="document-control-status document-control-status--{{ fila.estado_clase }}" data-document-state>{{ fila.estado }}</span>
+    </div>
+    <p class="field-help">La constancia se gestiona desde <a href="#{{ fila.destino_participantes }}">{{ fila.destino_participantes|capfirst }}</a>. Este apartado muestra el mismo control documental.</p>
+    {% if fila.requisito.ayuda %}<p class="field-help">{{ fila.requisito.ayuda }}</p>{% endif %}
+    {% if fila.control.observaciones %}
+      <p class="document-observation"><strong>Observaciones:</strong> {{ fila.control.observaciones }}</p>
+    {% endif %}
+  {% elif perms.expedientes.change_controldocumental %}
     <form method="post" action="{% url 'concursos:control_documental' concurso.pk fila.control.pk %}#documental-{{ fila.control.pk }}" class="document-toggle-form{% if fila.form.errors %} document-toggle-form--errors{% endif %}" data-document-requirement="{{ fila.requisito.codigo }}" data-document-fojas-required="{{ fila.requisito.requiere_foja|yesno:'true,false' }}" data-document-budget-required="{% if fila.control.requisito == 'afectacion_presupuestaria' %}true{% else %}false{% endif %}" aria-labelledby="documental-titulo-{{ fila.control.pk }}">
       {% csrf_token %}
       {% for hidden in fila.form.hidden_fields %}{{ hidden }}{{ hidden.errors }}{% endfor %}
