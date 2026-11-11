@@ -112,6 +112,15 @@ class GeneracionForm(forms.Form):
                     label="Confirmo que el acta de cierre de inscripciones acredita que no se presentaron aspirantes",
                     help_text="Verificá el contenido del acta y las fojas del expediente. No basta con que SiCon tenga cero aspirantes cargados.")
             if tipo.codigo == "dictamen":
+                if concurso.aspirantes.exclude(situacion="inscripto").exists():
+                    self.fields["confirmar_situaciones_individuales"] = forms.BooleanField(
+                        required=True,
+                        label=("Revisé las actuaciones individuales, sus fojas y sus fundamentos; "
+                               "no quedan impugnaciones sin resolver"),
+                        help_text=("El proyecto incorporará considerandos de una variante "
+                                   "sujeta a revisión administrativa. No asigna puntajes a quienes "
+                                   "no continuaron en la oposición."),
+                    )
                 self.fields["confirmacion_sin_recursos"] = forms.BooleanField(
                     label="Confirmo que no hay recursos contra el dictamen pendientes de resolución",
                     required=True,
@@ -142,6 +151,11 @@ class GeneracionForm(forms.Form):
                     ("confirmar_notificacion", "Confirmo que el dictamen fue notificado en el plazo indicado y no fue recurrido"),
                     ("confirmar_notificacion_sorteo", "Confirmo la presencia y la comunicación del sorteo indicadas en el modelo"),
                 ):
+                    if (nombre == "confirmar_sin_impugnaciones" and tipo.codigo == "dictamen"
+                            and concurso.aspirantes.exclude(situacion="inscripto").exists()):
+                        # La variante suprime la afirmación literal de que no hubo
+                        # impugnaciones, incompatible con exclusiones por resolución.
+                        continue
                     self.fields[nombre] = forms.BooleanField(required=True, label=etiqueta,
                         help_text="El DOCX reproduce literalmente esta afirmación del modelo; acreditala en el expediente.")
             if tipo.codigo == "sorteo_acta":
@@ -201,6 +215,18 @@ class GeneracionForm(forms.Form):
                     label="¿Corresponde limitar una designación anterior?", coerce=lambda valor: valor == "si",
                     choices=[("", "Seleccioná expresamente"), ("si", "Sí, con texto completo acreditado"), ("no", "No corresponde")])
 
+        # Las fechas, horas y autoridad se ofrecen desde el último BORRADOR de
+        # acta de sorteo del mismo concurso. Un POST siempre prevalece: no se
+        # completan datos faltantes ni confirmaciones a espaldas del operador.
+        self.sugerencias_dictamen = {}
+        self.origen_sugerencias_dictamen = None
+        if tipo and tipo.codigo == "dictamen":
+            from .reutilizacion_dictamen import sugerencias_dictamen
+            self.sugerencias_dictamen, self.origen_sugerencias_dictamen = sugerencias_dictamen(concurso)
+            if not self.is_bound:
+                for nombre, valor in self.sugerencias_dictamen.items():
+                    self.initial.setdefault(nombre, valor)
+
     def clean(self):
         datos = super().clean()
         # CheckboxInput interpreta cualquier cadena no vacía como True, incluso
@@ -209,7 +235,7 @@ class GeneracionForm(forms.Form):
         confirmaciones = (
             "confirmacion_acta_sin_inscriptos", "confirmacion_sin_recursos",
             "confirmar_suscriptores", "confirmar_unanimidad",
-            "confirmar_sin_impugnaciones", "confirmar_notificacion",
+            "confirmar_sin_impugnaciones", "confirmar_situaciones_individuales", "confirmar_notificacion",
             "confirmar_notificacion_sorteo",
         )
         for nombre in confirmaciones:

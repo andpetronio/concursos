@@ -29,7 +29,7 @@ TIPOS = (
                   "Sin datos complementarios: fecha automática y resolución desde la ficha", "Requiere resolución oficial de convocatoria registrada", "apunsj-3"),
     TipoDocumento("dictamen", "Proyecto de resolución de aprobación del dictamen", "Sin presunción de resultados ni hechos administrativos.",
                   "PROYECTO RES. APROBANDO DICTAMEN.docx", "Concurso, jurados, aspirantes y actuaciones verificadas",
-                  "Puntajes estructurados /34 y /51, fechas y autoridad del sorteo, confirmaciones expresas", "La evaluación de todos los aspirantes y el orden sin empates pendientes son obligatorios", "dictamen-fuente-1"),
+                  "Puntajes estructurados /34 y /51, fechas y autoridad del sorteo, confirmaciones expresas", "La evaluación de quienes continúan y el orden sin empates pendientes son obligatorios; las situaciones individuales requieren respaldo", "dictamen-fuente-2"),
     TipoDocumento("sorteo_acta", "Acta de sorteo de temas", "Acta editable con autoridad fiscalizadora, jurados, aspirantes y veeduría presentes.",
                   "Acta de sorteo de temas.docx", "Concurso, jurados, aspirantes y resolución oficial de convocatoria",
                   "Fecha y hora, autoridad fiscalizadora, asistentes, resultado del sorteo y prueba de oposición",

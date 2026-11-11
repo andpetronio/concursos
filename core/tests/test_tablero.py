@@ -112,6 +112,39 @@ class TableroTests(TestCase):
         self.assertIn("No se presume concurso desierto", item["detalle"])
         self.assertEqual(item["destino"], concurso.get_absolute_url() + "#aspirantes")
 
+    def test_cero_inscriptos_cotejado_no_produce_alerta_falsa(self):
+        concurso = self.concurso()
+        control = concurso.controles_documentales.get(requisito="acta_inscriptos")
+        control.verificado = True
+        control.fojas = "10"
+        control.cantidad_cotejada = 0
+        control.save(update_fields=["verificado", "fojas", "cantidad_cotejada"])
+        tablero = construir_tablero()
+        self.assertFalse(any(
+            item["pk"] == concurso.pk and "acta" in item["motivo"].lower()
+            for item in tablero["atencion"]
+        ))
+        self.assertEqual(tablero["totales"]["atencion_administrativa"], 0)
+
+    def test_cotejo_desactualizado_tiene_alerta_aunque_haya_aspirantes(self):
+        concurso = self.concurso()
+        control = concurso.controles_documentales.get(requisito="acta_inscriptos")
+        control.verificado = True
+        control.fojas = "10"
+        control.cantidad_cotejada = 0
+        control.save(update_fields=["verificado", "fojas", "cantidad_cotejada"])
+        persona = Persona.objects.create(
+            nombre="Ejemplo", apellido="Prueba", dni="90001012",
+            creado_por=self.usuario, actualizado_por=self.usuario,
+        )
+        Aspirante.objects.create(
+            concurso=concurso, persona=persona,
+            creado_por=self.usuario, actualizado_por=self.usuario,
+        )
+        item = construir_tablero()["atencion"][0]
+        self.assertEqual(item["motivo"], "Revisar cotejo del acta de inscriptos")
+        self.assertEqual(item["destino"], concurso.get_absolute_url() + "#aspirantes")
+
     def test_impugnaciones_se_revisan_sin_inferir_exclusion(self):
         concurso = self.concurso()
         persona = Persona.objects.create(nombre="Ejemplo", apellido="Prueba", dni="90001011",

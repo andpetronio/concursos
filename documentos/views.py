@@ -164,6 +164,9 @@ class GeneracionView(AccesoConcursoMixin, FormView):
             contexto["campos_complementarios"] = [campo for campo in visibles
                 if not campo.name.startswith("presupuesto_") and campo.name != "revision_administrativa"]
             contexto["campos_presupuesto"] = [campo for campo in visibles if campo.name.startswith("presupuesto_")]
+            if self.get_tipo().codigo == "dictamen":
+                from .reutilizacion_dictamen import grupos_campos_dictamen
+                contexto["grupos_dictamen"] = grupos_campos_dictamen(form)
             contexto["errores_presupuesto"] = any(campo.errors for campo in contexto["campos_presupuesto"])
             contexto["campo_revision_administrativa"] = next(
                 (campo for campo in visibles if campo.name == "revision_administrativa"), None)

@@ -165,6 +165,8 @@
       </div>
       {% if disponibilidad.tipo.codigo == "sorteo_acta" %}
         {% include "documentos/sorteo_campos.html" with form=form %}
+      {% elif disponibilidad.tipo.codigo == "dictamen" %}
+        {% include "documentos/dictamen_campos.html" with grupos=grupos_dictamen %}
       {% else %}
       <div class="document-review-form-grid">
         {% for field in campos_complementarios %}

@@ -139,3 +139,16 @@ Migración atómica con preflight de todos los registros. Acepta códigos o deno
 - La tabla de aspirantes muestra la situación; conserva Evaluación como acción rápida y agrupa las restantes acciones en un menú nativo, accesible sin JavaScript. Consultar historial requiere permiso de lectura; registrar actuaciones requiere escritura.
 - No habilitados, excluidos y desistidos no se ofrecen para el sorteo ni computan como evaluaciones pendientes u orden de mérito. Los puntajes históricos no se borran. Ante situaciones que las plantillas ordinarias no contemplan, SiCon bloquea su emisión hasta disponer de una variante institucional revisada.
 - Se implementa la migración `participantes.0005_situacion_aspirante`; no modifica estados globales del concurso ni da por emitidas actuaciones oficiales.
+
+## Variante de borrador de dictamen con situaciones individuales (11/11/2026)
+- Alcance: **solo proyecto de aprobación del dictamen**. No modifica calificaciones, orden de mérito ni el circuito de designación; la designación continúa bloqueada ante situaciones excepcionales hasta revisar su modelo específico.
+- Se permite preparar el DOCX cuando los aspirantes no habilitados, excluidos o desistidos tengan una **actuación vigente concordante** con clase de documento, fecha, identificación, fojas y fundamento. Impugnaciones todavía en trámite continúan bloqueando. La revisión exige confirmación humana expresa.
+- El modelo Word fuente no se altera: se inserta un considerando por actuación y se adaptan únicamente las afirmaciones generales incompatibles con esas situaciones. Los inscritos siguen identificados en el acta; los no habilitados **no requieren ni reciben puntajes** ni integran el orden de mérito. El borrador variante se identifica como **sujeto a revisión administrativa**, nunca como modelo institucional aprobado o resolución emitida.
+- Las actuaciones de los aspirantes se guardan en la instantánea y huella de revisión. Cambios posteriores en la actuación invalidan una revisión previa, sin alterar DOCX históricos.
+- El texto de la variante y las referencias al expediente **requieren conformidad administrativa/institucional antes de utilizarse**. Sin migraciones ni modificación de expedientes oficiales.
+
+## Formulario de dictamen: reutilización del borrador de sorteo (11/11/2026)
+- Para el **proyecto de aprobación del dictamen**, SiCon propone en el formulario fechas, horas y autoridad fiscalizadora desde los complementarios del **último borrador de acta de sorteo del mismo concurso**, cuando existen. No traslada resultados, asistentes, afirmaciones ni confirmaciones.
+- La procedencia se identifica en pantalla con número y fecha del registro. **El borrador no acredita la actuación**: el operador puede corregir todos los valores y debe contrastarlos con el expediente. Un POST incompleto nunca se completa desde datos históricos por detrás.
+- Se separan visualmente datos ya recuperados del sistema, campos propuestos desde un borrador, datos que faltan revisar y confirmaciones expresas. Las confirmaciones no se marcan automáticamente; la validación de servidor y los DOCX permanecen sin cambios.
+- No se agregan campos persistentes, migraciones ni nuevas presunciones documentales. La mejora no modifica designación ni el acta de sorteo.

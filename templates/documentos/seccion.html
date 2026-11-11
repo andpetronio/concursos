@@ -62,6 +62,8 @@
                   <p class="field-help">Estos datos pertenecen únicamente al borrador. No modifican la ficha ni acreditan actuaciones.</p>
                   {% if documento.tipo.codigo == "sorteo_acta" %}
                     {% include "documentos/sorteo_campos.html" with form=documento.formulario %}
+                  {% elif documento.tipo.codigo == "dictamen" %}
+                    {% include "documentos/dictamen_campos.html" with grupos=documento.grupos_dictamen %}
                   {% else %}
                   <div class="document-review-form-grid">
                     {% for campo in documento.campos_complementarios %}

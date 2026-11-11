@@ -37,7 +37,7 @@ def construir_tablero(*, puede_cambiar_estado=False):
         .select_related("seguimiento_documental")
         .prefetch_related(
             Prefetch("controles_documentales", queryset=ControlDocumental.objects.only(
-                "id", "concurso_id", "requisito", "verificado", "fojas", "version"
+                "id", "concurso_id", "requisito", "verificado", "fojas", "cantidad_cotejada", "version"
             )),
             Prefetch("aspirantes", queryset=Aspirante.objects.only("id", "concurso_id", "situacion")),
         )
@@ -86,7 +86,15 @@ def construir_tablero(*, puede_cambiar_estado=False):
 
         aspirantes = list(concurso.aspirantes.all())
         acta = por_codigo.get("acta_inscriptos")
-        acta_sin_carga = bool(acta and acta.completo and not aspirantes)
+        # Un cero cotejado expresamente es válido; una nómina modificada
+        # después del cotejo sí requiere atención, incluso si ahora está vacía.
+        acta_sin_carga = bool(
+            acta and acta.completo and not aspirantes and acta.cantidad_cotejada is None
+        )
+        cotejo_desactualizado = bool(
+            acta and acta.completo and acta.cantidad_cotejada is not None
+            and acta.cantidad_cotejada != len(aspirantes)
+        )
         impugnaciones = sum(
             aspirante.situacion == Aspirante.Situacion.IMPUGNACION_PENDIENTE
             for aspirante in aspirantes
@@ -138,6 +146,13 @@ def construir_tablero(*, puede_cambiar_estado=False):
             orden, motivo, detalle, destino = (
                 1, "Conciliar el acta de inscriptos",
                 "El acta está verificada, pero no hay aspirantes cargados. No se presume concurso desierto.",
+                ficha + "#aspirantes",
+            )
+            grupo = atencion
+        elif cotejo_desactualizado:
+            orden, motivo, detalle, destino = (
+                1, "Revisar cotejo del acta de inscriptos",
+                "La cantidad de aspirantes cambió desde la última confirmación del acta.",
                 ficha + "#aspirantes",
             )
             grupo = atencion

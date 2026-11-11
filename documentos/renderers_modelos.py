@@ -280,7 +280,83 @@ def _postulantes(documento, datos):
         _reemplazar(p, {match.group(): _lista_personas(aspirantes, con_dni=True)})
 
 
+def _incidencias_dictamen(documento, datos):
+    """Variante explícita para actuaciones individuales, sin puntajes ficticios.
+
+    Conserva el modelo Word original y ajusta únicamente las afirmaciones
+    que dejarían de ser verdaderas cuando no todos continúan la oposición.
+    """
+    incidencias = datos.get('actuaciones_aspirantes', [])
+    if not incidencias:
+        return
+    aspirantes = {a['id']: a for a in datos['aspirantes']}
+    # Rechazar modelos alterados: no insertar considerandos en lugares ambiguos.
+    ancla = [p for p in documento.paragraphs if p.text.startswith('Que en el Anexo de la Resolución')]
+    sorteo = [p for p in documento.paragraphs if p.text.startswith('Que el día {{fecha_sorteo_tema}}')]
+    dictamen = [p for p in documento.paragraphs if p.text.startswith('Que finalizada la prueba de oposición')]
+    if len(ancla) != 1 or len(sorteo) != 1 or len(dictamen) != 1:
+        raise ValidationError('Cambió el modelo de dictamen: revisar la ubicación de las actuaciones individuales.')
+    participacion_literal = 'en presencia de {{el/los}} {{postulante/s}}'
+    comunicacion_literal = ('entregándosele una copia a cada uno de {{el/los}} {{postulante/s}} '
+                            'como prueba fehaciente de comunicación')
+    inexistencia_literal = ('como así también deja constancia que no han sido interpuestas '
+                            'impugnaciones ni observaciones a los antecedentes de los postulantes.')
+    if (participacion_literal not in sorteo[0].text
+            or comunicacion_literal not in sorteo[0].text
+            or inexistencia_literal not in dictamen[0].text):
+        raise ValidationError('Cambió el modelo de dictamen: revisar las afirmaciones sobre los aspirantes.')
+
+    titulo = documento.paragraphs[1]
+    titulo.add_run(' · VARIANTE CON ACTUACIONES INDIVIDUALES (SUJETA A REVISIÓN ADMINISTRATIVA)')
+    # Los inscritos permanecen en el acta; estas actuaciones explican por qué
+    # algunos no figuran en el orden de mérito ni reciben puntajes.
+    parrafos = documento.paragraphs
+    posicion = next(i for i, p in enumerate(parrafos) if p._p is ancla[0]._p)
+    siguiente = parrafos[posicion + 1]
+    for incidencia in incidencias:
+        aspirante = aspirantes.get(incidencia['aspirante_id'])
+        if aspirante is None or aspirante.get('situacion') != incidencia['situacion']:
+            raise ValidationError('La situación individual no coincide con el aspirante registrado.')
+        nombre = _nombre(aspirante)
+        fecha = _fecha(incidencia['fecha_decision'])
+        documento_referencia = incidencia['documento']
+        fojas = incidencia['fojas']
+        if incidencia['situacion'] == 'no_habilitado':
+            hecho = (f'Que mediante el acta del Jurado identificada como «{documento_referencia}», de fecha {fecha}, '
+                     f'obrante a fojas {fojas} del expediente, se dejó constancia de que '
+                     f'{nombre}, DNI {_dni(aspirante)}, no quedó habilitado para participar '
+                     'en la prueba de oposición, por los fundamentos consignados en dicha actuación.')
+        elif incidencia['situacion'] == 'excluido':
+            hecho = (f'Que mediante la resolución identificada como «{documento_referencia}», de fecha {fecha}, '
+                     f'obrante a fojas {fojas} del expediente, se dispuso la exclusión de '
+                     f'{nombre}, DNI {_dni(aspirante)}, según los fundamentos del acto.')
+        elif incidencia['situacion'] == 'desistio':
+            hecho = (f'Que conforme a la actuación {documento_referencia}, de fecha {fecha}, '
+                     f'obrante a fojas {fojas} del expediente, se dejó constancia del '
+                     f'desistimiento de {nombre}, DNI {_dni(aspirante)}.')
+        else:
+            raise ValidationError('No hay una variante aprobada para esta situación individual.')
+        siguiente.insert_paragraph_before(hecho, style=siguiente.style)
+
+    _reemplazar_literal_obligatorio(
+        sorteo[0], participacion_literal, 'en presencia de los aspirantes que participaron del sorteo',
+        'asistencia al sorteo de temas',
+    )
+    _reemplazar_literal_obligatorio(
+        sorteo[0], comunicacion_literal,
+        'dejándose constancia de la comunicación del tema a quienes participaron del acto',
+        'comunicación del tema sorteado',
+    )
+    _reemplazar_literal_obligatorio(
+        dictamen[0], inexistencia_literal,
+        ('dejando constancia de las situaciones individuales respaldadas por las '
+         'actuaciones antes citadas, que determinaron la continuidad de los aspirantes.'),
+        'situaciones individuales del dictamen',
+    )
+
+
 def _dictamen(documento, datos):
+    _incidencias_dictamen(documento, datos)
     resultados = datos['resultados']['orden_merito']
     lineas = [f'{i}°- {r["apellido"]}, {r["nombre"]}, DNI {r["dni"]}'
               for i, r in enumerate(resultados, 1)]

@@ -440,6 +440,11 @@ body.navigation-open { overflow: hidden; }
 .document-review-data { margin-bottom: var(--space-2); }
 .document-review-data .detail-list { padding-top: .5rem; }
 .document-review-form-intro h3 { margin: 0; font-size: 1.08rem; }
+.document-dictamen-fields { display: grid; gap: var(--space-3); }
+.document-dictamen-group { padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--background); }
+.document-dictamen-group h4 { margin: 0 0 .35rem; font-size: 1rem; }
+.document-dictamen-group > .field-help { margin: 0; }
+.document-dictamen-checks { display: grid; gap: var(--space-2); margin-top: var(--space-3); }
 .document-review-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin-top: var(--space-2); }
 .document-review-form-grid .field:has(textarea) { grid-column: 1 / -1; }
 .document-review-budget { margin-top: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 var(--space-2) var(--space-2); }

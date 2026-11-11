@@ -1,0 +1,51 @@
+{# Un único bloque para la ficha y la revisión clásica. No acredita actos ni marca checks. #}
+<div class="document-dictamen-fields">
+  <section class="document-dictamen-group" aria-label="Información incorporada desde SiCon">
+    <h4>Datos que SiCon ya incorpora</h4>
+    <p class="field-help">Expediente y cargo, integrantes del jurado, actuaciones verificadas y sus fojas,
+      aspirantes habilitados y orden de mérito. Estos datos se consultan en la ficha,
+      no hace falta volver a ingresarlos acá.</p>
+  </section>
+
+  {% if grupos.reutilizados %}
+  <section class="document-dictamen-group" aria-label="Datos propuestos desde el acta de sorteo">
+    <h4>Datos propuestos desde un borrador anterior</h4>
+    <p class="field-help">Tomados del borrador de acta de sorteo de temas
+      (registro N.º {{ grupos.origen.pk }}, {{ grupos.origen.generado_en|date:"d/m/Y H:i" }}).
+      <strong>No son una constancia oficial:</strong> revisalos y corregilos según el expediente antes de generar.
+    </p>
+    <div class="document-review-form-grid">
+      {% for campo in grupos.reutilizados %}
+        {% include "components/field.html" with field=campo %}
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if grupos.pendientes %}
+  <section class="document-dictamen-group" aria-label="Datos a completar o revisar">
+    <h4>Datos que faltan completar o revisar</h4>
+    <p class="field-help">SiCon no dispone de una fuente estructurada para estos datos.
+      Completalos con las actuaciones del expediente, sin estimarlos.</p>
+    <div class="document-review-form-grid">
+      {% for campo in grupos.pendientes %}
+        {% include "components/field.html" with field=campo %}
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if grupos.confirmaciones %}
+  <section class="document-dictamen-group" aria-label="Constancias administrativas que requieren confirmación">
+    <h4>Constancias que debés confirmar</h4>
+    <p class="field-help">Estas afirmaciones figuran en el proyecto, pero SiCon no puede
+      acreditarlas a partir del checklist. Marcá cada una únicamente después de revisar el expediente.
+      Nunca se completan automáticamente.</p>
+    <div class="document-dictamen-checks">
+      {% for campo in grupos.confirmaciones %}
+        {% include "components/checkbox_field.html" with field=campo %}
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</div>

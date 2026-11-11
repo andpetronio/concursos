@@ -956,7 +956,7 @@ class ContinuacionDocumentosTests(TestCase):
         self.assertNotIn("merito", registro.instantanea["complementarios"])
         self.assertIn("cuyo orden de mérito es el siguiente", self.texto(registro))
         self.assertIn("Que por Resolución N°", self.texto(registro))
-        self.assertEqual(registro.plantilla_version, "dictamen-fuente-1")
+        self.assertEqual(registro.plantilla_version, "dictamen-fuente-2")
 
     def test_rectificacion_de_puntajes_no_cambia_documento_historico(self):
         from participantes.services import guardar_evaluacion

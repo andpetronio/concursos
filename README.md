@@ -206,3 +206,7 @@ Si la imagen todavía no incluye `python-docx`, instalar `python-docx==1.2.0` ú
 
 ### Fase 4F: situación individual de aspirantes
 En la ficha del concurso, pestaña **Aspirantes**, la columna **Situación** abre el historial. Para registrar una actuación, usar el menú **Más acciones** o el enlace a la situación; se requieren permisos de modificación, fecha, tipo de respaldo, documento, fojas y fundamento. Las actuaciones se registran sin borrar antecedentes y pueden rectificarse mediante una nueva actuación. La migración `0005_situacion_aspirante` se aplica con `python manage.py migrate`. Para las pruebas específicas: `python manage.py test participantes.tests.test_situaciones -v 2`.
+
+### Variante del proyecto de dictamen ante situaciones individuales
+
+El proyecto de aprobación del dictamen admite, como **borrador sujeto a revisión institucional**, aspirantes no habilitados para oposición, excluidos por resolución o desistidos, siempre que esté registrada la actuación correspondiente con fecha, tipo documental, identificación, fundamento y fojas. Los aspirantes que no continúan no necesitan puntajes y no figuran en el mérito; conservan su inscripción e historial. Las impugnaciones vigentes sin resolución bloquean el proyecto. La variante pide una confirmación expresa del operador y cita las actuaciones en los considerandos. No implica aprobación ni emisión de acto administrativo. **El proyecto de designación sigue bloqueado** para estos casos hasta revisar su propia plantilla. Pruebas: `python manage.py test documentos.test_dictamen_incidencias`.

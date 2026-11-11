@@ -57,8 +57,15 @@ class DetailPresentationTests(TestCase):
         self.assertContains(response, f'<h1 id="cargo-title">{self.concurso.denominacion}</h1>', html=True)
         for label in ("Expediente", "Modalidad", "Categoría", "Tramo", "Agrupamiento", "Estado administrativo", "Situación administrativa", "Etapa documental"):
             self.assertContains(response, label)
-        self.assertContains(response, "El estado solo cambia con tu confirmación")
-        self.assertContains(response, "los documentos verificados pueden sugerir un avance")
+        # Verificar la regla administrativa, sin depender de la redacción exacta
+        # del texto de ayuda (que puede cambiar sin alterar el comportamiento).
+        pagina = response.content.decode("utf-8")
+        aviso_estado = pagina.partition('class="overview-header-footer"')[2].partition("</header>")[0]
+        self.assertTrue(aviso_estado, "Falta el aviso administrativo del resumen.")
+        self.assertIn("independiente del control documental", aviso_estado.lower())
+        self.assertIn("pueden sugerir un avance", aviso_estado)
+        self.assertRegex(aviso_estado.lower(), r"\b(confirmación|confirma)\b")
+        self.assertContains(response, reverse("concursos:estado", args=[self.concurso.pk]))
         for label, value in response.context["datos_concurso"]:
             if value is None or value == "":
                 self.assertContains(response, "No registrado")
@@ -194,19 +201,34 @@ class DetailPresentationTests(TestCase):
             self.assertRedirects(response, f"{self.concurso.get_absolute_url()}#{expected}")
 
     def test_invalid_control_keeps_errors_values_and_fragment_targets(self):
-        control = self.concurso.controles_documentales.filter(requisito="propuesta_jurado_dependencia").first()
-        if control is None:
-            control = next(c for c in self.concurso.controles_documentales.all() if c.definicion.requiere_foja)
+        # Usar un requisito editable desde Control documental. Las indicaciones
+        # del jurado ahora se editan desde Jurados y no muestran allí su formulario.
+        control = self.concurso.controles_documentales.get(requisito="valoracion_antecedentes")
+        version_previa = control.version
         prefix = f"control-{control.pk}"
         url = reverse("concursos:control_documental", args=[self.concurso.pk, control.pk])
         response = self.client.post(url, {f"{prefix}-version_esperada": control.version,
             f"{prefix}-fojas": "9/2", f"{prefix}-observaciones": "Texto ingresado conservado"})
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'class="field-errors"')
-        self.assertContains(response, 'value="9/2"')
-        self.assertContains(response, "Texto ingresado conservado")
-        self.assertContains(response, f'id="documental-{control.pk}"')
-        self.assertContains(response, 'id="panel-control-documental"')
+
+        fila = next(fila for seccion in response.context["secciones_documentales"]
+                    for fila in seccion["filas"] if fila["control"].pk == control.pk)
+        self.assertIn("fojas", fila["form"].errors)
+
+        pagina = response.content.decode("utf-8")
+        inicio = f'<article id="documental-{control.pk}"'
+        self.assertTrue(inicio in pagina, "Falta el control documental en la ficha.")
+        control_html = pagina.split(inicio, 1)[1].split("</article>", 1)[0]
+        self.assertTrue('class="field-errors"' in control_html,
+                        "El campo de fojas inválido no muestra su error.")
+        self.assertTrue('value="9/2"' in control_html,
+                        "El formulario no conserva las fojas ingresadas.")
+        self.assertTrue("Texto ingresado conservado" in control_html,
+                        "El formulario no conserva las observaciones ingresadas.")
+        self.assertTrue('id="panel-control-documental"' in pagina,
+                        "El error no mantiene disponible la pestaña Control documental.")
+        control.refresh_from_db()
+        self.assertEqual(control.version, version_previa, "Un formulario inválido no debe guardar cambios.")
 
     def test_history_pagination_preserves_query_and_tab_without_javascript(self):
         from concursos.models import CambioEstado

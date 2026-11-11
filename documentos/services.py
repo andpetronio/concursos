@@ -8,6 +8,7 @@ from django.conf import settings
 from participantes.models import ActuacionJurado
 from participantes.models import Jurado, Aspirante, Veedor, Persona
 from participantes.evaluaciones import cuadro_resultados, faltantes_resultados
+from .incidencias_aspirantes import antecedentes_dictamen
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -165,10 +166,17 @@ def faltantes_modelos_fieles(concurso, tipo):
     if not concurso.jurisdiccion:
         faltantes.append("Registrar la jurisdicción del concurso.")
     if tipo.codigo in ("dictamen", "designacion"):
-        if concurso.aspirantes.filter(situacion="impugnacion_pendiente").exists():
-            faltantes.append("Existe una impugnación individual en trámite: verificar su resolución antes del proyecto ordinario.")
-        if concurso.aspirantes.exclude(situacion="inscripto").exclude(situacion="impugnacion_pendiente").exists():
-            faltantes.append("Hay aspirantes con actuaciones que impiden continuar. El modelo institucional ordinario no contempla expresamente esas incidencias: revisar una variante aprobada antes de emitir el proyecto.")
+        if tipo.codigo == "dictamen":
+            _, pendientes_situaciones = antecedentes_dictamen(concurso)
+            faltantes.extend(pendientes_situaciones)
+        else:
+            # La designación mantiene el bloqueo hasta disponer de una variante
+            # revisada específicamente para su texto dispositivo.
+            if concurso.aspirantes.exclude(situacion="inscripto").exists():
+                faltantes.append(
+                    "Hay aspirantes con situaciones individuales que requieren revisar "
+                    "una variante del proyecto de designación."
+                )
         if not concurso.iniciador_nombre:
             faltantes.append("Completar los datos del iniciador del expediente.")
         if not concurso.iniciador_tratamiento:
@@ -272,6 +280,9 @@ def contexto_documentos(concurso, *, usuario=None, formulario_error_tipo=None, f
             documento["campos_complementarios"] = [c for c in campos
                 if c.name != "revision_administrativa" and not c.name.startswith("presupuesto_")]
             documento["campos_presupuesto"] = [c for c in campos if c.name.startswith("presupuesto_")]
+            if tipo.codigo == "dictamen":
+                from .reutilizacion_dictamen import grupos_campos_dictamen
+                documento["grupos_dictamen"] = grupos_campos_dictamen(formulario)
             documento["campo_revision"] = next((c for c in campos if c.name == "revision_administrativa"), None)
             documento["tiene_complementos"] = bool(campos)
             documento["formulario_con_errores"] = bool(formulario.errors)
@@ -425,6 +436,10 @@ def fuentes_actuales(concurso, tipo, *, bloquear=False):
         "concurso": instantanea_concurso(concurso),
         "jurados": [participacion(j, ("titulo", "unidad", "representacion", "calidad", "version")) for j in jurados],
         "aspirantes": [participacion(a, ("email", "expediente_inscripcion", "situacion", "version")) for a in aspirantes],
+        # Parte de la huella de revisión. Evita reutilizar un borrador si cambió
+        # el respaldo de una situación individual desde la previsualización.
+        "actuaciones_aspirantes": antecedentes_dictamen(concurso)[0]
+            if tipo.codigo == "dictamen" else [],
         "veedores": [participacion(v, ("cargo", "version")) for v in veedores],
         "actuaciones_jurado": [{
             "id": a.pk, "jurado_id": a.jurado_id, "tipo": a.tipo, "motivo": a.motivo,
