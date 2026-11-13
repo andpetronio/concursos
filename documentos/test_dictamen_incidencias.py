@@ -39,12 +39,14 @@ class DictamenConActuacionesTests(TestCase):
             creado_por=self.operador, actualizado_por=self.operador,
         )
 
-    def actuacion(self, tipo='no_habilitacion', clase='acta', documento='Acta del Jurado Nº 14/26'):
+    def actuacion(self, tipo='exclusion', clase='acta', documento='Acta del Jurado Nº 14/26',
+                  motivo='requisitos'):
         return registrar_actuacion(
             aspirante=self.no_continua, tipo=tipo, usuario=self.operador,
             fecha_decision=date(2026, 11, 4), clase_documento=clase,
             documento=documento, fojas='45/47',
             fundamento='Fundamentos documentados en la actuación ficticia.',
+            motivo_exclusion=motivo,
             version_esperada=self.no_continua.version,
         )
 
@@ -79,7 +81,7 @@ class DictamenConActuacionesTests(TestCase):
         self.assertNotIn('{{', '\n'.join(p.text for p in doc.paragraphs))
 
     def test_exclusion_por_resolucion_no_afirma_ausencia_de_impugnaciones(self):
-        self.actuacion('exclusion', 'resolucion', 'Resolución 1988/26-R')
+        self.actuacion('exclusion', 'resolucion', 'Resolución 1988/26-R', 'impugnacion_aceptada')
         self.assertTrue(services.disponibilidad(self.concurso, POR_CODIGO['dictamen'])['disponible'])
         form = GeneracionForm(tipo=POR_CODIGO['dictamen'], concurso=self.concurso)
         self.assertNotIn('confirmar_sin_impugnaciones', form.fields)
@@ -90,13 +92,14 @@ class DictamenConActuacionesTests(TestCase):
         self.assertNotIn('no han sido interpuestas impugnaciones', texto)
 
     def test_desistimiento_documentado_puede_reflejarse_sin_evaluacion(self):
-        self.actuacion('desistimiento', 'nota', 'Nota de desistimiento Nº 3/26')
+        self.actuacion('desistimiento', 'nota', 'Nota de desistimiento Nº 3/26', '')
         texto = self.texto(self.generar_tipo('dictamen', self.datos()))
         self.assertIn('se dejó constancia del desistimiento', texto)
         self.assertIn('Nota de desistimiento Nº 3/26', texto)
 
     def test_situacion_sin_respaldo_valido_bloquea_y_no_emite(self):
-        Aspirante.objects.filter(pk=self.no_continua.pk).update(situacion='no_habilitado', version=2)
+        Aspirante.objects.filter(pk=self.no_continua.pk).update(
+            situacion='excluido', motivo_exclusion='requisitos', version=2)
         faltantes = services.disponibilidad(self.concurso, POR_CODIGO['dictamen'])['faltantes']
         self.assertTrue(any('actuación que respalda' in f for f in faltantes))
         with self.assertRaisesMessage(ValidationError, 'actuación que respalda'):
@@ -112,7 +115,7 @@ class DictamenConActuacionesTests(TestCase):
         self.assertIn('no quedó habilitado', self.texto(self.generar_tipo('dictamen', self.datos())))
 
     def test_impugnacion_pendiente_sigue_bloqueando(self):
-        self.actuacion('impugnacion', 'nota', 'Presentación Nº 5/26')
+        self.actuacion('impugnacion', 'nota', 'Presentación Nº 5/26', '')
         faltantes = services.disponibilidad(self.concurso, POR_CODIGO['dictamen'])['faltantes']
         self.assertTrue(any('Impugnación pendiente' in f for f in faltantes))
         with self.assertRaisesMessage(ValidationError, 'Impugnación pendiente'):
@@ -143,3 +146,25 @@ class DictamenConActuacionesTests(TestCase):
         self.actuacion()
         faltantes = services.disponibilidad(self.concurso, POR_CODIGO['designacion'])['faltantes']
         self.assertTrue(any('variante del proyecto de designación' in falta for falta in faltantes))
+
+    def test_actuacion_historica_del_jurado_sigue_generando_considerando(self):
+        from participantes.models import CambioSituacionAspirante
+        from participantes.situaciones import registrar_actuacion
+        # Equivalente a la salida de la migración: estado actual unificado,
+        # asiento original con 'no_habilitado' inalterado.
+        self.no_continua.situacion = 'excluido'
+        self.no_continua.motivo_exclusion = 'requisitos'
+        self.no_continua.version = 2
+        self.no_continua.save(update_fields=['situacion', 'motivo_exclusion', 'version'])
+        CambioSituacionAspirante.objects.create(
+            aspirante=self.no_continua, tipo='no_habilitacion', anterior='inscripto',
+            nueva='no_habilitado', motivo_exclusion='requisitos',
+            fecha_decision=date(2026, 11, 4), clase_documento='acta',
+            documento='Acta histórica 24/26', fojas='45', fundamento='Antecedentes',
+            version=2, usuario=self.operador,
+        )
+        estado = services.disponibilidad(self.concurso, POR_CODIGO['dictamen'])
+        self.assertTrue(estado['disponible'], estado['faltantes'])
+        texto = self.texto(self.generar_tipo('dictamen', self.datos()))
+        self.assertIn('no quedó habilitado', texto)
+        self.assertIn('Acta histórica 24/26', texto)

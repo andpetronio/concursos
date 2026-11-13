@@ -37,10 +37,11 @@
 
   {% if grupos.confirmaciones %}
   <section class="document-dictamen-group" aria-label="Constancias administrativas que requieren confirmación">
-    <h4>Constancias que debés confirmar</h4>
-    <p class="field-help">Estas afirmaciones figuran en el proyecto, pero SiCon no puede
-      acreditarlas a partir del checklist. Marcá cada una únicamente después de revisar el expediente.
-      Nunca se completan automáticamente.</p>
+    <h4>Constancias del modelo institucional</h4>
+    <p class="field-help">Marcá las confirmaciones obligatorias únicamente cuando estén respaldadas
+      por el expediente. <strong>La unanimidad es opcional para generar el borrador:</strong>
+      el Word conserva sin cambios la afirmación del modelo institucional. Si no corresponde,
+      modificá ese texto en el DOCX antes de utilizarlo. SiCon no lo confirma automáticamente.</p>
     <div class="document-dictamen-checks">
       {% for campo in grupos.confirmaciones %}
         {% include "components/checkbox_field.html" with field=campo %}

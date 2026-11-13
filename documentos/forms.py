@@ -156,8 +156,19 @@ class GeneracionForm(forms.Form):
                         # La variante suprime la afirmación literal de que no hubo
                         # impugnaciones, incompatible con exclusiones por resolución.
                         continue
-                    self.fields[nombre] = forms.BooleanField(required=True, label=etiqueta,
-                        help_text="El DOCX reproduce literalmente esta afirmación del modelo; acreditala en el expediente.")
+                    # El modelo Word mantiene la frase sobre unanimidad sin cambios.
+                    # Para generar un BORRADOR de dictamen, esa confirmación es opcional:
+                    # el operador podrá editar el DOCX antes de utilizarlo.
+                    unanimidad_opcional = tipo.codigo == "dictamen" and nombre == "confirmar_unanimidad"
+                    ayuda = (
+                        "Opcional para generar el borrador. El Word conservará literalmente "
+                        "la referencia a unanimidad del modelo institucional; si no corresponde, "
+                        "modificá el DOCX antes de utilizarlo."
+                        if unanimidad_opcional else
+                        "El DOCX reproduce literalmente esta afirmación del modelo; acreditala en el expediente."
+                    )
+                    self.fields[nombre] = forms.BooleanField(
+                        required=not unanimidad_opcional, label=etiqueta, help_text=ayuda)
             if tipo.codigo == "sorteo_acta":
                 self.fields["jurados_presentes"] = forms.MultipleChoiceField(
                     label="Jurados que asistieron (uno o más)", required=True,
@@ -244,6 +255,10 @@ class GeneracionForm(forms.Form):
             valor = self.data.get(self.add_prefix(nombre))
             marcado = valor is True or (type(valor) is int and valor == 1) or (
                 isinstance(valor, str) and valor.lower() in ("on", "true", "1"))
+            if not self.fields[nombre].required and valor in (None, "", False, 0, "false", "0"):
+                # Una unanimidad no confirmada no impide preparar el borrador.
+                # No la damos por acreditada ni alteramos la frase del Word.
+                continue
             if not marcado:
                 self.add_error(nombre, "Marcá la casilla para confirmar expresamente este hecho.")
 

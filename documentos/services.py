@@ -435,7 +435,7 @@ def fuentes_actuales(concurso, tipo, *, bloquear=False):
     snapshot = {
         "concurso": instantanea_concurso(concurso),
         "jurados": [participacion(j, ("titulo", "unidad", "representacion", "calidad", "version")) for j in jurados],
-        "aspirantes": [participacion(a, ("email", "expediente_inscripcion", "situacion", "version")) for a in aspirantes],
+        "aspirantes": [participacion(a, ("email", "expediente_inscripcion", "situacion", "motivo_exclusion", "version")) for a in aspirantes],
         # Parte de la huella de revisión. Evita reutilizar un borrador si cambió
         # el respaldo de una situación individual desde la previsualización.
         "actuaciones_aspirantes": antecedentes_dictamen(concurso)[0]

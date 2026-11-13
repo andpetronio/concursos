@@ -27,7 +27,8 @@ def cuadro_resultados(concurso, *, bloquear=False):
     for aspirante in postulantes:
         if not aspirante.puede_rendir:
             excluidos.append({"aspirante_id": aspirante.pk, "nombre": str(aspirante.persona),
-                              "situacion": aspirante.get_situacion_display()})
+                              "situacion": aspirante.get_situacion_display(),
+                              "motivo": (aspirante.get_motivo_exclusion_display() if aspirante.motivo_exclusion else "")})
             continue
         try:
             evaluacion = aspirante.evaluacion

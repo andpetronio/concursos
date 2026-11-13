@@ -827,3 +827,20 @@ body.navigation-open { overflow: hidden; }
 @media (max-width: 1350px) { .f4j-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 760px) { .f4j-actions-top { justify-content: flex-start; margin: 0 0 var(--space-3); } .f4j-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 430px) { .f4j-document-count { align-self: flex-start; } }
+
+/* Causa acreditada de una exclusión: dos opciones visibles con su autoridad. */
+.aspirant-exclusion-reasons { min-width: 0; padding: .7rem .85rem .85rem; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.aspirant-exclusion-reasons legend { padding: 0 .3rem; font-weight: 700; font-size: var(--text-sm); }
+.aspirant-exclusion-reasons > div > div { margin-top: .35rem; }
+.aspirant-exclusion-reasons label { display: flex; align-items: center; gap: .65rem; padding: .45rem .55rem; min-height: 2.75rem; border-radius: var(--field-radius); cursor: pointer; }
+.aspirant-exclusion-reasons label:hover { background: var(--surface); }
+.aspirant-exclusion-reasons label:has(input:checked) { background: var(--primary-soft); }
+.aspirant-exclusion-reasons input[type="radio"] { width: 1.2rem; min-width: 1.2rem; height: 1.2rem; min-height: 1.2rem; padding: 0; margin: 0; accent-color: var(--primary); }
+.aspirant-exclusion-reasons input:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+
+/* La actuacion elegida determina qué campos aparecen; [hidden] gana sobre el grid. */
+.aspirant-situation-form [hidden] { display: none !important; }
+.aspirant-situation-form [data-action-guide] { margin: 0; align-self: center; }
+.aspirant-situation-form [data-action-date] { min-width: 0; }
+.aspirant-situation-form [data-document-type] { min-width: 0; }
+.aspirant-situation-form [data-action-submit]:disabled { opacity: .55; cursor: not-allowed; }

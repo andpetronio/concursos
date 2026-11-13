@@ -175,11 +175,22 @@ class Aspirante(Participacion):
     class Situacion(models.TextChoices):
         INSCRIPTO = "inscripto", "Inscripto"
         IMPUGNACION_PENDIENTE = "impugnacion_pendiente", "Impugnación en trámite"
-        NO_HABILITADO = "no_habilitado", "No habilitado para oposición"
-        EXCLUIDO = "excluido", "Excluido por decisión de la autoridad"
+        EXCLUIDO = "excluido", "Excluido"
         DESISTIO = "desistio", "Desistió"
 
+    class MotivoExclusion(models.TextChoices):
+        REQUISITOS = "requisitos", "Por no cumplir los requisitos"
+        IMPUGNACION_ACEPTADA = "impugnacion_aceptada", "Por aceptación de impugnación"
+
     situacion = models.CharField(max_length=30, choices=Situacion, default=Situacion.INSCRIPTO)
+    motivo_exclusion = models.CharField(max_length=30, choices=MotivoExclusion, blank=True, default="")
+
+    @property
+    def autoridad_exclusion(self):
+        return {
+            self.MotivoExclusion.REQUISITOS: "Jurado",
+            self.MotivoExclusion.IMPUGNACION_ACEPTADA: "Rector",
+        }.get(self.motivo_exclusion, "")
 
     @property
     def puede_rendir(self):
@@ -208,15 +219,20 @@ class CambioSituacionAspirante(models.Model):
 
     class Tipo(models.TextChoices):
         IMPUGNACION = "impugnacion", "Registrar impugnación en trámite"
+        # Solo para conservar los asientos anteriores a la unificación.
         NO_HABILITACION = "no_habilitacion", "No habilitar para la oposición (Jurado, art. 34)"
-        EXCLUSION = "exclusion", "Registrar exclusión por impugnación resuelta"
+        EXCLUSION = "exclusion", "Registrar exclusión"
         DESISTIMIENTO = "desistimiento", "Registrar desistimiento"
         RECTIFICACION = "rectificacion", "Rectificar o dejar sin efecto la decisión"
 
     aspirante = models.ForeignKey(Aspirante, on_delete=models.PROTECT, related_name="historial_situacion")
     tipo = models.CharField(max_length=20, choices=Tipo)
-    anterior = models.CharField(max_length=30, choices=Aspirante.Situacion)
-    nueva = models.CharField(max_length=30, choices=Aspirante.Situacion)
+    # Los valores de las actuaciones históricas no se reescriben.
+    HISTORICO_SITUACIONES = [*Aspirante.Situacion.choices, ("no_habilitado", "No habilitado para oposición")]
+    anterior = models.CharField(max_length=30, choices=HISTORICO_SITUACIONES)
+    nueva = models.CharField(max_length=30, choices=HISTORICO_SITUACIONES)
+    motivo_exclusion = models.CharField(max_length=30, choices=Aspirante.MotivoExclusion,
+                                        blank=True, default="")
     fecha_decision = models.DateField("fecha de la actuación")
     class Documento(models.TextChoices):
         ACTA = "acta", "Acta del Jurado"

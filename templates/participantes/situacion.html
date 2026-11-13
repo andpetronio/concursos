@@ -1,6 +1,8 @@
 {% extends "layouts/private.html" %}
+{% load static %}
 {% block title %}Situación del aspirante · {{ concurso.expediente }}{% endblock %}
 {% block content %}
+<script src="{% static 'js/aspirant-situation.js' %}" defer></script>
 <div class="aspirant-situation-view">
   <a class="back-link" href="{% url 'concursos:detalle' concurso.pk %}#aspirantes">Volver a Aspirantes</a>
   {% include "components/page_header.html" with section="Aspirantes" title="Situación del aspirante" description=concurso.expediente %}
@@ -14,6 +16,9 @@
     <div class="aspirant-situation-current">
       <span class="aspirant-situation-meta">Situación vigente</span>
       <span class="aspirant-situation-badge{% if not aspirante.puede_rendir %} aspirant-situation-badge--restricted{% elif aspirante.situacion == 'impugnacion_pendiente' %} aspirant-situation-badge--pending{% endif %}">{{ aspirante.get_situacion_display }}</span>
+      {% if aspirante.situacion == 'excluido' %}
+      <p><strong>Motivo:</strong> {{ aspirante.get_motivo_exclusion_display|default:"Pendiente de verificar" }}{% if aspirante.autoridad_exclusion %} · <strong>Autoridad:</strong> {{ aspirante.autoridad_exclusion }}{% endif %}</p>
+      {% endif %}
       <p>{% if not aspirante.puede_rendir %}No está habilitado para continuar en la oposición ni integrar el orden de mérito mientras esta decisión esté vigente.{% elif aspirante.situacion == 'impugnacion_pendiente' %}Existe una impugnación en trámite. Esto no constituye, por sí solo, una exclusión.{% else %}Inscripción registrada, sin una restricción vigente para continuar.{% endif %}</p>
     </div>
   </section>
@@ -34,6 +39,7 @@
           </div>
           <p class="aspirant-situation-transition"><span>{{ cambio.get_anterior_display }}</span><span aria-hidden="true">→</span><strong>{{ cambio.get_nueva_display }}</strong></p>
           <dl class="aspirant-situation-evidence">
+            {% if cambio.motivo_exclusion %}<div><dt>Motivo de exclusión</dt><dd>{{ cambio.get_motivo_exclusion_display }}</dd></div>{% endif %}
             <div><dt>Documento respaldatorio</dt><dd>{{ cambio.get_clase_documento_display }} · {{ cambio.documento }}</dd></div>
             <div><dt>Fojas</dt><dd>{{ cambio.fojas }}</dd></div>
             <div><dt>Fundamento</dt><dd>{{ cambio.fundamento }}</dd></div>
@@ -55,9 +61,9 @@
     <section class="card aspirant-situation-editor section" aria-labelledby="situacion-registrar">
       <div class="aspirant-situation-section-header">
         <h2 id="situacion-registrar">{% if not aspirante.puede_rendir %}Registrar una rectificación{% else %}Registrar una actuación{% endif %}</h2>
-        <p>{% if not aspirante.puede_rendir %}Para restablecer la participación, registrá la actuación que rectifica o deja sin efecto la decisión vigente.{% else %}Cargá únicamente una decisión que ya conste en el expediente.{% endif %}</p>
+      <p>{% if not aspirante.puede_rendir %}Para restablecer la participación, registrá la actuación que rectifica o deja sin efecto la decisión vigente.{% else %}Cargá únicamente una decisión que ya conste en el expediente.{% endif %}</p>
       </div>
-      <form method="post" class="aspirant-situation-form">
+      <form method="post" class="aspirant-situation-form" data-situation-action-form>
         {% csrf_token %}
         {% for hidden in form.hidden_fields %}{{ hidden }}{{ hidden.errors }}{% endfor %}
         {% include "components/form_errors.html" %}
@@ -65,13 +71,26 @@
           <h3>Decisión acreditada</h3>
           <div class="aspirant-situation-fields">
             {% include "components/field.html" with field=form.tipo only %}
-            {% include "components/field.html" with field=form.fecha_decision only %}
+            <p class="field-help aspirant-situation-full" data-action-guide aria-live="polite">Elegí la actuación acreditada para ver los datos que corresponde completar.</p>
+            {% if aspirante.puede_rendir %}
+            <fieldset class="aspirant-situation-full aspirant-exclusion-reasons" data-exclusion-motive>
+              <legend>{{ form.motivo_exclusion.label }}</legend>
+              {{ form.motivo_exclusion }}
+              <p class="field-help">{{ form.motivo_exclusion.help_text }}</p>
+              {% if form.motivo_exclusion.errors %}<div class="field-errors" role="alert">{{ form.motivo_exclusion.errors }}</div>{% endif %}
+            </fieldset>
+            {% endif %}
+            <div data-action-date>
+              {% include "components/field.html" with field=form.fecha_decision only %}
+            </div>
           </div>
         </div>
-        <div class="aspirant-situation-form-group">
+        <div class="aspirant-situation-form-group" data-action-details>
           <h3>Respaldo en el expediente</h3>
           <div class="aspirant-situation-fields">
-            {% include "components/field.html" with field=form.clase_documento only %}
+            <div data-document-type>
+              {% include "components/field.html" with field=form.clase_documento only %}
+            </div>
             {% include "components/field.html" with field=form.documento only %}
             {% include "components/field.html" with field=form.fojas only %}
             <div class="aspirant-situation-full">
@@ -82,12 +101,12 @@
             </div>
           </div>
         </div>
-        <div class="aspirant-situation-consequences" role="note">
+        <div class="aspirant-situation-consequences" data-action-consequences role="note">
           <strong>Antes de registrar</strong>
-          <p>{% if not aspirante.puede_rendir %}La rectificación permitirá continuar con la oposición y el orden de mérito. La decisión anterior permanecerá en el historial.{% else %}Una no habilitación, exclusión o desistimiento impide continuar con la oposición y el orden de mérito. Una impugnación en trámite no supone exclusión. Los puntajes históricos se conservan.{% endif %}</p>
+          <p data-action-consequence-text>{% if not aspirante.puede_rendir %}La rectificación permitirá continuar con la oposición y el orden de mérito. La decisión anterior permanecerá en el historial.{% else %}El efecto sobre el concurso depende de la actuación. Los puntajes históricos se conservan.{% endif %}</p>
         </div>
         <div class="form-actions aspirant-situation-actions">
-          <button type="submit" class="button">Registrar actuación documentada</button>
+          <button type="submit" class="button" data-action-submit>Registrar actuación documentada</button>
           <a href="{% url 'concursos:detalle' concurso.pk %}#aspirantes">Cancelar</a>
         </div>
       </form>

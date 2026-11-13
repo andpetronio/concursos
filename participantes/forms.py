@@ -158,13 +158,22 @@ class EvaluacionAspiranteForm(forms.Form):
 
 class ActuacionAspiranteForm(forms.Form):
 
-    tipo = forms.ChoiceField(label="Actuación acreditada", choices=[("", "Seleccioná una actuación")] +
-                             list(CambioSituacionAspirante.Tipo.choices))
+    tipo = forms.ChoiceField(label="Situación o actuación acreditada", choices=[("", "Seleccioná una actuación")] +
+                             list(CambioSituacionAspirante.Tipo.choices),
+                             help_text="Al cambiar de actuación se limpian los datos cargados para evitar mezclar respaldos.")
+    motivo_exclusion = forms.ChoiceField(
+        label="Motivo de exclusión", required=False,
+        choices=[
+            (Aspirante.MotivoExclusion.REQUISITOS, "Por no cumplir los requisitos · Jurado · acta"),
+            (Aspirante.MotivoExclusion.IMPUGNACION_ACEPTADA, "Por aceptación de impugnación · Rector · resolución"),
+        ], widget=forms.RadioSelect,
+        help_text=("Solo para Excluido. Por requisitos: decisión del Jurado respaldada en acta. "
+                   "Por impugnación aceptada: decisión del Rector respaldada en resolución rectoral."))
     fecha_decision = forms.DateField(label="Fecha de la actuación", widget=forms.DateInput(
         attrs={"type": "date"}, format="%Y-%m-%d"), input_formats=["%Y-%m-%d"])
     clase_documento = forms.ChoiceField(label="Tipo de respaldo", choices=[("", "Seleccioná")]+
         list(CambioSituacionAspirante.Documento.choices),
-        help_text="No habilitación (art. 34): acta del Jurado. Exclusión por impugnación aceptada: resolución de la autoridad.")
+        help_text="Seleccioná el documento que respalda esta actuación. En caso de exclusión, se establece según el motivo.")
     documento = forms.CharField(label="Identificación del documento respaldatorio", max_length=250)
     fojas = forms.CharField(label="Fojas del expediente", max_length=50,
         help_text="Indicá la foja o rango donde consta la actuación. Ejemplo: 125/127.")
@@ -177,23 +186,34 @@ class ActuacionAspiranteForm(forms.Form):
     def __init__(self, *args, aspirante, **kwargs):
         super().__init__(*args, **kwargs)
         self.aspirante = aspirante
-        if not aspirante.puede_rendir:
-            # La situación restrictiva no se levanta mediante otra actuación
-            # que, por accidente, devuelva a la persona al circuito.
-            self.fields["tipo"].choices = [
-                ("", "Seleccioná una actuación"),
+        # Ofrecer solo transiciones pertinentes a la situación vigente.
+        # Una impugnación pendiente puede cerrarse sin excluir a la persona:
+        # esa actuación retorna a Inscripto, conservando el historial.
+        if aspirante.situacion == Aspirante.Situacion.INSCRIPTO:
+            opciones = [
+                (CambioSituacionAspirante.Tipo.IMPUGNACION, "Registrar impugnación en trámite"),
+                (CambioSituacionAspirante.Tipo.EXCLUSION, "Registrar exclusión"),
+                (CambioSituacionAspirante.Tipo.DESISTIMIENTO, "Registrar desistimiento"),
+            ]
+        elif aspirante.situacion == Aspirante.Situacion.IMPUGNACION_PENDIENTE:
+            opciones = [
+                (CambioSituacionAspirante.Tipo.RECTIFICACION, "Cerrar impugnación sin exclusión"),
+                (CambioSituacionAspirante.Tipo.EXCLUSION, "Registrar exclusión"),
+                (CambioSituacionAspirante.Tipo.DESISTIMIENTO, "Registrar desistimiento"),
+            ]
+            self.fields["clase_documento"].help_text = (
+                "Indicá el documento que acredita la resolución o actuación registrada."
+            )
+        else:
+            opciones = [
                 (CambioSituacionAspirante.Tipo.RECTIFICACION, "Rectificar o dejar sin efecto la decisión"),
             ]
             self.initial["tipo"] = CambioSituacionAspirante.Tipo.RECTIFICACION
             self.fields["clase_documento"].help_text = (
                 "Seleccioná la actuación formal que respalda la rectificación."
             )
-        else:
-            self.fields["tipo"].choices = [
-                ("", "Seleccioná una actuación"),
-                *((codigo, etiqueta) for codigo, etiqueta in CambioSituacionAspirante.Tipo.choices
-                  if codigo != CambioSituacionAspirante.Tipo.RECTIFICACION),
-            ]
+            self.fields["motivo_exclusion"].widget = forms.HiddenInput()
+        self.fields["tipo"].choices = [("", "Seleccioná una actuación"), *opciones]
         self.initial["version_esperada"] = aspirante.version
 
     def clean(self):
@@ -202,10 +222,16 @@ class ActuacionAspiranteForm(forms.Form):
         if datos.get("tipo") in DESTINOS:
             if DESTINOS[datos["tipo"]] == self.aspirante.situacion:
                 self.add_error("tipo", "Esta actuación no modifica la situación vigente.")
-        if datos.get("tipo") == CambioSituacionAspirante.Tipo.NO_HABILITACION and datos.get("clase_documento") not in (None, "acta"):
-            self.add_error("clase_documento", "La no habilitación requiere el acta del Jurado.")
-        if datos.get("tipo") == CambioSituacionAspirante.Tipo.EXCLUSION and datos.get("clase_documento") not in (None, "resolucion"):
-            self.add_error("clase_documento", "La exclusión por impugnación aceptada requiere la resolución de la autoridad.")
+        motivo = datos.get("motivo_exclusion", "")
+        if datos.get("tipo") == CambioSituacionAspirante.Tipo.EXCLUSION:
+            if not motivo:
+                self.add_error("motivo_exclusion", "Seleccioná el motivo de exclusión.")
+            elif motivo == Aspirante.MotivoExclusion.REQUISITOS and datos.get("clase_documento") not in (None, "acta"):
+                self.add_error("clase_documento", "La exclusión por requisitos requiere el acta del Jurado.")
+            elif motivo == Aspirante.MotivoExclusion.IMPUGNACION_ACEPTADA and datos.get("clase_documento") not in (None, "resolucion"):
+                self.add_error("clase_documento", "La exclusión por impugnación aceptada requiere una resolución rectoral.")
+        elif motivo:
+            self.add_error("motivo_exclusion", "Seleccioná un motivo solamente para una exclusión.")
         if datos.get("fojas"):
             from expedientes.validators import normalizar_fojas
             try:

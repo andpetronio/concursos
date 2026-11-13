@@ -36,37 +36,76 @@ class SituacionesAspiranteTests(TestCase):
         self.a = self.aspirantes[0]
         self.url = reverse("concursos:aspirante_situacion", args=[self.concurso.pk, self.a.pk])
 
-    def datos(self, tipo="no_habilitacion", **extra):
-        return {"tipo": tipo, "fecha_decision": "2026-10-30", "clase_documento": "acta",
+    def datos(self, tipo="exclusion", **extra):
+        return {"tipo": tipo, "motivo_exclusion": "requisitos" if tipo == "exclusion" else "",
+                "fecha_decision": "2026-10-30", "clase_documento": "acta",
                 "documento": "Acta de valoración de antecedentes", "fojas": "125/127",
                 "fundamento": "No cumple los requisitos mínimos que constan en el acta.",
                 "version_esperada": self.a.version, **extra}
 
-    def registrar(self, tipo="no_habilitacion", **extra):
+    def registrar(self, tipo="exclusion", **extra):
         d = self.datos(tipo, **extra)
         return registrar_actuacion(aspirante=self.a, usuario=self.operador,
              tipo=d["tipo"], fecha_decision=date.fromisoformat(d["fecha_decision"]),
              clase_documento=d["clase_documento"], documento=d["documento"],
-             fojas=d["fojas"], fundamento=d["fundamento"], version_esperada=d["version_esperada"])
+             fojas=d["fojas"], fundamento=d["fundamento"], version_esperada=d["version_esperada"],
+             motivo_exclusion=d["motivo_exclusion"])
 
     def test_no_habilitacion_conserva_inscripcion_e_historial(self):
         evento = self.registrar()
         self.a.refresh_from_db()
-        self.assertEqual(self.a.situacion, "no_habilitado")
+        self.assertEqual(self.a.situacion, "excluido")
+        self.assertEqual(self.a.motivo_exclusion, "requisitos")
         self.assertFalse(self.a.puede_rendir)
         self.assertEqual(self.a.version, 2)
-        self.assertEqual((evento.anterior, evento.nueva), ("inscripto", "no_habilitado"))
+        self.assertEqual((evento.anterior, evento.nueva), ("inscripto", "excluido"))
+        self.assertEqual(evento.motivo_exclusion, "requisitos")
         self.assertEqual(evento.usuario, self.operador)
         self.assertEqual(evento.fojas, "125/127")
         self.assertEqual(self.concurso.aspirantes.count(), 2)
         self.assertEqual(CambioSituacionAspirante.objects.count(), 1)
 
-    def test_exclusion_exige_resolucion_y_no_habilitacion_acta(self):
-        with self.assertRaisesMessage(ValidationError, "resolución"):
-            self.registrar("exclusion")
-        with self.assertRaisesMessage(ValidationError, "acta"):
-            self.registrar("no_habilitacion", clase_documento="resolucion")
-        self.assertEqual(CambioSituacionAspirante.objects.count(), 0)
+    def test_detalle_muestra_situacion_documentada_sin_alerta_falsa(self):
+        self.registrar()
+        self.client.post(reverse("login"), {"username": self.operador.username,
+                                            "password": PASSWORD})
+        respuesta = self.client.get(self.concurso.get_absolute_url())
+        self.assertContains(respuesta, 'aria-labelledby="aspirantes-sin-continuidad-heading"')
+        self.assertContains(respuesta, "Aspirantes que no continúan")
+        self.assertContains(respuesta, "No integran el orden de mérito ni se computan como evaluaciones pendientes")
+        self.assertContains(respuesta, "no impide, por sí sola")
+        self.assertContains(respuesta, "<strong>Aspirante 0, Persona</strong>")
+        self.assertContains(respuesta, "Excluido")
+        self.assertContains(respuesta, "Por no cumplir los requisitos")
+        self.assertNotContains(respuesta, "Hay 1 aspirante(s) con una actuación")
+        self.assertNotContains(respuesta, '<p class="notice" role="status">Hay 1 aspirante(s)')
+
+    def test_detalle_no_muestra_bloque_si_todos_continuan(self):
+        self.client.post(reverse("login"), {"username": self.operador.username,
+                                            "password": PASSWORD})
+        respuesta = self.client.get(self.concurso.get_absolute_url())
+        self.assertNotContains(respuesta, 'id="aspirantes-sin-continuidad-heading"')
+
+    def test_exclusion_valida_motivo_y_documento_segun_autoridad(self):
+        with self.assertRaisesMessage(ValidationError, "resolución rectoral"):
+            self.registrar(motivo_exclusion="impugnacion_aceptada")
+        with self.assertRaisesMessage(ValidationError, "acta del Jurado"):
+            self.registrar(clase_documento="resolucion")
+        with self.assertRaisesMessage(ValidationError, "Seleccioná el motivo"):
+            self.registrar(motivo_exclusion="")
+        with self.assertRaisesMessage(ValidationError, "Elegí una actuación válida"):
+            self.registrar(tipo="no_habilitacion")
+        self.assertFalse(CambioSituacionAspirante.objects.exists())
+
+    def test_exclusion_por_impugnacion_registra_motivo_y_resolucion(self):
+        evento = self.registrar(motivo_exclusion="impugnacion_aceptada",
+                               clase_documento="resolucion", documento="Res. 123/26-R")
+        self.a.refresh_from_db()
+        self.assertEqual((self.a.situacion, self.a.motivo_exclusion),
+                         ("excluido", "impugnacion_aceptada"))
+        self.assertEqual((evento.tipo, evento.motivo_exclusion, evento.clase_documento),
+                         ("exclusion", "impugnacion_aceptada", "resolucion"))
+        self.assertEqual(self.a.autoridad_exclusion, "Rector")
 
     def test_evaluacion_bloqueada_orden_no_considera_excluido_y_no_hay_ceros_ficticios(self):
         guardar_evaluacion(aspirante=self.a, antecedentes=Decimal("34"), oposicion=Decimal("51"),
@@ -90,7 +129,8 @@ class SituacionesAspiranteTests(TestCase):
         self.assertEqual(self.a.situacion, "inscripto")
         self.assertTrue(self.a.puede_rendir)
         self.assertEqual(list(self.a.historial_situacion.values_list("nueva", flat=True)),
-                         ["inscripto", "no_habilitado"])
+                         ["inscripto", "excluido"])
+        self.assertEqual(self.a.motivo_exclusion, "")
         self.assertEqual(len(cuadro_resultados(self.concurso)["evaluaciones_pendientes"]), 2)
 
     def test_version_y_permisos_protegen_registro(self):
@@ -112,7 +152,7 @@ class SituacionesAspiranteTests(TestCase):
     def test_nadie_habilitado_no_es_fracasado_por_merito(self):
         self.registrar()
         registrar_actuacion(aspirante=self.aspirantes[1], usuario=self.operador,
-            tipo="no_habilitacion", fecha_decision=date(2026, 10, 30), clase_documento="acta",
+            tipo="exclusion", motivo_exclusion="requisitos", fecha_decision=date(2026, 10, 30), clase_documento="acta",
             documento="Acta", fojas="127", fundamento="Requisitos", version_esperada=1)
         self.assertIsNone(diagnostico_sin_ganador(self.concurso))
         self.assertEqual(cuadro_resultados(self.concurso)["evaluaciones_pendientes"], [])
@@ -126,7 +166,7 @@ class SituacionesAspiranteTests(TestCase):
         self.assertContains(self.client.get(self.url), "Registrar actuación documentada")
         self.assertEqual(self.client.post(self.url, self.datos()).status_code, 302)
         self.assertContains(self.client.get(self.url), "125/127")
-        self.assertContains(self.client.get(self.concurso.get_absolute_url()), "No habilitado para oposición")
+        self.assertContains(self.client.get(self.concurso.get_absolute_url()), "Por no cumplir los requisitos")
 
     def test_situacion_presenta_resumen_e_historial_legible(self):
         self.registrar()
@@ -144,7 +184,8 @@ class SituacionesAspiranteTests(TestCase):
     def test_fojas_incorrectas_no_guardan_y_documento_no_corresponde(self):
         self.client.post(reverse("login"), {"username": self.operador.username, "password": PASSWORD})
         self.assertContains(self.client.post(self.url, self.datos(fojas="127/125")), "inicio no puede superar")
-        self.assertContains(self.client.post(self.url, self.datos(tipo="exclusion")), "resolución de la autoridad")
+        self.assertContains(self.client.post(self.url, self.datos(
+            motivo_exclusion="impugnacion_aceptada")), "resolución rectoral")
         self.assertEqual(CambioSituacionAspirante.objects.count(), 0)
 
     def test_aspirante_de_otro_concurso_no_se_accede(self):
@@ -177,5 +218,83 @@ class SituacionesAspiranteTests(TestCase):
         with self.assertRaisesMessage(ValidationError, "registrá primero la rectificación"):
             self.registrar("impugnacion", clase_documento="nota", version_esperada=2)
         self.a.refresh_from_db()
-        self.assertEqual(self.a.situacion, "no_habilitado")
+        self.assertEqual(self.a.situacion, "excluido")
+        self.assertEqual(self.a.motivo_exclusion, "requisitos")
         self.assertEqual(self.a.historial_situacion.count(), 1)
+
+    def test_formulario_separa_exclusion_y_motivo_sin_ofrecer_estado_heredado(self):
+        from participantes.forms import ActuacionAspiranteForm
+        formulario = ActuacionAspiranteForm(aspirante=self.a)
+        choices = dict(formulario.fields["tipo"].choices)
+        self.assertIn("exclusion", choices)
+        self.assertNotIn("no_habilitacion", choices)
+        self.assertIn("motivo_exclusion", formulario.fields)
+        from django import forms
+        self.assertIsInstance(formulario.fields["motivo_exclusion"].widget, forms.RadioSelect)
+        self.assertFalse(formulario.is_bound)
+        self.client.post(reverse("login"), {"username": self.operador.username, "password": PASSWORD})
+        self.assertContains(self.client.get(self.url), "Motivo de exclusión")
+        invalid = self.client.post(self.url, self.datos(motivo_exclusion=""))
+        self.assertContains(invalid, "Seleccioná el motivo de exclusión")
+        self.assertFalse(CambioSituacionAspirante.objects.exists())
+
+    def test_opciones_por_estado_y_cierre_de_impugnacion(self):
+        from participantes.forms import ActuacionAspiranteForm
+
+        inscripto = ActuacionAspiranteForm(aspirante=self.a)
+        self.assertEqual(set(dict(inscripto.fields["tipo"].choices)) - {""},
+                         {"impugnacion", "exclusion", "desistimiento"})
+
+        self.registrar("impugnacion", clase_documento="nota", documento="Presentación de impugnación")
+        self.a.refresh_from_db()
+        pendiente = ActuacionAspiranteForm(aspirante=self.a)
+        self.assertEqual(set(dict(pendiente.fields["tipo"].choices)) - {""},
+                         {"rectificacion", "exclusion", "desistimiento"})
+        self.assertIn("Cerrar impugnación", dict(pendiente.fields["tipo"].choices)["rectificacion"])
+        self.assertNotIn("impugnacion", dict(pendiente.fields["tipo"].choices))
+
+        self.registrar("rectificacion", clase_documento="resolucion",
+                       documento="Resolución desestimatoria", version_esperada=2)
+        self.a.refresh_from_db()
+        self.assertEqual(self.a.situacion, "inscripto")
+        self.assertEqual(self.a.historial_situacion.count(), 2)
+
+    def test_excluido_y_desistido_solo_pueden_rectificar(self):
+        from participantes.forms import ActuacionAspiranteForm
+
+        self.registrar("exclusion")
+        self.a.refresh_from_db()
+        opciones = dict(ActuacionAspiranteForm(aspirante=self.a).fields["tipo"].choices)
+        self.assertEqual(set(opciones) - {""}, {"rectificacion"})
+
+        otro = self.aspirantes[1]
+        registrar_actuacion(aspirante=otro, usuario=self.operador, tipo="desistimiento",
+            fecha_decision=date(2026, 10, 30), clase_documento="nota",
+            documento="Presentación de desistimiento", fojas="130",
+            fundamento="Desistimiento documentado", version_esperada=otro.version)
+        otro.refresh_from_db()
+        opciones = dict(ActuacionAspiranteForm(aspirante=otro).fields["tipo"].choices)
+        self.assertEqual(set(opciones) - {""}, {"rectificacion"})
+
+    def test_no_permite_repetir_impugnacion_pendiente_desde_el_formulario(self):
+        self.registrar("impugnacion", clase_documento="nota")
+        self.a.refresh_from_db()
+        from participantes.forms import ActuacionAspiranteForm
+        formulario = ActuacionAspiranteForm(self.datos("impugnacion", clase_documento="nota"),
+                                           aspirante=self.a)
+        self.assertFalse(formulario.is_valid())
+        self.assertIn("tipo", formulario.errors)
+        self.assertEqual(self.a.historial_situacion.count(), 1)
+
+    def test_pantalla_exhibe_estructura_condicional_sin_ocultar_respaldo_en_servidor(self):
+        self.client.post(reverse("login"), {"username": self.operador.username,
+                                            "password": PASSWORD})
+        respuesta = self.client.get(self.url)
+        self.assertContains(respuesta, 'data-situation-action-form')
+        self.assertContains(respuesta, 'data-exclusion-motive')
+        self.assertContains(respuesta, 'data-action-details')
+        self.assertContains(respuesta, 'data-action-guide')
+        self.assertContains(respuesta, 'js/aspirant-situation.js')
+        # Si JavaScript no se ejecuta, el HTML conserva los campos y la validación Django.
+        self.assertContains(respuesta, 'name="clase_documento"')
+        self.assertContains(respuesta, 'name="fecha_decision"')

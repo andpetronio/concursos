@@ -5,7 +5,7 @@
 {% block rows %}
 {% for aspirante in aspirantes %}<tr>
   <td>{% include "components/person_identity.html" with persona=aspirante.persona only %}</td>
-  <td><a class="aspirant-situation aspirant-situation--{{ aspirante.situacion }}" href="{% url 'concursos:aspirante_situacion' concurso.pk aspirante.pk %}">{{ aspirante.get_situacion_display }}</a></td>
+  <td><a class="aspirant-situation aspirant-situation--{{ aspirante.situacion }}" href="{% url 'concursos:aspirante_situacion' concurso.pk aspirante.pk %}" title="Situación administrativa: {{ aspirante.get_situacion_display }}{% if aspirante.motivo_exclusion %} · {{ aspirante.get_motivo_exclusion_display }}{% endif %}">{{ aspirante.get_situacion_display }}{% if aspirante.motivo_exclusion %} · {{ aspirante.get_motivo_exclusion_display }}{% endif %}</a></td>
   <td><span class="participation-data">{{ aspirante.expediente_inscripcion|default:"No registrado" }}</span></td>
   <td><span class="participation-data">{{ aspirante.email|default:"Sin correo registrado" }}</span></td>
   <td>

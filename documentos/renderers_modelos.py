@@ -315,18 +315,19 @@ def _incidencias_dictamen(documento, datos):
     siguiente = parrafos[posicion + 1]
     for incidencia in incidencias:
         aspirante = aspirantes.get(incidencia['aspirante_id'])
-        if aspirante is None or aspirante.get('situacion') != incidencia['situacion']:
+        if (aspirante is None or aspirante.get('situacion') != incidencia['situacion']
+                or aspirante.get('motivo_exclusion', '') != incidencia.get('motivo_exclusion', '')):
             raise ValidationError('La situación individual no coincide con el aspirante registrado.')
         nombre = _nombre(aspirante)
         fecha = _fecha(incidencia['fecha_decision'])
         documento_referencia = incidencia['documento']
         fojas = incidencia['fojas']
-        if incidencia['situacion'] == 'no_habilitado':
+        if incidencia['situacion'] == 'excluido' and incidencia.get('motivo_exclusion') == 'requisitos':
             hecho = (f'Que mediante el acta del Jurado identificada como «{documento_referencia}», de fecha {fecha}, '
                      f'obrante a fojas {fojas} del expediente, se dejó constancia de que '
                      f'{nombre}, DNI {_dni(aspirante)}, no quedó habilitado para participar '
                      'en la prueba de oposición, por los fundamentos consignados en dicha actuación.')
-        elif incidencia['situacion'] == 'excluido':
+        elif incidencia['situacion'] == 'excluido' and incidencia.get('motivo_exclusion') == 'impugnacion_aceptada':
             hecho = (f'Que mediante la resolución identificada como «{documento_referencia}», de fecha {fecha}, '
                      f'obrante a fojas {fojas} del expediente, se dispuso la exclusión de '
                      f'{nombre}, DNI {_dni(aspirante)}, según los fundamentos del acto.')

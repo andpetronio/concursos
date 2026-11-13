@@ -152,3 +152,9 @@ Migración atómica con preflight de todos los registros. Acepta códigos o deno
 - La procedencia se identifica en pantalla con número y fecha del registro. **El borrador no acredita la actuación**: el operador puede corregir todos los valores y debe contrastarlos con el expediente. Un POST incompleto nunca se completa desde datos históricos por detrás.
 - Se separan visualmente datos ya recuperados del sistema, campos propuestos desde un borrador, datos que faltan revisar y confirmaciones expresas. Las confirmaciones no se marcan automáticamente; la validación de servidor y los DOCX permanecen sin cambios.
 - No se agregan campos persistentes, migraciones ni nuevas presunciones documentales. La mejora no modifica designación ni el acta de sorteo.
+
+## Unificación de exclusiones de aspirantes (11/11/2026)
+- La situación vigente **Excluido** tiene dos motivos: **Por no cumplir los requisitos** (decisión del Jurado respaldada en acta) y **Por aceptación de impugnación** (decisión del Rector respaldada en resolución rectoral). El motivo se registra de manera explícita tanto en la inscripción como en la actuación.
+- `impugnacion_pendiente` continúa como situación diferenciada: presentar una impugnación no implica que haya sido aceptada. `desistio` conserva su circuito y `rectificacion` restablece la participación sin borrar historia.
+- La migración pasa las situaciones vigentes `no_habilitado` y `excluido` al estado `excluido` con motivo correspondiente, sin borrar ni reescribir los valores `tipo`, `anterior`, `nueva` de las actuaciones históricas. El dictamen acepta esas fuentes antiguas con respaldo concordante.
+- No se alteran los puntajes históricos, el cálculo de mérito, el contenido de las plantillas DOCX fuente ni el bloqueo de designación ordinaria ante situaciones individuales.

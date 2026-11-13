@@ -2,8 +2,16 @@
   <h3 id="resultados-heading">Resultados y orden de mérito</h3>
   <p class="field-help">Escala aplicada a este borrador: antecedentes hasta 34, oposición hasta 51 y mínimo 42,50 sobre 85. Los puntajes provienen del dictamen del jurado. No se convierten automáticamente escalas.</p>
   {% if resultados_concurso.sin_continuidad %}
-  <p class="notice" role="status">Hay {{ resultados_concurso.sin_continuidad|length }} aspirante(s) con una actuación que impide continuar. No se computan como evaluaciones pendientes ni participan del orden de mérito.</p>
-  <ul>{% for item in resultados_concurso.sin_continuidad %}<li>{{ item.nombre }}: {{ item.situacion }}.</li>{% endfor %}</ul>
+  <aside class="card section" aria-labelledby="aspirantes-sin-continuidad-heading">
+    <h4 id="aspirantes-sin-continuidad-heading">Aspirantes que no continúan</h4>
+    <p>Los siguientes aspirantes registran una situación documentada que les impide continuar en el concurso. No integran el orden de mérito ni se computan como evaluaciones pendientes.</p>
+    <ul>
+      {% for item in resultados_concurso.sin_continuidad %}
+      <li><strong>{{ item.nombre }}</strong> — {{ item.situacion }}{% if item.motivo %} · {{ item.motivo }}{% endif %}.</li>
+      {% endfor %}
+    </ul>
+    <p class="field-help">Esta situación no impide, por sí sola, la generación del borrador de aprobación del dictamen, siempre que se cumplan los demás requisitos.</p>
+  </aside>
   {% endif %}
   {% if resultados_concurso.evaluaciones_pendientes %}
   <p class="notice" role="status">Evaluaciones pendientes: {{ resultados_concurso.evaluaciones_pendientes|join:", " }}. El orden no está listo para una resolución.</p>

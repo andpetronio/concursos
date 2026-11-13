@@ -820,6 +820,32 @@ class ContinuacionDocumentosTests(TestCase):
                     self.generar_tipo(tipo, {**datos, campo: "texto arbitrario"})
         self.assertFalse(GeneracionDocumento.objects.exists())
 
+    def test_borrador_dictamen_permite_unanimidad_sin_confirmar_y_preserva_modelo(self):
+        from .forms import GeneracionForm
+        self.completar_fuentes(cantidad=1)
+        form_dictamen = GeneracionForm(tipo=POR_CODIGO["dictamen"], concurso=self.concurso)
+        self.assertIn("confirmar_unanimidad", form_dictamen.fields)
+        self.assertFalse(form_dictamen.fields["confirmar_unanimidad"].required)
+        self.assertTrue(form_dictamen.fields["confirmar_notificacion"].required)
+        form_designacion = GeneracionForm(tipo=POR_CODIGO["designacion"], concurso=self.concurso)
+        self.assertTrue(form_designacion.fields["confirmar_unanimidad"].required)
+
+        datos = self.complementos("dictamen")
+        datos.pop("confirmar_unanimidad")
+        registro = self.generar_tipo("dictamen", datos)
+        self.assertIs(registro.instantanea["complementarios"]["confirmar_unanimidad"], False)
+        texto = self.texto(registro)
+        self.assertIn("decisiones han sido tomadas por unanimidad de sus miembros", texto)
+        self.assertEqual(registro.plantilla_version, "dictamen-fuente-2")
+
+    def test_unanimidad_opcional_no_interpreta_texto_arbitrario_como_confirmacion(self):
+        from .forms import GeneracionForm
+        self.completar_fuentes(cantidad=1)
+        datos = self.complementos("dictamen")
+        datos["confirmar_unanimidad"] = "texto arbitrario"
+        with self.assertRaisesMessage(ValidationError, "confirmar_unanimidad"):
+            self.generar_tipo("dictamen", datos)
+
     def test_convocatoria_solo_fecha_y_tabla_presupuestaria_fiel(self):
         self.completar_fuentes()
         registro = self.generar_tipo("convocatoria", {"fecha_apertura": "2026-11-02"})
